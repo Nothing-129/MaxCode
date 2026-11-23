@@ -1,8 +1,11 @@
 import { createRef } from "react"
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { AcceptPromptSuggestion } from "@/components/chat/composer/accept-prompt-suggestion"
-import type { RichComposerHandle } from "@/components/chat/composer/rich-composer"
+import {
+  RichComposer,
+  type RichComposerHandle,
+} from "@/components/chat/composer/rich-composer"
 import { source } from "./contract-source"
 
 afterEach(cleanup)
@@ -45,6 +48,31 @@ describe("desktop and touch composer suggestion adoption", () => {
     fireEvent.click(screen.getByRole("button", { name: "采纳建议" }))
     expect(setText).not.toHaveBeenCalled()
     expect(focus).not.toHaveBeenCalled()
+  })
+
+  it("renders the entire long preview inside the scroll area until the user enters text", async () => {
+    const editorRef = createRef<RichComposerHandle>()
+    const suggestion =
+      "请先整理这次讨论里的待办事项，再按负责人列出每一项，并标出还需要确认的细节。"
+    const { container } = render(
+      <RichComposer
+        ref={editorRef}
+        placeholder={suggestion}
+        promptSuggestion={suggestion}
+        ariaLabel="消息"
+      />
+    )
+
+    const preview = await screen.findByText(suggestion)
+    expect(container.querySelector(".codeg-composer-scroll")).toContainElement(
+      preview
+    )
+    expect(screen.getByRole("textbox", { name: "消息" })).toHaveTextContent("")
+    expect(editorRef.current?.getText()).toBe("")
+
+    act(() => editorRef.current?.setText("我的草稿"))
+    expect(screen.queryByText(suggestion)).not.toBeInTheDocument()
+    expect(editorRef.current?.getText()).toBe("我的草稿")
   })
 
   it("offers the icon on desktop and touch, separate from placeholder and send", () => {

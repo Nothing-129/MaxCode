@@ -12,15 +12,23 @@ function agentEntry(agent: string, next: string): string {
   return registry.slice(start, end)
 }
 
+it("uses the reviewed Next.js patch in both the manifest and resolved tree", () => {
+  const manifest = JSON.parse(source("package.json"))
+  expect(manifest.dependencies.next).toBe("^16.4.6")
+  const lockfile = source("pnpm-lock.yaml")
+  expect(lockfile).toMatch(/^  next@16\.4\.6:/m)
+  expect(lockfile).toMatch(/^  '@next\/env@16\.4\.6':/m)
+})
+
 describe("MaxCode contract: reviewed built-in agent version catalog", () => {
   it.each([
     [
       "ClaudeCode",
       "Codex",
-      "0.106.0",
-      "@agentclientprotocol/claude-agent-acp@0.106.0",
+      "0.109.0",
+      "@agentclientprotocol/claude-agent-acp@0.109.0",
     ],
-    ["Codex", "Gemini", "2.6.0", "@agentclientprotocol/codex-acp@2.6.0"],
+    ["Codex", "Gemini", "2.8.0", "@agentclientprotocol/codex-acp@2.8.0"],
     ["Pi", "Grok", "0.0.34", "pi-acp@0.0.34"],
     ["Gemini", "OpenClaw", "0.59.0", "@google/gemini-cli@0.59.0"],
     ["OpenClaw", "Cline", "2026.9.3", "openclaw@2026.9.3"],

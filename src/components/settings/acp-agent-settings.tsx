@@ -11343,7 +11343,7 @@ supports_websockets = true`}
                                 event.target.value
                               )
                             }}
-                            placeholder="gpt-6-astra / claude-sonnet-5-5 / gemini-3.1-pro-preview"
+                            placeholder="gpt-6.2-sol / claude-sonnet-5-5 / gemini-3.1-pro-preview"
                           />
                         </div>
                       )

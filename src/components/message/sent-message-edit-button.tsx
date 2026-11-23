@@ -19,15 +19,21 @@ export const SentMessageEditButton = memo(function SentMessageEditButton({
     .filter((part) => part.type === "text")
     .map((part) => part.text ?? "")
     .join("\n\n")
-  if (!onEdit || !text.trim()) return null
+  if (!text.trim()) return null
+  // Connection readiness can change after history paints. Keep the desktop
+  // action slot in the row so enabling edit cannot rewrap the user text.
   return (
-    <MessageAction
-      tooltip={t("editMessage")}
-      size="icon-xs"
-      className="max-md:hidden self-end opacity-0 transition-opacity group-hover/user-msg:opacity-100 group-focus-within/user-msg:opacity-100 focus-visible:opacity-100"
-      onClick={() => onEdit(unescapeComposerText(text))}
-    >
-      <Pencil size={12} />
-    </MessageAction>
+    <span className="flex size-6 shrink-0 self-end max-md:hidden">
+      {onEdit && (
+        <MessageAction
+          tooltip={t("editMessage")}
+          size="icon-xs"
+          className="opacity-0 transition-opacity group-hover/user-msg:opacity-100 group-focus-within/user-msg:opacity-100 focus-visible:opacity-100"
+          onClick={() => onEdit(unescapeComposerText(text))}
+        >
+          <Pencil size={12} />
+        </MessageAction>
+      )}
+    </span>
   )
 })

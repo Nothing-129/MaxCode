@@ -125,11 +125,13 @@ describe("conversation search scope contract", () => {
     )
   })
 
-  it("reserves space beside the folder selector for the dialog close button", () => {
+  it("keeps the folder selector compact and leaves room for the close button", () => {
     renderDialog()
     const scope = screen.getByRole("button", { name: "Search" })
     const close = screen.getByRole("button", { name: "Close" })
 
+    expect(scope).toHaveClass("h-7", "w-auto", "max-w-[16rem]")
+    expect(scope).not.toHaveClass("flex-1")
     expect(scope.parentElement).toHaveClass("min-w-0", "pr-16")
     expect(scope.parentElement).not.toContainElement(close)
     expect(close).toBeVisible()

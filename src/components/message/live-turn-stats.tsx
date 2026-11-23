@@ -12,15 +12,27 @@ import {
   countUnifiedDiffLineChanges,
   estimateChangedLineStats,
 } from "@/lib/line-change-stats"
-import { Bike, Car, Rocket, Snail, Timer } from "lucide-react"
-import type { AgentType } from "@/lib/types"
-import { AgentIcon } from "@/components/agent-icon"
-import { useTokenOutputSpeed } from "@/hooks/use-token-output-speed"
-import { getAgentActivity } from "@/lib/agent-activity"
+import { ThinkingOrb, type ThinkingOrbProps } from "thinking-orbs"
+import { Separator } from "@/components/ui/separator"
+import { getAgentActivity, type AgentActivity } from "@/lib/agent-activity"
+import { cn } from "@/lib/utils"
+
+const activityOrbs = {
+  waiting: "breathing",
+  compacting: "weaving",
+  thinking: "solving",
+  streaming: "composing",
+  running: "connecting",
+  awaitingUser: "breathing",
+  retrying: "working",
+  settled: "shaping",
+} satisfies Record<
+  AgentActivity | "retrying",
+  NonNullable<ThinkingOrbProps["state"]>
+>
 
 interface LiveTurnStatsProps {
   message: LiveMessage
-  agentType: AgentType
   isStreaming?: boolean
   awaitingUser?: boolean
   retrying?: boolean
@@ -33,54 +45,6 @@ interface LineChangeStats {
 
 interface LiveEditStats extends LineChangeStats {
   files: number
-}
-
-export type TokenOutputSpeedBand = "slow" | "cruising" | "fast" | "maximum"
-
-/** Four speed-themed visual bands for the live output indicator. */
-export function tokenOutputSpeedBand(tps: number): TokenOutputSpeedBand {
-  if (tps >= 50) return "maximum"
-  if (tps >= 30) return "fast"
-  if (tps >= 15) return "cruising"
-  return "slow"
-}
-
-export function tokenOutputSpeedColor(tps: number): string {
-  switch (tokenOutputSpeedBand(tps)) {
-    case "maximum":
-      return "#e11d75"
-    case "fast":
-      return "#f97316"
-    case "cruising":
-      return "#d4a72c"
-    case "slow":
-      return "#94a3b8"
-  }
-}
-
-function TokenOutputSpeedGlyph({
-  tps,
-  ariaLabel,
-}: {
-  tps: number
-  ariaLabel: string
-}) {
-  const props = {
-    "aria-label": ariaLabel,
-    className: "h-3 w-3 shrink-0",
-    style: { color: tokenOutputSpeedColor(tps) },
-  }
-
-  switch (tokenOutputSpeedBand(tps)) {
-    case "maximum":
-      return <Rocket {...props} />
-    case "fast":
-      return <Car {...props} />
-    case "cruising":
-      return <Bike {...props} />
-    case "slow":
-      return <Snail {...props} />
-  }
 }
 
 function asObject(value: unknown): Record<string, unknown> | null {
@@ -360,7 +324,6 @@ export function extractLiveEditStats(message: LiveMessage): LiveEditStats {
 
 export function LiveTurnStats({
   message,
-  agentType,
   isStreaming = true,
   awaitingUser = false,
   retrying = false,
@@ -368,7 +331,6 @@ export function LiveTurnStats({
   const t = useTranslations("Folder.chat.liveTurnStats")
   const compactionText = useTranslations("Folder.chat.contextCompaction")
   const [elapsed, setElapsed] = useState(() => Date.now() - message.startedAt)
-  const tps = useTokenOutputSpeed(message)
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -378,49 +340,45 @@ export function LiveTurnStats({
   }, [message.startedAt])
 
   const activity = getAgentActivity(message, isStreaming, awaitingUser)
+  const settled = activity === "settled"
+  const isRetrying = retrying && !settled
+  const phase = isRetrying ? "retrying" : activity
+  const orbState = activityOrbs[phase]
 
   const elapsedLabel = formatElapsedLabel(elapsed, t)
 
   return (
     <div className="@container/turnstats shrink-0">
       <div className="flex min-h-8 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-2 py-1 text-xs leading-none text-muted-foreground @[24rem]/turnstats:gap-x-3 @[24rem]/turnstats:px-4">
-        <AgentIcon agentType={agentType} className="h-3.5 w-3.5" />
-        {/* Working-state copy is text-only; do not restore ActivityStatusIcon. */}
+        <ThinkingOrb
+          state={orbState}
+          size={20}
+          style={{ width: 16, height: 16 }}
+          speed={settled ? 0 : 1}
+          paused={settled || phase === "awaitingUser"}
+          aria-hidden="true"
+          data-orb-state={orbState}
+          className={cn(
+            "-me-px shrink-0",
+            settled &&
+              "motion-safe:animate-in fade-in-70 zoom-in-90 duration-200"
+          )}
+        />
         <span
           role="status"
           aria-atomic="true"
-          className={
-            !retrying && activity === "waiting"
-              ? "maxcode-waiting-label"
-              : undefined
-          }
+          className={phase === "waiting" ? "maxcode-waiting-label" : undefined}
         >
           {activity === "compacting"
             ? compactionText("compacting")
-            : t(retrying ? "retrying" : activity)}
+            : t(isRetrying ? "retrying" : activity)}
         </span>
-        <span className="text-border leading-none">|</span>
-        <span className="inline-flex items-center gap-1 leading-none">
-          <Timer className="h-3 w-3 shrink-0" />
-          {elapsedLabel}
-        </span>
-        <span className="text-border leading-none">|</span>
-        {/* Keep TPS visible on narrow web/mobile layouts. The placeholder also
-            prevents the row from shifting during warmup and tool execution. */}
-        <span
-          className="inline-flex shrink-0 items-center gap-1 leading-none tabular-nums"
-          title={t("outputSpeedTooltip")}
-        >
-          {/* Name hangs off the icon, matching `ComposerContextUsage` —
-              `aria-label` on the bare wrapper span carries no role and
-              isn't reliably exposed. Use the slow/neutral glyph until a live
-              estimate is available. */}
-          <TokenOutputSpeedGlyph
-            tps={tps ?? 0}
-            ariaLabel={t("outputSpeedAria")}
-          />
-          {tps == null ? "-" : tps.toFixed(1)} tok/s
-        </span>
+        <Separator
+          orientation="vertical"
+          aria-hidden="true"
+          className="data-[orientation=vertical]:h-2.5"
+        />
+        <span className="tabular-nums">{elapsedLabel}</span>
       </div>
     </div>
   )

@@ -31,6 +31,22 @@ describe("MaxCode: edit sent messages", () => {
     expect(screen.queryByRole("button")).toBeNull()
   })
 
+  it("keeps the desktop edit slot in place while a cold connection becomes editable", () => {
+    const parts = [
+      { type: "text" as const, text: "每天处理积分任务。".repeat(100) },
+    ]
+    const view = render(localized(<SentMessageEditButton parts={parts} />))
+    const slot = view.container.firstElementChild
+    expect(slot).toHaveClass("size-6", "shrink-0", "max-md:hidden")
+    expect(screen.queryByRole("button")).toBeNull()
+
+    view.rerender(
+      localized(<SentMessageEditButton parts={parts} onEdit={vi.fn()} />)
+    )
+    expect(view.container.firstElementChild).toBe(slot)
+    expect(slot).toContainElement(screen.getByRole("button"))
+  })
+
   it("immediately stops and fills the normal composer without a dialog or automatic send", () => {
     const source = readFileSync(
       "src/components/conversations/conversation-detail-panel.tsx",

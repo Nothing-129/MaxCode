@@ -5,21 +5,18 @@ import { LiveTurnStats } from "@/components/message/live-turn-stats"
 import type { LiveMessage } from "@/contexts/acp-connections-context"
 import zh from "@/i18n/messages/zh-CN.json"
 
-vi.mock("@/hooks/use-token-output-speed", () => ({
-  useTokenOutputSpeed: () => 1.8,
-}))
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
 })
 
-describe("MaxCode: live status omits file change counters", () => {
+describe("MaxCode: live status shows the phase and total elapsed time", () => {
   it.each([
-    ["waiting", "等待响应"],
+    ["waiting", "处理中"],
     ["thinking", "思考中"],
     ["text", "输出中"],
   ] as const)(
-    "preserves the original %s phase and separate clock",
+    "shows the %s phase and unadorned elapsed time",
     (phase, label) => {
       vi.spyOn(Date, "now").mockReturnValue(185_000)
       const content: LiveMessage["content"] =
@@ -33,19 +30,23 @@ describe("MaxCode: live status omits file change counters", () => {
               startedAt: 0,
               content,
             }}
-            agentType="codex"
           />
         </NextIntlClientProvider>
       )
       expect(screen.getByRole("status")).toHaveTextContent(label)
       expect(screen.getByText("3 分 5 秒")).toBeVisible()
-      expect(container.querySelector(".lucide-timer")).toBeVisible()
+      expect(container.querySelector(".lucide-timer")).toBeNull()
       expect(screen.getByRole("status")).not.toHaveTextContent("3 分")
-      expect(container.textContent?.match(/\|/g)).toHaveLength(2)
+      expect(container).not.toHaveTextContent("tok/s")
+      expect(container).not.toHaveTextContent("|")
+      const separators = container.querySelectorAll('[data-slot="separator"]')
+      expect(separators).toHaveLength(1)
+      expect(separators[0]).toHaveAttribute("data-orientation", "vertical")
+      expect(separators[0]).toHaveAttribute("aria-hidden", "true")
     }
   )
 
-  it("keeps working time and output speed when tools modify files, without a trailing separator", () => {
+  it("ends with elapsed time when a tool modifies files", () => {
     const message: LiveMessage = {
       id: "edit-turn",
       role: "assistant",
@@ -74,16 +75,15 @@ describe("MaxCode: live status omits file change counters", () => {
     }
     const { container } = render(
       <NextIntlClientProvider locale="zh-CN" messages={zh}>
-        <LiveTurnStats message={message} agentType="codex" />
+        <LiveTurnStats message={message} />
       </NextIntlClientProvider>
     )
     expect(screen.getByRole("status")).toHaveTextContent("执行中")
-    expect(container.querySelector(".lucide-timer")).toBeVisible()
     expect(screen.getByText("0 秒")).toBeVisible()
-    expect(screen.getByText("1.8 tok/s")).toBeVisible()
     expect(container.textContent).not.toMatch(/\d+F\s*\+|\+2\/-0/)
     expect(container.querySelector(".lucide-file-pen-line")).toBeNull()
-    expect(container.textContent?.trim()).toMatch(/1\.8 tok\/s$/)
-    expect(container.textContent?.match(/\|/g)).toHaveLength(2)
+    expect(screen.getByRole("status").parentElement?.lastElementChild).toBe(
+      screen.getByText("0 秒")
+    )
   })
 })

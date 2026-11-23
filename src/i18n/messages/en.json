@@ -3175,6 +3175,7 @@
           "turnFailedEmpty": "{agent} ended the turn without producing any response.",
           "turnFailedEmptyProtocol": "{agent} produced output that MaxCode could not parse — the agent version may not match the protocol.",
           "turnFailedEmptyMetadata": "{agent} sent only status updates this turn (plan / mode / usage) and no reply.",
+          "turnFailedEmptyHook": "A hook stopped {agent} before it replied.",
           "detailsInAlerts": "Open Alerts in the status bar and expand the details to see the agent's output."
         },
         "unableReadAgentConfig": "Unable to read Agent config: {message}",
@@ -3615,8 +3616,8 @@
         "turnFailed": "Turn failed: {message}"
       },
       "liveTurnStats": {
-        "thinkingPending": "Waiting for response...",
-        "waiting": "Waiting for response",
+        "thinkingPending": "Working...",
+        "waiting": "Working",
         "running": "Running tools",
         "awaitingUser": "Waiting for you",
         "settled": "Response ended",
@@ -4491,7 +4492,7 @@
     "agentTypeRequired": "Agent type is required.",
     "agentTypeImmutableHint": "Agent type cannot be changed after creation.",
     "model": "Model",
-    "modelPlaceholderCodex": "gpt-6.1-sol / gpt-6-luna",
+    "modelPlaceholderCodex": "gpt-6.2-sol / gpt-6.2-astra",
     "modelPlaceholderGemini": "gemini-3-pro-preview",
     "claudeMainModel": "Main Model",
     "claudeReasoningModel": "Reasoning Model (thinking)",

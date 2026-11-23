@@ -96,18 +96,14 @@ describe("agent activity feedback contract", () => {
     )
   })
 
-  it("renders localized phase changes without pulsing the agent logo", () => {
+  it("renders localized phase changes without restoring legacy activity glyphs", () => {
     const view = (m: LiveMessage, awaitingUser = false) => (
       <NextIntlClientProvider locale="en" messages={en}>
-        <LiveTurnStats
-          message={m}
-          agentType="codex"
-          awaitingUser={awaitingUser}
-        />
+        <LiveTurnStats message={m} awaitingUser={awaitingUser} />
       </NextIntlClientProvider>
     )
     const { container, rerender } = render(view(message([])))
-    expect(screen.getByRole("status")).toHaveTextContent("Waiting for response")
+    expect(screen.getByRole("status")).toHaveTextContent("Working")
     rerender(view(message([thinking])))
     expect(screen.getByRole("status")).toHaveTextContent("Thinking...")
     rerender(view(message([text])))
@@ -118,7 +114,6 @@ describe("agent activity feedback contract", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Waiting for you")
     expect(container.querySelector(".animate-pulse")).toBeNull()
     expect(container.querySelector("[data-activity-status]")).toBeNull()
-    expect(screen.getByText("- tok/s")).toBeInTheDocument()
   })
 
   it("wires blocking interactions through all transcript hosts", () => {

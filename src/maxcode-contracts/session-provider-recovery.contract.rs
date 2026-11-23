@@ -1,6 +1,7 @@
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn changed_provider_wording_keeps_original_session_without_starting_a_new_one() {
     let details = "failed to load configuration: Cannot change this thread's model provider from `custom` to `openai` on resume.\n\nCheck config.toml files, or any CODEX_CONFIG override.";
+    let provider_sentence = "Cannot change this thread\x27s model provider from `custom` to `openai` on resume.";
     let error = serde_json::json!({
         "code": -32603,
         "message": "Internal error",
@@ -22,7 +23,7 @@ async fn changed_provider_wording_keeps_original_session_without_starting_a_new_
         assert!(
             emitted.iter().any(|event| matches!(event,
                 AcpEvent::SessionLoadFailed { session_id, code, message }
-                    if session_id == "s-old" && code == "provider_mismatch" && message == details
+                    if session_id == "s-old" && code == "provider_mismatch" && message == provider_sentence
             )),
             "{emitted:#?}"
         );

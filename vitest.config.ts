@@ -7,6 +7,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // The published ligatures addon only ships its ESM entry.
+      "@xterm/addon-ligatures":
+        "@xterm/addon-ligatures/lib/addon-ligatures.mjs",
     },
   },
   test: {

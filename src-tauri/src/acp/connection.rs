@@ -7248,7 +7248,9 @@ async fn run_connection(
                             // in `details`, which names both providers; the
                             // banner quotes that rather than the error dump.
                             let message = if code == "provider_mismatch" {
-                                error_details_text(&e).unwrap_or(err_str)
+                                error_details_text(&e)
+                                    .map(|details| codex_provider_refusal_text(&details).to_string())
+                                    .unwrap_or(err_str)
                             } else {
                                 err_str
                             };
@@ -10676,22 +10678,39 @@ fn classify_session_load_failure(
 
 /// Preserve the agent's actionable provider error rather than a JSON-RPC dump.
 fn error_details_text(e: &agent_client_protocol::Error) -> Option<String> {
-    e.data.as_ref()?.get("details")?.as_str()
-        .map(str::trim).filter(|s| !s.is_empty()).map(str::to_string)
+    e.data
+        .as_ref()?
+        .get("details")?
+        .as_str()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
 }
 
-/// Codex 0.166 binds a thread to its original provider. Never recover these
-/// refusals by rebinding the conversation to a new, empty session.
+/// Codex binds a thread to its original provider. Preserve that binding
+/// when it refuses a resume, including the config-load wording from 0.168+.
 fn codex_thread_provider_refused(message: &str) -> bool {
-    // Codex 0.168 reports this during config loading, before thread resume.
-    // Keep the same history-preserving verdict as the older provider refusal.
-    (message.contains("Cannot change this thread's model provider from ")
-        && message.contains(" on resume."))
+    message.contains(CODEX_PROVIDER_CHANGE_REFUSAL)
         || (message.contains("This chat uses ")
             && (message.contains(", but your current provider is ")
                 || message.contains("which is no longer configured")
                 || message.contains("but your organization requires")))
         || message.contains("This chat\u{2019}s model provider settings no longer match")
+}
+
+const CODEX_PROVIDER_CHANGE_REFUSAL: &str = "Cannot change this thread's model provider from ";
+
+/// Keep the sentence naming both providers for the banner, without the
+/// surrounding config-load message and local paths.
+fn codex_provider_refusal_text(details: &str) -> &str {
+    let Some(start) = details.find(CODEX_PROVIDER_CHANGE_REFUSAL) else {
+        return details;
+    };
+    let sentence = &details[start..];
+    match sentence.find(" on resume.") {
+        Some(end) => &sentence[..end + " on resume.".len()],
+        None => sentence.lines().next().unwrap_or(sentence),
+    }
 }
 
 /// [`classify_session_load_failure`] for the error itself: the structured
@@ -11163,6 +11182,10 @@ struct TurnOutputProbe {
     /// `StderrTail` write position at turn start, so the diagnosis can scope
     /// stderr to this turn.
     stderr_mark: u64,
+    /// The last notice this turn in which the agent said a hook blocked or
+    /// stopped it, as the text an empty turn is then explained by (see
+    /// [`EmptyTurnCause::HookStopped`] and [`hook_stop_notice_text`]).
+    hook_stop: Option<String>,
 }
 
 impl TurnOutputProbe {
@@ -11187,11 +11210,54 @@ impl TurnOutputProbe {
             self.first_drop = Some(summarize_parser_error(&error.to_string()));
         }
     }
+
+    /// Keep a notice the agent raised during the turn if it says a hook
+    /// blocked or stopped it. Still not agent output (see the in-turn seam):
+    /// it only explains an empty turn.
+    fn note_notice(&mut self, agent_type: AgentType, notice: &SessionNotice) {
+        if let Some(text) = hook_stop_notice_text(agent_type, notice) {
+            self.hook_stop = Some(text);
+        }
+    }
+}
+
+/// The text of a notice in which the agent says one of the user's hooks
+/// blocked or stopped it, or `None` for any other notice.
+///
+/// Only codex-acp's are recognised (2.7.0, #767 `createHookCompletedEvent`):
+/// a `hook/completed` with status `blocked` or `stopped` becomes a `warning`
+/// titled "<Event> hook blocked <the prompt | the tool call | the tool result
+/// | the model request | the compaction | the subagent | the request>" or
+/// "<Event> hook stopped the turn", with the hook's reason as the
+/// description. Any other notice the turn raised (claude-agent-acp's "MCP
+/// server … failed to start" in a first turn, a config warning) says nothing
+/// about why the turn ended, so it must not stand as its explanation.
+fn hook_stop_notice_text(agent_type: AgentType, notice: &SessionNotice) -> Option<String> {
+    if agent_type != AgentType::Codex || notice.severity != "warning" {
+        return None;
+    }
+    let title = notice.title.trim();
+    let (event, outcome) = title.split_once(" hook ")?;
+    let is_event = !event.is_empty() && event.chars().all(|c| c.is_ascii_alphabetic());
+    if !is_event || !(outcome.starts_with("blocked ") || outcome == "stopped the turn") {
+        return None;
+    }
+    Some(match notice.description.as_deref().map(str::trim) {
+        Some(description) if !description.is_empty() => format!("{title}: {description}"),
+        _ => title.to_string(),
+    })
 }
 
 /// Why a turn ended with `EndTurn` but no agent output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum EmptyTurnCause {
+    /// One of the user's hooks blocked or stopped the turn, as the agent said
+    /// in a notice during it ([`hook_stop_notice_text`]): codex-acp 2.7.0
+    /// (#767) tells a blocked prompt as "UserPromptSubmit hook blocked the
+    /// prompt" with the hook's reason, and the turn then ends with no reply.
+    /// Its words replace codeg's guess, which would blame the agent ("sent
+    /// only status updates") for a turn the user's own hook ended.
+    HookStopped,
     /// codeg dropped updates it could not parse — the agent may well have
     /// replied; we just couldn't read it.
     ProtocolMismatch,
@@ -11210,6 +11276,7 @@ impl EmptyTurnCause {
             EmptyTurnCause::NoOutput => "turn_failed_empty",
             EmptyTurnCause::ProtocolMismatch => "turn_failed_empty_protocol",
             EmptyTurnCause::MetadataOnly => "turn_failed_empty_metadata",
+            EmptyTurnCause::HookStopped => "turn_failed_empty_hook",
         }
     }
 
@@ -11225,6 +11292,10 @@ impl EmptyTurnCause {
             EmptyTurnCause::MetadataOnly => {
                 format!("{agent_type} sent only status updates this turn and no reply.")
             }
+            // The report retains the hook notice; this is a fallback.
+            EmptyTurnCause::HookStopped => {
+                format!("A hook stopped {agent_type} before it replied.")
+            }
         }
     }
 }
@@ -11234,13 +11305,20 @@ impl EmptyTurnCause {
 struct EmptyTurnReport {
     cause: EmptyTurnCause,
     details: Option<String>,
+    /// The agent's account of the hook, for [`EmptyTurnCause::HookStopped`].
+    hook_stop: Option<String>,
 }
 
-/// Classify an empty turn. `ProtocolMismatch` wins over `MetadataOnly`:
-/// "we couldn't read the output" is a stronger signal than "we only saw
-/// metadata", and it changes where the user should look.
+/// Classify an empty turn. A hook the agent said stopped it wins over every
+/// guess.
+/// Then `ProtocolMismatch` wins over `MetadataOnly`: "we couldn't read the
+/// output" is a stronger signal than "we only saw metadata", and it changes
+/// where the user should look. Dropped updates still reach the report's
+/// `details` when a hook explains the turn.
 fn diagnose_empty_turn(probe: &TurnOutputProbe) -> EmptyTurnCause {
-    if probe.dropped > 0 {
+    if probe.hook_stop.is_some() {
+        EmptyTurnCause::HookStopped
+    } else if probe.dropped > 0 {
         EmptyTurnCause::ProtocolMismatch
     } else if probe.saw_metadata_update {
         EmptyTurnCause::MetadataOnly
@@ -11322,7 +11400,15 @@ fn finish_turn_reason<'a>(
     }
     let cause = diagnose_empty_turn(probe);
     let details = build_empty_turn_details(probe, stderr_tail);
-    ("empty", Some(EmptyTurnReport { cause, details }))
+    let hook_stop = probe.hook_stop.clone();
+    (
+        "empty",
+        Some(EmptyTurnReport {
+            cause,
+            details,
+            hook_stop,
+        }),
+    )
 }
 
 /// Build an `AcpEvent::Error` for a non-success stop reason so the user gets a
@@ -11374,11 +11460,11 @@ fn turn_failure_error_event(
             // diagnosis; fall back to the pre-split behavior rather than
             // dropping the error entirely.
             let cause = empty.map(|r| r.cause).unwrap_or(EmptyTurnCause::NoOutput);
-            (
-                cause.code(),
-                cause.message(agent_type),
-                empty.and_then(|r| r.details.clone()),
-            )
+            let message = match (cause, empty.and_then(|r| r.hook_stop.clone())) {
+                (EmptyTurnCause::HookStopped, Some(hook_stop)) => hook_stop,
+                _ => cause.message(agent_type),
+            };
+            (cause.code(), message, empty.and_then(|r| r.details.clone()))
         }
         _ => return None,
     };
@@ -11996,7 +12082,10 @@ async fn run_conversation_loop(
                                 // its own result-text fallback can skip
                                 // a result that merely repeats one. A
                                 // turn whose only output was "a hook
-                                // blocked this" IS an empty turn.
+                                // blocked this" IS an empty turn — one
+                                // the notice explains, so the probe
+                                // keeps it for the verdict.
+                                probe.note_notice(agent_type, &notice);
                                 emit_with_state(
                                     &st,
                                     &h,
@@ -26303,6 +26392,157 @@ mod tests {
         // is the stronger signal and points somewhere else entirely.
         none.note_dropped(&drop_err("boom"));
         assert_eq!(diagnose_empty_turn(&none), EmptyTurnCause::ProtocolMismatch);
+
+        // A hook the agent said stopped the turn outranks every guess.
+        none.note_notice(
+            AgentType::Codex,
+            &notice("warning", "PreToolUse hook blocked the tool call", None),
+        );
+        assert_eq!(diagnose_empty_turn(&none), EmptyTurnCause::HookStopped);
+    }
+
+    fn notice(severity: &str, title: &str, description: Option<&str>) -> SessionNotice {
+        SessionNotice {
+            severity: severity.into(),
+            title: title.into(),
+            description: description.map(Into::into),
+        }
+    }
+
+    /// Every title codex-acp 2.7.0 gives a blocking or stopping hook
+    /// (`createHookCompletedEvent` / `hookBlockTarget`) is recognised, and
+    /// nothing else: not another notice, not another agent's.
+    #[test]
+    fn hook_stop_notice_text_reads_codex_hook_notices_only() {
+        for title in [
+            "UserPromptSubmit hook blocked the prompt",
+            "PreToolUse hook blocked the tool call",
+            "PermissionRequest hook blocked the tool call",
+            "PostToolUse hook blocked the tool result",
+            "PreModelRequest hook blocked the model request",
+            "PreCompact hook blocked the compaction",
+            "SubagentStart hook blocked the subagent",
+            "Stop hook blocked the request",
+            "SessionStart hook stopped the turn",
+        ] {
+            assert_eq!(
+                hook_stop_notice_text(AgentType::Codex, &notice("warning", title, None)).as_deref(),
+                Some(title),
+            );
+        }
+        assert_eq!(
+            hook_stop_notice_text(
+                AgentType::Codex,
+                &notice(
+                    "warning",
+                    "UserPromptSubmit hook blocked the prompt",
+                    Some(" why \n")
+                ),
+            )
+            .as_deref(),
+            Some("UserPromptSubmit hook blocked the prompt: why"),
+        );
+        for (agent, n) in [
+            (
+                AgentType::Codex,
+                notice("warning", "MCP server \"x\" failed to start", None),
+            ),
+            (AgentType::Codex, notice("warning", "Model rerouted", None)),
+            (
+                AgentType::Codex,
+                notice("warning", "Pre Tool hook blocked the prompt", None),
+            ),
+            (
+                AgentType::Codex,
+                notice("warning", "Stop hook stopped the session", None),
+            ),
+            (
+                AgentType::Codex,
+                notice("info", "Stop hook stopped the turn", None),
+            ),
+            (
+                AgentType::ClaudeCode,
+                notice("warning", "Stop hook stopped the turn", None),
+            ),
+        ] {
+            assert!(hook_stop_notice_text(agent, &n).is_none(), "{agent} {n:?}");
+        }
+    }
+
+    /// Only a hook notice is kept, and the latest one wins: it is the one
+    /// closest to the turn's end.
+    #[test]
+    fn note_notice_keeps_the_last_hook_stop() {
+        let mut probe = TurnOutputProbe::new(0);
+        probe.note_notice(AgentType::Codex, &notice("warning", "Config warning", None));
+        assert!(
+            probe.hook_stop.is_none(),
+            "an unrelated warning explains nothing"
+        );
+
+        probe.note_notice(
+            AgentType::Codex,
+            &notice("warning", "PreToolUse hook blocked the tool call", None),
+        );
+        probe.note_notice(
+            AgentType::Codex,
+            &notice("warning", "Stop hook stopped the turn", Some("why")),
+        );
+        probe.note_notice(AgentType::Codex, &notice("warning", "Later warning", None));
+        assert_eq!(
+            probe.hook_stop.as_deref(),
+            Some("Stop hook stopped the turn: why")
+        );
+        assert!(!probe.saw_agent_output, "a notice is never agent output");
+    }
+
+    /// codex-acp 2.7.0's notice for a prompt its `UserPromptSubmit` hook
+    /// blocked, as recorded live: the turn ends `end_turn` with no output, and
+    /// codeg's verdict is the agent's account instead of "only status
+    /// updates", with the turn's evidence kept.
+    #[test]
+    fn an_empty_turn_a_hook_stopped_reports_the_agents_words() {
+        let tail = StderrTail::new();
+        let mut probe = TurnOutputProbe::new(0);
+        probe.saw_metadata_update = true;
+        probe.note_dropped(&drop_err("boom"));
+        probe.note_notice(
+            AgentType::Codex,
+            &notice(
+                "warning",
+                "UserPromptSubmit hook blocked the prompt",
+                Some("blocked by probe policy"),
+            ),
+        );
+
+        let (reason, report) = finish_turn_reason(&probe, "end_turn", &tail);
+        assert_eq!(reason, "empty");
+        let report = report.expect("an empty turn is diagnosed");
+        assert_eq!(report.cause, EmptyTurnCause::HookStopped);
+        let Some(AcpEvent::Error {
+            message,
+            code,
+            details,
+            terminal,
+            ..
+        }) = turn_failure_error_event(reason, AgentType::Codex, Some(&report))
+        else {
+            panic!("an empty turn raises its verdict");
+        };
+        assert_eq!(code.as_deref(), Some("turn_failed_empty_hook"));
+        assert_eq!(
+            message,
+            "UserPromptSubmit hook blocked the prompt: blocked by probe policy"
+        );
+        assert!(
+            details.as_deref().is_some_and(|d| d.contains("dropped 1")),
+            "the dropped-update evidence is kept: {details:?}"
+        );
+        assert!(!terminal, "an empty turn never kills the connection");
+
+        // A turn that did reply is not empty, whatever it warned about.
+        probe.saw_agent_output = true;
+        assert!(finish_turn_reason(&probe, "end_turn", &tail).1.is_none());
     }
 
     #[test]
@@ -26497,6 +26737,7 @@ mod tests {
             let report = EmptyTurnReport {
                 cause,
                 details: Some("evidence".into()),
+                hook_stop: None,
             };
             let Some(AcpEvent::Error {
                 code,
@@ -35634,6 +35875,30 @@ mod tests {
                 "{details}"
             );
         }
+        // Codex 0.170 wraps the provider refusal in a configuration error.
+        // The banner keeps the sentence naming both providers.
+        let codex_0_170 = "failed to load configuration: Cannot change this thread's model \
+             provider from `fake` to `fake2` on resume.\n\nCheck /h/.codex and project .codex \
+             directories, especially their config.toml files, or any CODEX_CONFIG override.";
+        assert_eq!(
+            classify_session_load_error(&error(codex_0_170)),
+            Some("provider_mismatch")
+        );
+        assert_eq!(
+            codex_provider_refusal_text(codex_0_170),
+            "Cannot change this thread's model provider from `fake` to `fake2` on resume."
+        );
+        // Without the closing words, the sentence's own line; the 0.166
+        // sentences pass through whole.
+        assert_eq!(
+            codex_provider_refusal_text(
+                "x: Cannot change this thread's model provider from `a` to `b`\nmore"
+            ),
+            "Cannot change this thread's model provider from `a` to `b`"
+        );
+        let codex_0_166 =
+            "This chat uses a, but your current provider is b. Switch to a to continue.";
+        assert_eq!(codex_provider_refusal_text(codex_0_166), codex_0_166);
         // Nothing else reads as one: a chat that merely mentions a provider.
         assert_eq!(
             classify_session_load_error(&error("This chat uses a lot of tokens")),
@@ -35645,7 +35910,10 @@ mod tests {
         );
         // The banner quotes codex's sentence, not the error dump.
         assert_eq!(
-            error_details_text(&error(" This chat uses a, but your current provider is b. ")).as_deref(),
+            error_details_text(&error(
+                " This chat uses a, but your current provider is b. "
+            ))
+            .as_deref(),
             Some("This chat uses a, but your current provider is b.")
         );
         // Kept, never recovered locally, like a busy session.

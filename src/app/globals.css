@@ -2433,6 +2433,7 @@ div.monaco-diff-editor.side-by-side .editor.modified {
     0 8px 32px rgb(0 0 0 / 8%);
 }
 
+.codeg-composer .codeg-composer-suggestion-preview,
 .codeg-composer .ProseMirror {
   outline: none;
   white-space: pre-wrap;
@@ -2587,6 +2588,30 @@ div.monaco-diff-editor.side-by-side .editor.modified {
   float: left;
   height: 0;
   pointer-events: none;
+}
+
+/* Count wrapped suggestions in the scrollable height. The empty editor
+   shares the same cell, so the caret stays at the start of the first line. */
+[data-composer-suggestion] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+[data-composer-suggestion] > * {
+  grid-area: 1 / 1;
+}
+
+.codeg-composer .codeg-composer-suggestion-preview {
+  color: color-mix(in srgb, var(--muted-foreground) 65%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+
+.codeg-composer
+  [data-composer-suggestion]
+  .ProseMirror
+  p.is-editor-empty:first-child::before {
+  content: none;
 }
 
 /* An empty paragraph retains a trailing break after Select All → Delete.

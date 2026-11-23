@@ -272,6 +272,36 @@ function hydrateSnapshot(
 }
 
 describe("active keepalive vs background liveness", () => {
+  it("keeps only one slow periodic request in flight per connection", async () => {
+    vi.useFakeTimers()
+    try {
+      await mountProvider()
+      await act(async () => {
+        await h.actions!.connect(TAB, "codex", "/tmp/x")
+      })
+      act(() => h.actions!.setActiveKey(TAB))
+      h.acpActiveTouchConnection.mockClear()
+      let resolveTouch!: (live: boolean) => void
+      h.acpActiveTouchConnection.mockImplementationOnce(
+        () =>
+          new Promise<boolean>((resolve) => {
+            resolveTouch = resolve
+          })
+      )
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3 * CONNECTION_KEEPALIVE_INTERVAL_MS)
+      })
+      expect(h.acpActiveTouchConnection.mock.calls).toEqual([["spawned-conn"]])
+      await act(async () => resolveTouch(true))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(CONNECTION_KEEPALIVE_INTERVAL_MS)
+      })
+      expect(h.acpActiveTouchConnection).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it.each(["open", "replaced"])(
     "touches the active and ten warm owners with %s panes, and reclaims LRU overflow",
     async (surface) => {
@@ -3992,6 +4022,7 @@ describe("empty-turn error diagnostics", () => {
       ["turn_failed_empty", "backendErrors.turnFailedEmpty"],
       ["turn_failed_empty_protocol", "backendErrors.turnFailedEmptyProtocol"],
       ["turn_failed_empty_metadata", "backendErrors.turnFailedEmptyMetadata"],
+      ["turn_failed_empty_hook", "backendErrors.turnFailedEmptyHook"],
     ] as const
 
     // Sequence numbers must advance — the store's seq guard drops replays.
@@ -4118,6 +4149,35 @@ describe("empty-turn error diagnostics", () => {
     const notifyCalls = h.notifyDesktop.mock.calls
     const notificationArgs = notifyCalls[notifyCalls.length - 1]!
     expect(JSON.stringify(notificationArgs)).not.toContain("401 Unauthorized")
+  })
+
+  it("shows the reason Codex's hook stopped a turn only inside the app", async () => {
+    await mountProvider()
+    await act(async () => {
+      await h.actions!.connect(TAB, "codex", "/tmp/x", "sess-1")
+    })
+    h.pushAlert.mockClear()
+    h.notifyDesktop.mockClear()
+
+    const message = "UserPromptSubmit hook blocked the prompt: local policy"
+    emitAcpEvent(latestAttachHandlers(), {
+      seq: 1,
+      connection_id: "spawned-conn",
+      type: "error",
+      message,
+      agent_type: "codex",
+      code: "turn_failed_empty_hook",
+    })
+
+    expect(h.pushAlert).toHaveBeenLastCalledWith(
+      "error",
+      "backendErrors.turnFailedEmptyHook",
+      message,
+      undefined,
+      undefined
+    )
+    expect(h.notifyDesktop).toHaveBeenCalled()
+    expect(JSON.stringify(h.notifyDesktop.mock.calls)).not.toContain(message)
   })
 
   it("omits blank details rather than rendering an empty block", async () => {

@@ -17,6 +17,16 @@ const source = (path: string) =>
 const agent = { agent_type: "codex", enabled: true, env: {} } as AcpAgentInfo
 
 describe("MaxCode automatic agent updates", () => {
+  it("verifies the staged Pi adapter by ACP handshake and the native CLI independently", () => {
+    const worker = source("src-tauri/src/commands/agent_auto_updates.rs")
+    expect(worker).toContain("verify_pi_adapter(&bin, version).await?")
+    expect(worker).toContain('"/result/agentInfo/version"')
+    expect(worker).toContain(
+      "verify_staged(agent, &runtime, &executable(&runtime, cmd), version)"
+    )
+    expect(worker).toContain("pi_adapter_verifies_its_version_over_acp")
+  })
+
   it("shows the official CLI separately when the adapter version is unchanged", () => {
     const check = buildVersionCheck(
       {

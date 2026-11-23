@@ -1742,7 +1742,6 @@ export function MessageListView({
             message={liveMessage}
             retrying={retrying}
             awaitingUser={awaitingUser}
-            agentType={agentType}
             isStreaming={connStatus === "prompting"}
           />
         )}

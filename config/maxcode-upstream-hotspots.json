@@ -2,6 +2,29 @@
   "version": 2,
   "hotspots": [
     {
+      "id": "runtime.selected-upstream-reliability-20261123",
+      "category": "runtime",
+      "origins": ["2b2abab7d", "1359725db", "848beb4ef", "dfd93db02", "ae8583918", "6fb15321b", "1874fd9e1"],
+      "description": "Track the reviewed Next.js security patch and Codex and Claude adapters. Limit periodic liveness checks to one in flight per backend connection while keeping cold probes read-only. Dispose terminal UI immediately on close and release listeners and PTYs that finish opening late. Rebuild confirmed Claude task plans from grouped historical tool calls.",
+      "paths": [
+        "package.json",
+        "pnpm-lock.yaml",
+        "src-tauri/src/acp/registry.rs",
+        "src-tauri/src/acp/connection.rs",
+        "src-tauri/src/acp/codex_model_catalog.rs",
+        "src-tauri/resources/codex/bundled-catalog.json",
+        "src/components/terminal/terminal-view.tsx",
+        "src/contexts/acp-connections-context.tsx",
+        "src/lib/agent-plan.ts"
+      ],
+      "contracts": [
+        "src/maxcode-contracts/acp-runtime.contract.test.ts",
+        "src/maxcode-contracts/agent-version-catalog.contract.test.ts",
+        "src/maxcode-contracts/claude-history-task-plan.contract.test.ts",
+        "src/maxcode-contracts/terminal-init-disposal.contract.test.tsx"
+      ]
+    },
+    {
       "id": "settings.web-service-lan-default",
       "category": "product",
       "origins": ["worktree-2026-11-18"],
@@ -688,13 +711,15 @@
       "id": "chat.session-provider-recovery",
       "category": "runtime",
       "origins": [
-        "worktree-2026-11-06"
+        "worktree-2026-11-06",
+        "6fb15321b"
       ],
-      "description": "A session whose recorded model provider was removed or differs from current config keeps its original session ID and history. Recognize both legacy This chat uses and Codex 0.168 Cannot change this thread's model provider errors. Resume/load surface a recoverable provider-configuration error and never fall back to session/new. Explain recovery in all supported languages.",
+      "description": "A session whose recorded model provider was removed or differs from current config keeps its original session ID and history. Recognize both legacy This chat uses and Codex 0.168+ model provider refusal. The refusal quotes both providers, without the surrounding config-load paths. Resume/load surface a recoverable provider-configuration error and never fall back to session/new. Explain recovery in all supported languages.",
       "paths": [
         "src-tauri/src/acp/connection.rs",
         "src/contexts/acp-connections-context.tsx",
         "src/lib/types.ts",
+        "src/maxcode-contracts/session-provider-recovery.contract.rs",
         "src/i18n/messages/"
       ],
       "contracts": [
@@ -758,12 +783,15 @@
       "id": "chat.touch-prompt-suggestion",
       "category": "product",
       "origins": [
-        "worktree-2026-11-02"
+        "worktree-2026-11-02",
+        "worktree-2026-11-20"
       ],
-      "description": "Desktop and touch composers offer a separate 44px adoption arrow before send only for an empty, available composer between turns. Touch and phone composers show predicted text without the Tab suffix. Placeholder taps only focus; adopting fills and focuses without submitting or overwriting a live draft. Desktop Tab adoption is retained.",
+      "description": "Desktop and touch composers offer a separate 44px adoption arrow before send only for an empty, available composer between turns. Touch and phone composers show predicted text without the Tab suffix. Wrapped suggestions contribute their full height to the shared editor scroll area. Placeholder taps only focus; adopting fills and focuses without submitting or overwriting a live draft. Desktop Tab adoption is retained.",
       "paths": [
         "src/components/chat/message-input.tsx",
+        "src/components/chat/composer/rich-composer.tsx",
         "src/components/chat/composer/accept-prompt-suggestion.tsx",
+        "src/app/globals.css",
         "src/i18n/messages/zh-CN.json",
         "src/i18n/messages/en.json"
       ],
@@ -1257,9 +1285,10 @@
       "id": "chat.compact-live-status",
       "category": "product",
       "origins": [
-        "worktree-2026-10-27"
+        "worktree-2026-10-27",
+        "worktree-2026-11-23"
       ],
-      "description": "Simplified and traditional Chinese live status labels use six short phases: processing for initial and inter-step waits, thinking for observed reasoning, output for text, executing for any tool, confirmation and retry. Initial pending copy also says processing. Retry uses a dedicated live-status translation in every locale. No inactivity suffix or tool-specific action labels are added.",
+      "description": "The live status uses localized processing copy for initial and inter-step waits, including the gap following a completed tool. The initial pending heading uses the same copy with an ellipsis. Observed reasoning, output, tools, context compaction, confirmation and retry retain their dedicated statuses. The particle animation and elapsed clock span the turn.",
       "paths": [
         "src/components/message/live-turn-stats.tsx",
         "src/lib/agent-activity.ts",
@@ -1543,9 +1572,10 @@
       "category": "product",
       "origins": [
         "worktree-2026-10-27",
-        "worktree-2026-10-29"
+        "worktree-2026-10-29",
+        "worktree-2026-11-23"
       ],
-      "description": "Pending replies show localized Waiting for response (等待响应 in Chinese) with an ellipsis and a continuous sheen, without an elapsed clock, enabled disclosure or empty chevron, then Working on the same stable heading and text node. The pending placeholder uses the real assistant message component tree and the same per-send virtualizer key as the first streamed reply, including merged live runs. Persisting the user send must not remove the waiting row before the assistant arrives. Empty text, reasoning, tool groups and plans remain Waiting for response. Waiting and working share the same text node and sheen class without restarting the animation, reply entrance fade or overlaid pending label; pending and working share typography and baseline. The waiting divider is transparent while retaining its border width to prevent layout shifts; working restores the divider. Confirmation remains explicit.",
+      "description": "Pending replies show localized processing copy (处理中 in Simplified Chinese) with an ellipsis and a continuous sheen, without an elapsed clock, enabled disclosure or empty chevron, then Working on the same stable heading and text node. The pending placeholder uses the real assistant message component tree and the same per-send virtualizer key as the first streamed reply, including merged live runs. Persisting the user send must not remove the pending row before the assistant arrives. Empty text, reasoning, tool groups and plans retain the pending copy. Pending and working share the same text node and sheen class without restarting the animation, reply entrance fade or overlaid pending label. Both share typography and baseline. The pending divider is transparent while retaining its border width to prevent layout shifts. Working restores the divider. Confirmation remains explicit.",
       "paths": [
         "src/components/message/turn-status.tsx",
         "src/components/message/message-list-view.tsx",
@@ -2267,9 +2297,10 @@
     {
       "id": "chat.live-turn-no-file-stats",
       "category": "product",
-      "description": "Live turn status omits modified file count, added/deleted line counts and their trailing separator. Preserve original phase labels, separate timer icon/elapsed time and token output speed; file change details remain on their existing surfaces.",
+      "description": "The live turn status row shows the phase indicator, label and elapsed time with a single 1px decorative rule after the label. Optical spacing compensates for the canvas inset. The row omits the timer icon, token output speed and file-change counters. File change details remain on their existing surfaces.",
       "origins": [
-        "worktree-2026-10-23"
+        "worktree-2026-10-23",
+        "worktree-2026-11-23"
       ],
       "paths": [
         "src/components/message/live-turn-stats.tsx"
@@ -2370,10 +2401,11 @@
     {
       "id": "sidebar.mobile-title-topic-only",
       "category": "product",
-      "description": "Show the topic of legacy structured titles on all screen sizes. Omit the title date from rows under folder headers, including folder groups in Recent, while keeping the relative-time label. Other sidebar rows may show a separate date column. The conversation header shows the topic only, including in the tooltip. Preserve stored titles, unstructured titles and empty-title fallbacks.",
+      "description": "Show the topic of structured titles on all screen sizes. Omit the title date under folder and Chat headers, including both types of group in Recent, while keeping the relative-time label. Other sidebar rows may show a separate date column. The conversation header shows the topic only, including in the tooltip. Preserve stored titles, unstructured titles and empty-title fallbacks.",
       "origins": [
         "worktree-2026-10-22",
-        "worktree-2026-11-19"
+        "worktree-2026-11-19",
+        "worktree-2026-11-20"
       ],
       "paths": [
         "src/components/conversations/conversation-title-label.tsx",
@@ -2385,6 +2417,7 @@
       "contracts": [
         "src/maxcode-contracts/mobile-title-prefix.contract.test.tsx",
         "src/maxcode-contracts/header-title-format.contract.test.ts",
+        "src/maxcode-contracts/sidebar-pagination.contract.test.tsx",
         "src/maxcode-contracts/sidebar-session-rails.contract.test.tsx"
       ]
     },
@@ -3154,10 +3187,11 @@
     {
       "id": "search.global-default-scope",
       "category": "product",
-      "description": "Conversation search defaults to all folders on every open, allows explicit folder selection, and ignores obsolete responses after scope changes. Titles filter results; the dialog preserves descending last-updated order and displays each result's last update time. File search retains its explicitly displayed active-folder scope. The conversation scope uses the shared searchable in-app folder picker with alias-first labels and secondary paths rather than a native select. Both scope headers reserve right-side space for the dialog close button so it cannot overlap the folder selector or title.",
+      "description": "Conversation search defaults to all folders on every open, allows explicit folder selection, and ignores obsolete responses after scope changes. Titles filter results; the dialog preserves descending last-updated order and displays each result's last update time. File search retains its explicitly displayed active-folder scope. The conversation scope uses a compact, content-width trigger beside the title for the shared searchable in-app folder picker with alias-first labels and secondary paths. Both scope headers reserve right-side space for the dialog close button so it cannot overlap the folder selector or title.",
       "origins": [
         "worktree-2026-10-15",
-        "worktree-2026-11-19"
+        "worktree-2026-11-19",
+        "worktree-2026-11-23"
       ],
       "paths": [
         "src/components/conversations/search-command-dialog.tsx",
@@ -4119,7 +4153,7 @@
     {
       "id": "chat.activity-feedback",
       "category": "product",
-      "description": "Observed agent phases distinguish waiting, thinking, output, parallel tools and blocking user decisions. Tool status icons animate only in-place transitions, never history mounts; disclosure and output DOM stay intact. Reduced motion disables effects and hidden/offscreen running icons pause. Live working-state labels stay text-only; see chat.live-turn-status-text-only.",
+      "description": "Observed agent phases distinguish waiting, thinking, output, parallel tools and blocking user decisions. Tool status icons animate only in-place transitions, never history mounts; disclosure and output DOM stay intact. Reduced motion disables effects and hidden/offscreen running icons pause. The live stats orb follows the observed phase; see chat.live-turn-status-text-only.",
       "origins": [
         "worktree-2026-09-20"
       ],
@@ -4151,16 +4185,19 @@
     {
       "id": "chat.live-turn-status-text-only",
       "category": "product",
-      "description": "Model working-state copy (waiting, thinking, streaming, running tools, awaiting user) is text-only. Live turn stats and the pending typing row must not place ActivityStatusIcon, Clock3, or any other decorative status glyph beside those labels. Agent icon, elapsed timer and tok/s remain. Tool-card status icons stay on tool cards. Upstream activity-feedback merges must not restore the left-hand glyph.",
+      "description": "One decorative ThinkingOrbs canvas displays at 16px using the 20px preset in the bottom status row. It stays mounted across waiting, reasoning, tool execution, context compaction, output, retry and completion. Awaiting user input holds a still frame. A row that renders completion animates the orb once and then holds still. Reduced motion displays a still frame. Localized phase copy and elapsed time appear alongside the canvas. Legacy activity glyphs stay on tool cards.",
       "origins": [
-        "worktree-2026-09-21"
+        "worktree-2026-09-21",
+        "worktree-2026-11-23"
       ],
       "paths": [
         "src/components/message/live-turn-stats.tsx",
-        "src/components/message/message-list-view.tsx"
+        "src/components/message/message-list-view.tsx",
+        "public/licenses/thinking-orbs.txt"
       ],
       "contracts": [
-        "src/maxcode-contracts/live-turn-status-text-only.contract.test.tsx"
+        "src/maxcode-contracts/live-turn-status-text-only.contract.test.tsx",
+        "src/maxcode-contracts/live-turn-activity-orb.contract.test.tsx"
       ]
     },
     {
@@ -4480,7 +4517,7 @@
     {
       "id": "settings.agent-auto-updates",
       "category": "runtime",
-      "description": "Enabled installed agents in the six-agent MaxCode maintenance scope update automatically via official npm releases, binary archives or isolated Python tools after startup and every six hours. Codex, Claude Code and Pi track and verify official vendor CLI versions independently of adapter versions and launch the isolated runtime via adapter-supported environment variables. Independent prefixes are verified before an idle-only atomic activation; downloads never replace running files. Automatic updates are mandatory for enabled installed agents; legacy opt-outs are ignored and no toggle is shown. Status is shown in the Version Status category, and manual install serialization and retry backoff are preserved.",
+      "description": "Enabled installed agents in the six-agent MaxCode maintenance scope update automatically via official npm releases, binary archives or isolated Python tools after startup and every six hours. Codex, Claude Code and Pi track and verify official vendor CLI versions independently of adapter versions and launch the isolated runtime via adapter-supported environment variables. The staged pi-acp adapter verifies its exact version through ACP initialize. The native Pi binary still reports its version through --version. Verification errors identify the adapter or native runtime. Independent prefixes are verified before an idle-only atomic activation; downloads never replace running files. Automatic updates are mandatory for enabled installed agents; legacy opt-outs are ignored and no toggle is shown. Status is shown in the Version Status category, and manual install serialization and retry backoff are preserved.",
       "origins": [
         "worktree-2026-09-14"
       ],
@@ -5529,7 +5566,7 @@
     {
       "id": "messages.edit-sent-message",
       "category": "product",
-      "description": "An edit icon beside Copy immediately stops an active reply and replaces/focuses the normal composer with the original user text. It exits queue-edit mode and never opens a dialog or automatically sends. Read-only views hide the action.",
+      "description": "An edit icon beside Copy immediately stops an active reply and replaces/focuses the normal composer with the original user text. It exits queue-edit mode and never opens a dialog or automatically sends. Read-only views hide the action. Desktop text rows reserve its space on initial display so enabling edit after connection does not reflow the bubble.",
       "origins": [
         "worktree-2026-09-08"
       ],

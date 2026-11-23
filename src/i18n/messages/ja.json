@@ -3175,6 +3175,7 @@
           "turnFailedEmpty": "{agent} は応答を生成せずにターンを終了しました。",
           "turnFailedEmptyProtocol": "{agent} の出力を MaxCode が解析できませんでした。エージェントのバージョンがプロトコルと一致していない可能性があります。",
           "turnFailedEmptyMetadata": "{agent} はこのターンでステータス更新（計画 / モード / 使用量）のみを送信し、応答はありませんでした。",
+          "turnFailedEmptyHook": "フックにより {agent} は応答する前に停止されました。",
           "detailsInAlerts": "ステータスバーのアラートを開き、詳細を展開するとエージェントの出力を確認できます。"
         },
         "unableReadAgentConfig": "エージェント設定を読み取れません: {message}",
@@ -3615,8 +3616,8 @@
         "turnFailed": "このターンは失敗しました：{message}"
       },
       "liveTurnStats": {
-        "thinkingPending": "応答を待機中...",
-        "waiting": "応答を待機中",
+        "thinkingPending": "作業中...",
+        "waiting": "作業中",
         "running": "ツールを実行中",
         "awaitingUser": "確認を待機中",
         "settled": "応答終了",
@@ -4479,7 +4480,7 @@
     "agentTypeRequired": "エージェントタイプを選択してください。",
     "agentTypeImmutableHint": "エージェントタイプは作成後に変更できません。",
     "model": "モデル",
-    "modelPlaceholderCodex": "gpt-6.1-sol / gpt-6-luna",
+    "modelPlaceholderCodex": "gpt-6.2-sol / gpt-6.2-astra",
     "modelPlaceholderGemini": "gemini-3-pro-preview",
     "claudeMainModel": "メインモデル",
     "claudeReasoningModel": "推論モデル（思考）",

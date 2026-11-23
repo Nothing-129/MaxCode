@@ -5676,6 +5676,10 @@ export function AcpConnectionsProvider({ children }: { children: ReactNode }) {
                 return t("backendErrors.turnFailedEmptyMetadata", {
                   agent: agentLabel,
                 })
+              case "turn_failed_empty_hook":
+                return t("backendErrors.turnFailedEmptyHook", {
+                  agent: agentLabel,
+                })
               case "grok_model_switch_incompatible_agent":
                 return t("backendErrors.grokModelSwitchIncompatibleAgent", {
                   agent: agentLabel,
@@ -5688,7 +5692,17 @@ export function AcpConnectionsProvider({ children }: { children: ReactNode }) {
           // code: the message is the agent's own), closes the turn with the
           // failure line (see `TURN_FAILED`). Store state, so even when
           // `quiet`; outside a turn the reducer ignores it.
-          if (isFailedTurnVerdict(e.code)) {
+          if (e.code === "turn_failed_empty_hook") {
+            // A hook stopped the turn before any reply, as the agent said:
+            // its words (the hook's reason included) close the turn, as a
+            // typed record's do.
+            dispatch({
+              type: "TURN_FAILED",
+              contextKey,
+              message: e.message,
+              fromAgent: true,
+            })
+          } else if (isFailedTurnVerdict(e.code)) {
             dispatch({
               type: "TURN_FAILED",
               contextKey,
@@ -5747,8 +5761,12 @@ export function AcpConnectionsProvider({ children }: { children: ReactNode }) {
           if (!echo) {
             pushAlertRef.current(
               "error",
-              t("eventErrorTitle"),
-              localizedMessage,
+              e.code === "turn_failed_empty_hook"
+                ? localizedMessage
+                : t("eventErrorTitle"),
+              e.code === "turn_failed_empty_hook"
+                ? e.message
+                : localizedMessage,
               e.code === "agent_runtime_outdated" && nc
                 ? [buildOpenAgentsSettingsAction(nc.agentType)]
                 : undefined,
@@ -6455,6 +6473,8 @@ export function AcpConnectionsProvider({ children }: { children: ReactNode }) {
   // terminal event cannot strand its local state, but those probes never make
   // cold background agents immortal.
   useEffect(() => {
+    const pending = new Map<string, Set<string>>()
+    let disposed = false
     const timer = setInterval(() => {
       const currentActiveKey = storeRef.current.activeKey
       const currentOpenTabKeys = heldOpenKeys()
@@ -6496,20 +6516,33 @@ export function AcpConnectionsProvider({ children }: { children: ReactNode }) {
       for (const contextKey of retainedOwnerKeysRef.current)
         consider(contextKey)
       for (const [connectionId, group] of checks) {
+        const existing = pending.get(connectionId)
+        if (existing) {
+          for (const contextKey of group.contextKeys) existing.add(contextKey)
+          continue
+        }
+
+        const contextKeys = group.contextKeys
+        pending.set(connectionId, contextKeys)
         const check = group.shouldTouch
           ? acpTouchConnection(connectionId).catch(() => true)
           : isConnectionLiveOnBackend(connectionId)
-        void check.then((live) => {
-          if (!live) {
-            for (const contextKey of group.contextKeys) {
-              markConnectionGone(contextKey, connectionId)
+        void check
+          .then((live) => {
+            if (!disposed && !live) {
+              for (const contextKey of contextKeys) {
+                markConnectionGone(contextKey, connectionId)
+              }
             }
-          }
-        })
+          })
+          .finally(() => pending.delete(connectionId))
       }
     }, CONNECTION_KEEPALIVE_INTERVAL_MS)
 
-    return () => clearInterval(timer)
+    return () => {
+      disposed = true
+      clearInterval(timer)
+    }
   }, [heldOpenKeys, isConnectionLiveOnBackend, markConnectionGone])
 
   // ── Idle + warm-LRU sweep timer ──

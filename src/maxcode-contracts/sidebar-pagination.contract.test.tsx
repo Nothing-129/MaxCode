@@ -265,6 +265,50 @@ describe("MaxCode contract: new conversations from grouped Recent folders", () =
   )
 })
 
+describe("MaxCode contract: chat groups show titles without dates", () => {
+  it.each([
+    ["Chat section", "desktop"],
+    ["Chat section", "mobile"],
+    ["Recent chat group", "desktop"],
+    ["Recent chat group", "mobile"],
+  ])(
+    "shows the topic and relative time in the %s on %s",
+    (section, platform) => {
+      const groupedRecent = section === "Recent chat group"
+      const timestamp = new Date(2026, 8, 1, 12).toISOString()
+      const clock = vi
+        .spyOn(Date, "now")
+        .mockReturnValue(Date.parse(timestamp) + 5 * 60_000)
+      const matchMedia = window.matchMedia.bind(window)
+      const media = vi.spyOn(window, "matchMedia").mockImplementation((query) =>
+        Object.assign(matchMedia(query), {
+          matches: query === "(max-width: 767px)" && platform === "mobile",
+        })
+      )
+      try {
+        useAppWorkspaceStore.setState({
+          conversations: [
+            conversation(0, {
+              kind: "chat",
+              title: "0901｜Check chat history",
+              created_at: timestamp,
+              updated_at: timestamp,
+            }),
+          ],
+        })
+        renderSidebar(groupedRecent, groupedRecent)
+
+        expect(screen.getByText("Check chat history")).toBeVisible()
+        expect(screen.getByText("5m")).toBeVisible()
+        expect(screen.queryByText("0901")).toBeNull()
+      } finally {
+        media.mockRestore()
+        clock.mockRestore()
+      }
+    }
+  )
+})
+
 describe("MaxCode contract: sidebar reveals ten conversations per page", () => {
   describe.each(["Chat", "Recent", "Folder"] as const)("%s", (section) => {
     function setup(total = 22) {

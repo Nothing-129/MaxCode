@@ -51,7 +51,7 @@ describe("MaxCode: mobile conversation layout", () => {
       "if (!active || !open) return null"
     )
     const edit = source("src/components/message/sent-message-edit-button.tsx")
-    expect(edit).toContain("max-md:hidden self-end opacity-0")
+    expect(edit).toContain("self-end max-md:hidden")
     const header = source(
       "src/components/conversations/conversation-detail-header.tsx"
     )

@@ -341,58 +341,59 @@ export function TerminalView({
         }
       )
 
-      // Subscribe to events BEFORE spawning so no initial output is lost
-      const unlisten = await subscribe<TerminalEvent>(
-        `terminal://output/${terminalId}`,
-        (payload) => {
-          term.write(payload.data)
-        }
-      )
+      const deferredDisposals: (() => void)[] = []
+      let fitTimer: ReturnType<typeof setTimeout> | null = null
 
-      const unlistenExit = await subscribe<TerminalEvent>(
-        `terminal://exit/${terminalId}`,
-        () => {
-          // PTY is gone — stop the input pump (the reliable terminal-gone
-          // signal; the queue's error-string match is only a fast-path).
+      cleanup = () => {
+        writeQueue.dispose()
+        writeQueueRef.current = null
+        if (resizeTimer) clearTimeout(resizeTimer)
+        if (fitTimer) clearTimeout(fitTimer)
+        themeObserver.disconnect()
+        onDataDisposable.dispose()
+        onResizeDisposable.dispose()
+        for (const dispose of deferredDisposals) dispose()
+        term.dispose()
+        fitAddonRef.current = null
+        termRef.current = null
+        ligaturesAddonRef.current = null
+        lastResizeRef.current = null
+      }
+
+      const listen = async (
+        topic: string,
+        handler: (payload: TerminalEvent) => void
+      ) => {
+        const unlisten = await subscribe<TerminalEvent>(topic, (payload) => {
+          if (!cancelled) handler(payload)
+        })
+        if (cancelled) unlisten()
+        else deferredDisposals.push(unlisten)
+      }
+
+      // Listen before spawning so the first output cannot be missed.
+      try {
+        await listen(`terminal://output/${terminalId}`, (payload) => {
+          term.write(payload.data)
+        })
+        if (cancelled) return
+        await listen(`terminal://exit/${terminalId}`, () => {
           writeQueue.dispose()
           onProcessExitedRef.current?.(terminalId)
           term.write("\r\n\x1b[90m[Process exited]\x1b[0m\r\n")
-        }
-      )
-
-      if (cancelled) {
-        writeQueue.dispose()
-        themeObserver.disconnect()
-        onDataDisposable.dispose()
-        onResizeDisposable.dispose()
-        unlisten()
-        unlistenExit()
-        term.dispose()
-        return
-      }
-
-      // Spawn the terminal AFTER subscribing to events
-      try {
+        })
+        if (cancelled) return
         await terminalSpawn(workingDir, shell, initialCommand, terminalId)
+        if (cancelled) {
+          void terminalKill(terminalId).catch(() => {})
+          return
+        }
       } catch (err) {
+        if (cancelled) return
         onProcessExitedRef.current?.(terminalId)
         term.write(`\r\n\x1b[31m[Failed to start terminal: ${err}]\x1b[0m\r\n`)
-      } finally {
-        if (!cancelled) setLoading(false)
       }
-
-      // If unmounted while spawn was in flight, clean up the spawned PTY
-      if (cancelled) {
-        writeQueue.dispose()
-        terminalKill(terminalId).catch(() => {})
-        themeObserver.disconnect()
-        onDataDisposable.dispose()
-        onResizeDisposable.dispose()
-        unlisten()
-        unlistenExit()
-        term.dispose()
-        return
-      }
+      setLoading(false)
 
       const fitIfReady = () => {
         const el = containerRef.current
@@ -403,37 +404,16 @@ export function TerminalView({
       }
 
       // Only fit when terminal is actually visible/active.
-      requestAnimationFrame(() => {
-        if (!cancelled) fitIfReady()
-      })
+      const fitFrame = requestAnimationFrame(fitIfReady)
+      deferredDisposals.push(() => cancelAnimationFrame(fitFrame))
 
-      // Debounced fit on container resize while active
-      let fitTimer: ReturnType<typeof setTimeout> | null = null
+      // Debounced fit on container resize while active.
       const resizeObserver = new ResizeObserver(() => {
         if (fitTimer) clearTimeout(fitTimer)
-        fitTimer = setTimeout(() => {
-          fitIfReady()
-        }, 30)
+        fitTimer = setTimeout(fitIfReady, 30)
       })
-      resizeObserver.observe(containerRef.current)
-
-      cleanup = () => {
-        writeQueue.dispose()
-        writeQueueRef.current = null
-        if (resizeTimer) clearTimeout(resizeTimer)
-        if (fitTimer) clearTimeout(fitTimer)
-        themeObserver.disconnect()
-        onDataDisposable.dispose()
-        onResizeDisposable.dispose()
-        unlisten()
-        unlistenExit()
-        resizeObserver.disconnect()
-        term.dispose()
-        fitAddonRef.current = null
-        termRef.current = null
-        ligaturesAddonRef.current = null
-        lastResizeRef.current = null
-      }
+      if (containerRef.current) resizeObserver.observe(containerRef.current)
+      deferredDisposals.push(() => resizeObserver.disconnect())
     }
 
     init()

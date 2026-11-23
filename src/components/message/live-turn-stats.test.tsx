@@ -1,18 +1,10 @@
-import { render, screen } from "@testing-library/react"
-import { NextIntlClientProvider } from "next-intl"
 import { describe, expect, it } from "vitest"
 
-import {
-  extractLiveEditStats,
-  LiveTurnStats,
-  tokenOutputSpeedBand,
-  tokenOutputSpeedColor,
-} from "./live-turn-stats"
+import { extractLiveEditStats } from "./live-turn-stats"
 import type {
   LiveContentBlock,
   LiveMessage,
 } from "@/contexts/acp-connections-context"
-import enMessages from "@/i18n/messages/en.json"
 
 // --- fixtures --------------------------------------------------------------
 
@@ -109,47 +101,5 @@ describe("extractLiveEditStats", () => {
     const added = toolBlock(writeInput("p\nq", "z.ts"))
     const after = extractLiveEditStats(msg([shared, added]))
     expect(after).toEqual({ files: 2, additions: 5, deletions: 0 })
-  })
-})
-
-describe("LiveTurnStats", () => {
-  it("keeps a TPS placeholder visible before a speed estimate is ready", () => {
-    render(
-      <NextIntlClientProvider locale="en" messages={enMessages}>
-        <LiveTurnStats message={msg([])} agentType="codex" />
-      </NextIntlClientProvider>
-    )
-
-    expect(screen.getByText("- tok/s")).toBeInTheDocument()
-  })
-})
-
-describe("tokenOutputSpeedColor", () => {
-  it.each([
-    [0, "#94a3b8"],
-    [14.9, "#94a3b8"],
-    [15, "#d4a72c"],
-    [29.9, "#d4a72c"],
-    [30, "#f97316"],
-    [49.9, "#f97316"],
-    [50, "#e11d75"],
-    [500, "#e11d75"],
-  ])("maps %s tok/s to %s", (tps, color) => {
-    expect(tokenOutputSpeedColor(tps)).toBe(color)
-  })
-})
-
-describe("tokenOutputSpeedBand", () => {
-  it.each([
-    [0, "slow"],
-    [14.9, "slow"],
-    [15, "cruising"],
-    [29.9, "cruising"],
-    [30, "fast"],
-    [49.9, "fast"],
-    [50, "maximum"],
-    [500, "maximum"],
-  ])("maps %s tok/s to the %s band", (tps, band) => {
-    expect(tokenOutputSpeedBand(tps)).toBe(band)
   })
 })

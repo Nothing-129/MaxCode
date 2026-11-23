@@ -617,10 +617,15 @@ export const RichComposer = forwardRef<RichComposerHandle, RichComposerProps>(
 
     useComposerHeightMotion(rootRef, Boolean(editor))
 
-    const allSelected = useEditorState({
+    const editorState = useEditorState({
       editor,
-      selector: ({ editor }) => editor?.state.selection instanceof AllSelection,
+      selector: ({ editor }) => ({
+        allSelected: editor?.state.selection instanceof AllSelection,
+        empty: editor?.isEmpty,
+      }),
     })
+    const suggestionPreview =
+      editorState?.empty && promptSuggestion?.trim() ? placeholder : null
 
     // Reflect disabled changes onto the live editor. Pass emitUpdate=false so
     // toggling editability never fires onUpdate/onChange without a real edit.
@@ -769,7 +774,7 @@ export const RichComposer = forwardRef<RichComposerHandle, RichComposerProps>(
         className={cn("codeg-composer flex min-h-0 flex-col", className)}
         style={style}
         data-disabled={disabled || undefined}
-        data-all-selected={allSelected || undefined}
+        data-all-selected={editorState?.allSelected || undefined}
       >
         <ScrollArea
           className="codeg-composer-scroll min-h-0 flex-1"
@@ -783,7 +788,17 @@ export const RichComposer = forwardRef<RichComposerHandle, RichComposerProps>(
             >
               {attachmentContent}
             </EditorFileAttachments>
-            <EditorContent editor={editor} className="px-4 pt-4 pb-3" />
+            <div
+              className="px-4 pt-4 pb-3"
+              data-composer-suggestion={suggestionPreview ? "" : undefined}
+            >
+              {suggestionPreview && (
+                <div className="codeg-composer-suggestion-preview">
+                  {suggestionPreview}
+                </div>
+              )}
+              <EditorContent editor={editor} />
+            </div>
           </div>
         </ScrollArea>
         {referenceSearch && mentionState && (

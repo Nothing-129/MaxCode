@@ -28,7 +28,7 @@ describe("thinking to working handoff", () => {
     const label = screen.getByRole("status")
     const textNode = label.firstChild
     const classes = label.className
-    expect(label).toHaveTextContent("Waiting for response...")
+    expect(label).toHaveTextContent("Working...")
     expect(label).toHaveClass("maxcode-live-activity-label")
     expect(view.container.querySelector("[data-waiting-elapsed]")).toBeNull()
     view.rerender(tree([{ type: "text", text: "Reply arrived" }]))
@@ -46,7 +46,7 @@ describe("thinking to working handoff", () => {
 
   it("keeps empty placeholders thinking, then updates the same status span", () => {
     const view = render(tree([{ type: "text", text: "" }]))
-    const label = screen.getByText("Waiting for response...")
+    const label = screen.getByText("Working...")
     const heading = label.parentElement
     expect(label).toHaveClass("maxcode-turn-status")
     view.rerender(tree([{ type: "text", text: "Checking messages" }]))
@@ -70,16 +70,16 @@ describe("thinking to working handoff", () => {
       </NextIntlClientProvider>
     )
     const view = render(chinese([]))
-    const processing = screen.getByText("等待响应...")
+    const processing = screen.getByText("处理中...")
     const heading = processing.parentElement
     view.rerender(
       chinese([{ type: "reasoning", content: "", isStreaming: true }])
     )
-    expect(screen.getByText("等待响应...")).toBe(processing)
+    expect(screen.getByText("处理中...")).toBe(processing)
     view.rerender(
       chinese([{ type: "tool-group", items: [], isStreaming: true }])
     )
-    expect(screen.getByText("等待响应...")).toBe(processing)
+    expect(screen.getByText("处理中...")).toBe(processing)
     view.rerender(
       chinese([{ type: "reasoning", content: "Inspecting", isStreaming: true }])
     )
@@ -122,10 +122,10 @@ describe("thinking to working handoff", () => {
       </NextIntlClientProvider>
     )
     const view = render(rows([user]))
-    const label = screen.getByText("等待响应...")
+    const label = screen.getByText("处理中...")
     const heading = label.parentElement
     view.rerender(rows([{ ...user, phase: "persisted" }]))
-    expect(screen.getByText("等待响应...")).toBe(label)
+    expect(screen.getByText("处理中...")).toBe(label)
     const reply = {
       ...user,
       key: "streaming-agent-123",

@@ -38,7 +38,7 @@ fn owned_upgrade_keeps_customs_exclusions_and_config_bytes() {
     let new = catalog::bundled_snapshot_models();
     let old: Vec<_> = new
         .iter()
-        .filter(|m| m["slug"] != "gpt-6.1-sol")
+        .filter(|m| !matches!(m["slug"].as_str(), Some("gpt-6.2-sol" | "gpt-6.2-astra")))
         .cloned()
         .collect();
     catalog::write_catalog_files(intent, home, &old).unwrap();
@@ -56,6 +56,7 @@ fn owned_upgrade_keeps_customs_exclusions_and_config_bytes() {
         .map(|m| m["slug"].as_str().unwrap())
         .collect();
     assert_eq!(slugs[0], "gw/custom");
+    assert_eq!(&slugs[..3], ["gw/custom", "gpt-6.2-sol", "gpt-6.2-astra"]);
     assert!(slugs.contains(&"gpt-6.1-sol"));
     assert!(!slugs.contains(&"gpt-6-astra"));
     assert_eq!(

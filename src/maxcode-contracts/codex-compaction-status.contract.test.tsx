@@ -148,7 +148,6 @@ describe("Codex server compaction feedback", () => {
           meta={meta}
         />
         <LiveTurnStats
-          agentType="codex"
           message={message(
             running
               ? [tool("in_progress")]

@@ -3175,6 +3175,7 @@
           "turnFailedEmpty": "{agent} encerrou o turno sem produzir nenhuma resposta.",
           "turnFailedEmptyProtocol": "{agent} produziu uma saída que o MaxCode não conseguiu analisar — a versão do agente pode não corresponder ao protocolo.",
           "turnFailedEmptyMetadata": "{agent} enviou apenas atualizações de status neste turno (plano / modo / uso) e nenhuma resposta.",
+          "turnFailedEmptyHook": "Um hook interrompeu {agent} antes de responder.",
           "detailsInAlerts": "Abra os alertas na barra de status e expanda os detalhes para ver a saída do agente."
         },
         "unableReadAgentConfig": "Não foi possível ler a configuração do agente: {message}",
@@ -3615,8 +3616,8 @@
         "turnFailed": "O turno falhou: {message}"
       },
       "liveTurnStats": {
-        "thinkingPending": "Aguardando resposta...",
-        "waiting": "Aguardando resposta",
+        "thinkingPending": "Trabalhando...",
+        "waiting": "Trabalhando",
         "running": "Executando ferramentas",
         "awaitingUser": "Aguardando sua confirmação",
         "settled": "Resposta encerrada",
@@ -4479,7 +4480,7 @@
     "agentTypeRequired": "O tipo de agente é obrigatório.",
     "agentTypeImmutableHint": "O tipo de agente não pode ser alterado após a criação.",
     "model": "Modelo",
-    "modelPlaceholderCodex": "gpt-6.1-sol / gpt-6-luna",
+    "modelPlaceholderCodex": "gpt-6.2-sol / gpt-6.2-astra",
     "modelPlaceholderGemini": "gemini-3-pro-preview",
     "claudeMainModel": "Modelo Principal",
     "claudeReasoningModel": "Modelo de Raciocínio (pensamento)",

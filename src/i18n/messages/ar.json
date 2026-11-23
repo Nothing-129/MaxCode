@@ -3175,6 +3175,7 @@
           "turnFailedEmpty": "أنهى {agent} الجولة دون إنتاج أي رد.",
           "turnFailedEmptyProtocol": "أنتج {agent} مخرجات تعذّر على MaxCode تحليلها — قد لا يتوافق إصدار الوكيل مع البروتوكول.",
           "turnFailedEmptyMetadata": "أرسل {agent} تحديثات حالة فقط في هذه الجولة (الخطة / الوضع / الاستخدام) دون أي رد.",
+          "turnFailedEmptyHook": "أوقف خطاف {agent} قبل أن يرد.",
           "detailsInAlerts": "افتح التنبيهات في شريط الحالة ووسّع التفاصيل لعرض مخرجات الوكيل."
         },
         "unableReadAgentConfig": "تعذر قراءة إعدادات الوكيل: {message}",
@@ -3615,8 +3616,8 @@
         "turnFailed": "فشلت هذه الجولة: {message}"
       },
       "liveTurnStats": {
-        "thinkingPending": "في انتظار الرد...",
-        "waiting": "في انتظار الرد",
+        "thinkingPending": "جارٍ العمل...",
+        "waiting": "جارٍ العمل",
         "running": "جارٍ تشغيل الأدوات",
         "awaitingUser": "في انتظار تأكيدك",
         "settled": "انتهى الرد",
@@ -4479,7 +4480,7 @@
     "agentTypeRequired": "نوع الوكيل مطلوب.",
     "agentTypeImmutableHint": "لا يمكن تغيير نوع الوكيل بعد الإنشاء.",
     "model": "النموذج",
-    "modelPlaceholderCodex": "gpt-6.1-sol / gpt-6-luna",
+    "modelPlaceholderCodex": "gpt-6.2-sol / gpt-6.2-astra",
     "modelPlaceholderGemini": "gemini-3-pro-preview",
     "claudeMainModel": "النموذج الرئيسي",
     "claudeReasoningModel": "نموذج الاستدلال (التفكير)",

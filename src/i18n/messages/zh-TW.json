@@ -3175,6 +3175,7 @@
           "turnFailedEmpty": "{agent} 此輪沒有產生任何回覆就結束了。",
           "turnFailedEmptyProtocol": "{agent} 此輪的輸出 MaxCode 無法解析，可能是代理版本與協定不相符。",
           "turnFailedEmptyMetadata": "{agent} 此輪只收到狀態更新（計畫 / 模式 / 用量），沒有收到任何回覆。",
+          "turnFailedEmptyHook": "{agent} 在回覆前被 hook 攔下了。",
           "detailsInAlerts": "在狀態列的「警示」中展開詳情，即可查看代理輸出。"
         },
         "unableReadAgentConfig": "無法讀取 Agent 設定：{message}",
@@ -3615,8 +3616,8 @@
         "turnFailed": "本輪失敗：{message}"
       },
       "liveTurnStats": {
-        "thinkingPending": "等待回應...",
-        "waiting": "等待回應",
+        "thinkingPending": "處理中...",
+        "waiting": "處理中",
         "running": "執行中",
         "awaitingUser": "待確認",
         "settled": "回應已結束",
@@ -4479,7 +4480,7 @@
     "agentTypeRequired": "請選擇智能體類型。",
     "agentTypeImmutableHint": "智能體類型建立後不可修改。",
     "model": "模型",
-    "modelPlaceholderCodex": "gpt-6.1-sol / gpt-6-luna",
+    "modelPlaceholderCodex": "gpt-6.2-sol / gpt-6.2-astra",
     "modelPlaceholderGemini": "gemini-3-pro-preview",
     "claudeMainModel": "主要模型",
     "claudeReasoningModel": "推理模型（思考）",

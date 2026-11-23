@@ -168,6 +168,18 @@ describe("MaxCode contract: bounded ACP connection lifecycle", () => {
     expect(manager).toContain("connecting_touch_does_not_postpone_watchdog")
   })
 
+  it("uses one periodic probe per backend without warming cold connections", () => {
+    const periodicCheck = source("src/contexts/acp-connections-context.tsx")
+      .split("Active/true-warm keepalive")[1]
+      ?.split("// ── Idle + warm-LRU sweep timer")[0]
+    expect(periodicCheck).toMatch(
+      /pending\.get\(connectionId\)[\s\S]+?continue/
+    )
+    expect(periodicCheck).toMatch(
+      /group\.shouldTouch\s*\? acpTouchConnection\(connectionId\)[\s\S]+?: isConnectionLiveOnBackend\(connectionId\)/
+    )
+  })
+
   it("keeps backup restore aware of authoritative session state and exiting processes", () => {
     const manager = source("src-tauri/src/acp/manager.rs")
     const gate = manager

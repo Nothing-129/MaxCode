@@ -341,9 +341,11 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
   const stackedTitle = stackedLayout
     ? formatConversationTitle(conversation.title)
     : ""
-  const structuredStackedTitle = stackedLayout
-    ? parseStructuredConversationTitle(foldReferenceLinks(conversation.title))
-    : null
+  const stackedTitleDate =
+    stackedLayout && showTitleDate
+      ? parseStructuredConversationTitle(foldReferenceLinks(conversation.title))
+          ?.date
+      : undefined
 
   return (
     <>
@@ -464,7 +466,7 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
                     >
                       {stackedTitle || t("untitledConversation")}
                     </span>
-                    {(structuredStackedTitle ||
+                    {(stackedTitleDate ||
                       showFolderMeta ||
                       timeLabel ||
                       conversation.origin_cwd) &&
@@ -499,11 +501,18 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
                       ) : (
                         <span
                           data-mobile-conversation-meta
-                          className="grid min-w-0 grid-cols-[4ch_minmax(0,1fr)_auto] items-center gap-2 text-xs leading-[0.875rem] text-muted-foreground"
+                          className={cn(
+                            "grid min-w-0 items-center gap-2 text-xs leading-[0.875rem] text-muted-foreground",
+                            showTitleDate
+                              ? "grid-cols-[4ch_minmax(0,1fr)_auto]"
+                              : "grid-cols-[minmax(0,1fr)_auto]"
+                          )}
                         >
-                          <span className="tabular-nums">
-                            {structuredStackedTitle?.date}
-                          </span>
+                          {showTitleDate && (
+                            <span className="tabular-nums">
+                              {stackedTitleDate}
+                            </span>
+                          )}
                           <span className="flex min-w-0 items-center gap-1">
                             {showFolderMeta && (
                               <span

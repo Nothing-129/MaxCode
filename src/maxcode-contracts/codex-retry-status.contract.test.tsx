@@ -46,7 +46,6 @@ describe("Codex retry visibility", () => {
             content: [],
             startedAt: 100_000,
           }}
-          agentType="codex"
           retrying
         />
       </NextIntlClientProvider>

@@ -62,6 +62,11 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
     }) as MediaQueryList
 }
 
+// Without a canvas backend, jsdom can mount canvas elements but cannot draw.
+if (typeof window !== "undefined" && !("CanvasRenderingContext2D" in window)) {
+  HTMLCanvasElement.prototype.getContext = () => null
+}
+
 // jsdom doesn't implement a few layout APIs that ProseMirror's EditorView
 // touches on mount (used by Tiptap-based editors such as the message composer).
 // Polyfill them as no-ops so headless/component editor tests can construct a

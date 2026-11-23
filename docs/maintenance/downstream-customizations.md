@@ -126,7 +126,7 @@ Claude ACP 升到 0.97.0，恢复 advisor 历史结果，保留前台 fork 保�
 
 2026-10-23 操作反馈：新发送/首次非空回复在进入视口后播放 360ms、12px 入场，完成播放后去重，取消的动画允许重试，等待文案交接淡出，已观察到的回复结束时淡入标题并在末尾短暂显示淡入淡出的 ✓（不显示结束文案）；回到底部按钮淡入淡出，侧栏关闭保留内容至过渡结束，侧栏/终端内容跟随原尺寸动画淡入淡出；复制对勾及已确认的保存成功提示增加轻量反馈。保留执行区层级，减少动态效果时取消新增位移/缩放。契约：`interaction-feedback.contract.test.tsx`；热点：`appearance.interaction-feedback`。
 
-2026-10-23 精简执行状态栏：移除右侧文件数及增删行数（如 `1F +0/-7`）和对应分隔符，保留原有思考/执行状态、独立时钟图标与耗时及 tok/s。独立契约：`live-turn-no-file-stats.contract.test.tsx`；热点：`chat.live-turn-no-file-stats`。
+2026-10-23 起精简执行状态栏，先移除文件变更计数，后移除输出速度及计时图标。底栏显示粒子球、状态文字和总耗时。用细竖线隔开文案与耗时，并补偿粒子球画布自带的留白。独立契约见 `live-turn-no-file-stats.contract.test.tsx`，热点见 `chat.live-turn-no-file-stats`。
 
 2026-10-23 等待响应动效：首条回复前采用上游样式的三个灰点，间隔 0.2 秒闪动；保留无障碍等待文案及明确的确认提示，回复到达时淡出同一组三点。减少动态效果时停止三点动画，隐藏会话暂停；实时状态栏保留文字流光。独立契约：`waiting-response-motion.contract.test.tsx`；热点：`chat.waiting-response-motion`。
 
@@ -222,18 +222,19 @@ ZCode 专属模型注册表重映射已于 2026-10-20 删除，模型与思考�
 
 | 领域 | 功能 | 来源 | 保护项 |
 | --- | --- | --- | --- |
+| 11 月 23 日稳定性与依赖 | Next.js 16.4.6。每个连接同时只发一次定期探活，冷连接只读。关闭终端即清理本地资源，迟到的订阅和进程也会释放。Codex ACP 2.8.0 带 GPT-6.2 模型与 hook 失败原因，提供商不匹配时保留原会话并显示两个提供商。Claude ACP 0.109.0 从历史中恢复已确认的任务计划 | `2b2abab7d`、`1359725db`、`848beb4ef`、`dfd93db02`、`6fb15321b`、`1874fd9e1` | `runtime.selected-upstream-reliability-20261123`、`chat.session-provider-recovery` |
 | 侧栏文件夹菜单 | 右键和更多按钮共用带左侧操作图标的一级菜单，文字左对齐，保留二级箭头、分隔线和红色移除操作。二级内容溢出时与输入框加号菜单共用主题细滚动条 | `worktree-2026-11-19` | `sidebar.folder-menu-appearance` |
 | 输入框加号菜单 | 一级菜单收窄，文字左对齐，二级入口保留右侧箭头。二级列表溢出时使用主题细滚动条，斜杠命令搜索框固定在列表上方 | `worktree-2026-11-19` | `chat.composer-add-menu-appearance` |
 | 对话模型记忆 | 模型与思考等级按对话保存在 SQLite；历史恢复自身配置，旧对话优先原生会话值，新对话沿用最近默认值，配置确认后持久化且不改变最近排序；重开时立即展示按对话缓存的已确认选项，连接完成前只读，最多缓存 32 个对话，仅保存已选值和名称，按对话单独读写以避免同步处理完整模型目录；缓存缺失时从对话摘要中的 SQLite 配置显示模型与思考等级，无需等待智能体启动 | `worktree-2026-10-12` | `chat.conversation-model-memory` |
 | 设置选项搜索 | 搜索现有设置项名称、说明与关键词，显示所属栏目及无结果提示；懒加载后定位高亮，保留草稿、远程参数与移动导航，不修改设置值或恢复隐藏入口 | `worktree-2026-10-11` | `settings.option-search` |
-| 全局会话搜索 | 默认搜索所有文件夹，可缩小范围。标题只用于筛选，结果按最后更新时间倒序，右侧显示最后更新时间。 | `worktree-2026-10-15`、`worktree-2026-11-19` | `search.global-default-scope` |
+| 全局会话搜索 | 默认搜索所有文件夹，标题旁的紧凑文件夹下拉框可缩小范围。标题只用于筛选，结果按最后更新时间倒序，右侧显示最后更新时间。 | `worktree-2026-10-15`、`worktree-2026-11-19`、`worktree-2026-11-23` | `search.global-default-scope` |
 | 会话状态常驻 | 悬停和打开操作菜单时保持运行中、未读及时间提示；置顶和完成收进独立菜单，支持键盘与触屏且不误选会话 | `worktree-2026-10-11` | `conversations.persistent-sidebar-status` |
 | 连接中提交 | 会话及欢迎页连接中可回车入队，消息可编辑、删除；初始化完成后顺序自动发送，慢连接及失败保留消息并提供重连，预览标签自动固定 | `worktree-2026-10-10` | `chat.connection-submit-queue` |
 | 设置加载 | npm 元数据探测限时并终止卡住的命令，七种智能体版本并发探测；Electron 安装包冒烟验证设置子窗口加载智能体目录 | `worktree-2026-10-10` | `settings.agent-probe-deadline` |
 | 文件标签 | 桌面 Word 等文件标签菜单提供“在访达中打开”，定位并选中文件；Windows/Linux 使用对应文件管理器文案，网页及无路径标签隐藏入口，失败显示提示 | `worktree-2026-10-08` | `files.tab-file-manager` |
 | 10 月 8 日八项修复 | 线性历史读取、手机聚焦、任务保存所示智能体、Grok 目录广播、Claude 0.86/Codex 2.1.1 兼容、插话保留编辑及搜索管道无匹配；保留 Electron、七智能体、Codex 插话门控和不确定投递保护 | `f0e6a520` 至 `3b29d2f4`，详见本次评审 | `runtime.selected-upstream-20261008` |
 | 9 月 30 日上游稳定性 | Claude/Codex AIR 稀疏更新、Read/审批/插件提示，Codex 搜索上下文与历史思考、压缩摘要，Grok 后台跟进；保留完整工具输入、全部 hunk 和权限门控 | `9d9ce6b0`、`2db8a81b`、`b35282c6`、`757bd8e0`、`58f0fd0e`、`9243c7df` | `runtime.upstream-recommended-20260930`、`history.claude-compaction-compatible` |
-| Codex 模型目录 | GPT-6.1 Sol 及官方优先级；安装和托管更新刷新自有目录，保留用户目录、默认、自定义和排除模型 | `155916e6`、`worktree-2026-09-30` | `agents.codex-catalog-refresh-20260930` |
+| Codex 模型目录 | GPT-6.2 Sol、GPT-6.2 Astra 及官方优先级；安装和托管更新刷新自有目录，保留用户目录、默认、自定义和排除模型 | `155916e6`、`worktree-2026-09-30` | `agents.codex-catalog-refresh-20260930` |
 | Pi 运行时与思考 | 离线能力、实际 profile 和原生 selector；保留七档偏好、自定义映射、旧 .33 补丁及托管 CLI | `9cbd5b96` 至 `b9d9e6b6` | `agents.pi-runtime-thinking-20260930` |
 | HTML/visualize | 内联预览、延迟提及、会话相对资源，隔离 origin/CSP 与每文件信任，会话内预览脚本默认关闭；打开 HTML 文件默认运行脚本，可手动关闭；公开分享只读 | `20687bb4` 至 `0e5ac772` | `chat.upstream-html-preview-20260930`、`files.html-scripts-default` |
 | Recent 筛选 | 分类先于十条分页，记忆筛选并准确显示余量，保留独立分页、折叠和新建聊天 | `e36c8ed4` 至 `caca52f6` | `sidebar.recent-filters-20260930` |
@@ -268,7 +269,7 @@ ZCode 专属模型注册表重映射已于 2026-10-20 删除，模型与思考�
 | 9 月 30 日智能体更新 | Claude ACP 0.84.0、Codex ACP 2.0.1、Pi ACP 0.0.34、Grok 1.0.44、ZCode ACP 0.53.2；恢复 Claude AIR 文件输入、保留 Codex 同文件全部 Diff 片段并同步卡片与行数统计。ZCode 分叉/Plan 限制继续保留，等待原生运行时模式转换验证 | `worktree-2026-09-30` | `agents.release-file-changes-20260930` |
 | 2026-11-11 定向集成 | Codex 分叉保留 MCP、异步提问与提供商历史保护；Grok 跨回合后台进度；共享高亮限额与请求取消；Claude 0.106.0 / Codex 2.6.0 / ZCode 0.83.3；保留本地下游行为 | `9a565b2d0`、`0fe09eb34`、`6ee6f1fe5`、`598451b8d`、`dbcbbb61d`、`80fd043f6` | `runtime.selected-upstream-20261111` |
 | 智能体版本目录 | 内置安装及强制自动更新目标采用已评审版本；OpenCode 1.18.30 的六个平台资产继续要求独立 SHA256 | `8c461154`、`1055edc4`、`e588125b`、`25882257`、`worktree-2026-09-15` | `agents.reviewed-version-catalog`、`agents.opencode-verified-distribution` |
-| 智能体自动更新 | 维护范围内已启用且已安装的智能体强制后台更新，支持 npm（含 ZCode 社区适配器）、二进制、Python，无独立开关；独立目录下载验证，空闲时原子切换，失败保留旧安装 | `worktree-2026-09-14`、`feat/zcode-agent`、`worktree-2026-09-26` | `settings.agent-auto-updates` |
+| 智能体自动更新 | 维护范围内已启用且已安装的智能体强制后台更新，支持 npm（含 ZCode 社区适配器）、二进制、Python，无独立开关；独立目录下载验证，空闲时原子切换，失败保留旧安装。pi-acp 通过 ACP 握手核对版本，Pi 本体通过 `--version` 独立核对。 | `worktree-2026-09-14`、`feat/zcode-agent`、`worktree-2026-09-26` | `settings.agent-auto-updates` |
 | 智能体安装 | 手动 npm 安装、升级、重试及自定义包查询使用 npm.aifalao.net；在线版本检测与自动安装使用官方 registry.npmjs.org，适配器与 CLI 独立检测 | `worktree-2026-09-14` | `settings.agent-npm-mirror` |
 | 自动化 | MCP 创建支持显式 `target: "chat"`，无需项目；省略时保持项目解析，聊天任务继承调用会话智能体，拒绝项目路径和看板排队冲突 | `worktree-2026-11-11` | `automation.mcp-chat-target` |
 | 自动化 | 支持挂载个人/团队待办；运行时读取最新内容并关联执行会话；MCP 支持查询、修改、启停、立即运行、删除和运行记录管理，调用时复查开关 | `worktree-2026-10-29` | `automation.todo-mount-and-mcp` |
@@ -283,13 +284,14 @@ ZCode 专属模型注册表重映射已于 2026-10-20 删除，模型与思考�
 | 会话列宽 | 桌面会话内容列右缘提供拖宽抓手，悬停热区才浮现发丝线与 grip；拖动居中列实时对称伸缩，钳制 40–80rem，防抖持久化并预水合应用，跨窗口同步，双击或 Enter 恢复默认 48rem；手机端不参与，列始终满宽 | `worktree-2026-09-15` | `chat.column-width-drag` |
 | 消息文件链接 | 文件名按容器宽度完整换行，兼容手机；按真实路径、特殊文件名和复合扩展名匹配 VSCode Icons 原生彩色图标，离线资源支持明暗主题，保留紧凑输入框徽标 | `worktree-2026-09-11` | `chat.file-link-presentation` |
 | 消息 | Codex 后续建议标记渲染为按钮，点击追加到当前输入框；只读页面显示标签，代码示例保持原文 | `worktree-2026-09-11` | `chat.codex-followup-controls` |
+| 聊天输入框 | 灰色预测建议按输入区宽度换行，长建议可在输入区滚动阅读。点击灰字聚焦，单独采纳可将建议填入草稿。 | `worktree-2026-11-20` | `chat.touch-prompt-suggestion` |
 | 消息 | 历史回复正文到操作按钮保持连续悬停区域，悬停/键盘聚焦时抬高实际虚拟行层级（悬停优先），按钮不被下一条消息的透明间距遮挡，提示气泡打开时保持操作区可见及层级，保留原消息间距 | `worktree-2026-09-10` | `messages.action-hover-continuity` |
 | 消息 | 消息的新对话操作带入原文草稿并保留项目和智能体，不自动发送；相邻的独立待办操作可另行创建待办 | `worktree-2026-09-10` | `messages.new-chat-from-message` |
 | 待办入口 | 侧栏和快捷菜单打开独立的新待办；旧 AI 待办、Forge 任务按钮和新自动化入队入口隐藏，历史数据保留；导航显隐偏好及手机收起行为保留 | `worktree-2026-10-14` | `tasks.workbench-entry-points` |
 | 团队待办 | 个人/团队范围隔离并记忆，创建者本机托管，团队码加入、头像名称、成员同权、领取/指定/完成、空标题自动生成及对话双向联动；待办新对话沿用上次新建目录，已完成服务端分页与跨页搜索；独立成员凭据与分享快照，离线不串数据 | `worktree-2026-10-14` | `todos.personal-team-collaboration` |
 | 对话按文件夹分组 | 对话页可在「最近」标题行最右侧通过分组列表图标切换并记住分组视图，按项目或聊天归类，支持独立折叠，保持置顶、日期过滤及最近活动顺序。 | `worktree-2026-11-18` | `sidebar.functional-navigation-preview` |
 | 文件夹分组新对话 | 对话页的「最近」按文件夹分组时，文件夹行最右侧的新增图标在鼠标悬停或键盘聚焦时显示，在无法悬停的设备上常显。点击后在对应文件夹打开新对话草稿，保持原有展开状态。 | `worktree-2026-11-19` | `sidebar.recent-folder-new-conversation` |
-| 会话标题 | 详情、顶部标题及悬浮提示、搜索结果等位置只显示主题。侧栏文件夹下的对话省去标题前的日期，保留右侧相对时间。 | `worktree-2026-11-19` | `conversation.date-topic-titles`、`sidebar.mobile-title-topic-only` |
+| 会话标题 | 详情、顶部标题及悬浮提示、搜索结果等位置只显示主题。侧栏文件夹和「聊天」下的对话（包括「最近」中的这两类分组）省去标题日期，保留相对时间。 | `worktree-2026-11-19`、`worktree-2026-11-20` | `conversation.date-topic-titles`、`sidebar.mobile-title-topic-only` |
 | 待办同步 | 待办变动后通知对应团队，成员重新读取待办和侧栏分组。重连补刷，通知连接不可用时每分钟兼容刷新一次。待办页右上角可手动刷新待办和侧栏分组 | `worktree-2026-11-18` | `todo.live-team-sync` |
 | 待办递归收起 | 收起“待办”分区时同步收起各待办及其对话、子对话；单个待办收起时清除其下各层子对话展开状态，再展开或刷新保持紧凑视图，保留无关对话与其他分组状态 | `worktree-2026-10-30` | `todos.sidebar-recursive-collapse` |
 | 待办会话分组 | 侧边栏按已分配待办归组从待办新建的本机会话；草稿来源记忆及首次保存关联、个人/团队范围切换、独立于已完成分页、复用现有会话卡片与手机导航 | `worktree-2026-10-14` | `todos.sidebar-conversation-groups` |
@@ -303,7 +305,7 @@ ZCode 专属模型注册表重映射已于 2026-10-20 删除，模型与思考�
 | 会话标题 | 标题旁常显三个点，点击打开会话操作菜单；重命名收进菜单，移除独立铅笔按钮 | `worktree-2026-09-09` | `conversations.title-overflow-menu` |
 | 设置 | 智能体初始顺序固定为 Codex、Grok、DeepSeek、Pi、Antigravity、Claude、Gemini、OpenClaw、OpenCode、Cline、Hermes、CodeBuddy、Kimi、Cursor、Qoder；保留已保存的手动排序 | `worktree-2026-09-08` | `settings.default-agent-order` |
 | 手机导航 | 单行会话标题和操作共用顶部导航，长标题在两侧按钮之间用省略号截断，统一 44px 触摸按钮，次要操作收进工具菜单。手机和桌面的顶部标题在仅有自动生成的原始网址时先显示域名。同一会话的自动标题更新时淡入淡出，切换会话、手动改名或开启减少动态效果时直接显示 | `worktree-2026-09-08`、`worktree-2026-11-19` | `workspace.mobile-header` |
-| 消息 | 已发消息的复制按钮旁提供修改图标，点击即停止当前回复并将原文填入、聚焦底部输入框；修改后由用户正常发送 | `worktree-2026-09-08` | `messages.edit-sent-message` |
+| 消息 | 桌面端首次显示已发文字时预留编辑按钮位置，连接就绪后气泡宽度和换行保持稳定。复制按钮旁提供修改图标，点击即停止当前回复并将原文填入、聚焦底部输入框；修改后由用户正常发送 | `worktree-2026-09-08` | `messages.edit-sent-message` |
 | 侧边栏 | 主页和对话页的“最近”标题不显示新建按钮。顶部“新对话”和“聊天”分区的新建入口仍可创建独立聊天 | `worktree-2026-09-08` | `conversations.recent-new-chat` |
 | 侧边栏 | 收起“文件夹”分区时同步收起所有文件夹的对话列表并重置分页，再展开分区时保留文件夹折叠状态 | `worktree-2026-09-08` | `conversations.folders-section-collapse` |
 | 侧边栏 | 保留新对话（简体中文固定文案）、自动化、待办任务及会话列表，仓库面板不加入侧栏；待办和自动化支持显隐设置；待办导航及文件夹、最新、聊天新增入口统一在手机/触屏导航后收起侧栏 | `worktree-2026-09-08`、`worktree-2026-10-13` | `workspace.sidebar-navigation` |
@@ -317,7 +319,7 @@ ZCode 专属模型注册表重映射已于 2026-10-20 删除，模型与思考�
 | 会话 | Codex AGENTS 指令兼容无路径标题和 Windows CRLF，过滤历史消息、标题与计数，保留普通提问 | `worktree-2026-10-22` | `chat.codex-agents-context-filter` |
 | 会话 | Codex 插件推荐上下文不显示为聊天消息，不参与标题或计数 | `worktree-2026-09-07` | `chat.codex-plugin-context-filter` |
 | 会话 | 所有聊天顶部不显示后台任务栏，后台任务执行与对话内命令记录继续保留 | `worktree-2026-09-07` | `chat.no-top-background-task-strip` |
-| 会话 | 模型工作状态（等待响应、思考中、流式输出、正在使用工具、等待你）只显示文案，左侧不放状态图标；agent 图标、耗时和 tok/s 保留；工具卡片状态图标保留。上游 activity-feedback 不得把左侧图标加回来 | `worktree-2026-09-21` | `chat.live-turn-status-text-only` |
+| 会话 | 底部工作状态栏显示 16 像素粒子球、状态文字和总耗时。刚发消息和工具执行完等待下一步都显示“处理中”。收到思考、调用工具、压缩上下文、输出或重试事件时切换文案和动效。显示结束状态时，粒子球播一次短动效后停住。待确认和开启减少动态效果时显示静态画面 | `worktree-2026-09-21`、`worktree-2026-11-23` | `chat.live-turn-status-text-only`、`chat.compact-live-status`、`chat.live-turn-no-file-stats` |
 | 模型选择 | Fast 开关保留在滚动区外。分隔线位于 Fast 与模型列表之间，窄栏在 Fast 下方，宽栏在 Fast 上方。长列表及多行模型说明在菜单内独立滚动。 | `worktree-2026-11-18`、`worktree-2026-11-19` | `composer.unified-selector-menus` |
 | 模型描述 | 中文模型列表翻译 Codex 内置目录及已知实时目录描述（含 GPT-6.2 系列），保留模型名称和协议值。历史模型按原规则折叠，未知自定义描述显示原文。 | `worktree-2026-11-18` | `composer.localized-model-history` |
 | 思考 | 流式思考默认单行折叠，手动展开后限高滚动，更新及完成时保留手动选择 | `worktree-2026-09-08` | `chat.compact-reasoning` |
@@ -362,7 +364,7 @@ Electron 从 Finder 启动时恢复登录 shell 的 PATH，并兜底标准 Node 
 仅缺少可理解内容或生成失败且没有已有合规标题时，使用 `MMDD｜未命名`。
 
 旧标题保留原有存储格式。会话详情、顶部标题及悬浮提示、搜索结果等位置只显示主题，
-侧栏文件夹下的对话（包括「最近」按文件夹分组的对话）也只显示主题，保留右侧相对时间。
+侧栏文件夹和「聊天」下的对话（包括「最近」中的这两类分组）也只显示主题，保留相对时间。
 两个重命名入口只编辑主题，手动锁定的名称继续受保护。
 对应契约为 `conversation.date-topic-titles`。
 
@@ -549,7 +551,7 @@ Codex 目标自动续跑（`chat.codex-goal-continuation`）：后台自主启�
 
 ### 首条响应等待反馈（2026-10-29）
 
-`chat.thinking-working-handoff`：首条内容到达前显示本地化“等待响应...”和扫光动画，不显示秒数，禁用空内容折叠按钮并隐藏箭头；等待期间横线透明但保留占位，工作时恢复横线，文字位置不变；收到内容后沿用原状态节点切换为“正在工作中”，保持同一文字节点和动画类，扫光不重启。契约：`thinking-working-handoff.contract.test.tsx`。
+`chat.thinking-working-handoff`。首条内容到达前显示本地化“处理中...”和扫光动画。空内容阶段隐藏秒数和箭头，折叠按钮禁用，横线透明并保留占位。收到内容后，原状态节点切换为“正在工作中”，恢复横线，扫光继续播放。契约见 `thinking-working-handoff.contract.test.tsx`。
 
 ### 工作标题与工具摘要扫光（2026-10-29）
 

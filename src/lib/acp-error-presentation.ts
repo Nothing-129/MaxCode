@@ -10,6 +10,7 @@ const FAILED_TURN_VERDICTS: ReadonlySet<string> = new Set([
   "turn_failed_empty",
   "turn_failed_empty_protocol",
   "turn_failed_empty_metadata",
+  "turn_failed_empty_hook",
   "turn_failed_unknown",
 ])
 

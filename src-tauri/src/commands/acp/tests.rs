@@ -668,11 +668,11 @@ fn catalog_slugs(home: &Path) -> Vec<String> {
         .collect()
 }
 
-/// The official list before codex 0.159.1: today's minus GPT-6.1 Sol.
-fn catalog_without_gpt_6_1_sol() -> Vec<serde_json::Value> {
+/// Approximate the previous catalog by removing the GPT-6.2 additions.
+fn catalog_before_gpt_6_2() -> Vec<serde_json::Value> {
     crate::acp::codex_model_catalog::bundled_snapshot_models()
         .into_iter()
-        .filter(|m| m["slug"] != "gpt-6.1-sol")
+        .filter(|m| !matches!(m["slug"].as_str(), Some("gpt-6.2-sol" | "gpt-6.2-astra")))
         .collect()
 }
 
@@ -689,11 +689,11 @@ fn resync_rewrites_codegs_catalog_against_the_new_official_list() {
     crate::acp::codex_model_catalog::write_catalog_files(
         intent,
         home,
-        &catalog_without_gpt_6_1_sol(),
+        &catalog_before_gpt_6_2(),
     )
     .unwrap()
     .expect("customs → generated catalog");
-    assert!(!catalog_slugs(home).iter().any(|s| s == "gpt-6.1-sol"));
+    assert!(!catalog_slugs(home).iter().any(|s| s.starts_with("gpt-6.2")));
 
     // Today's list plus one model no compiled-in snapshot has, so only
     // the list passed in can put it in the table.
@@ -710,7 +710,7 @@ fn resync_rewrites_codegs_catalog_against_the_new_official_list() {
         CodexCatalogResync::Rewritten
     );
     let slugs = catalog_slugs(home);
-    assert_eq!(slugs[..3], ["gw/x", "gpt-6.1-sol", "gpt-6-astra"]);
+    assert_eq!(slugs[..3], ["gw/x", "gpt-6.2-sol", "gpt-6.2-astra"]);
     assert!(slugs.iter().any(|s| s == "gpt-test-unshipped"));
     assert_eq!(slugs.len(), new.len() + 1);
     // The intent and config.toml are untouched: same bytes as before.
@@ -784,7 +784,7 @@ fn resync_leaves_catalogs_codeg_cannot_regenerate_alone() {
     crate::acp::codex_model_catalog::write_catalog_files(
         intent,
         home,
-        &catalog_without_gpt_6_1_sol(),
+        &catalog_before_gpt_6_2(),
     )
     .unwrap()
     .expect("seeded");

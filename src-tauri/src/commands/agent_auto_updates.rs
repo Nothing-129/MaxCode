@@ -12,12 +12,14 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
+    process::Stdio,
     sync::{
         atomic::{AtomicU64, Ordering},
         LazyLock, Mutex,
     },
     time::{Duration, Instant},
 };
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 const CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
 const RETRY_INTERVAL: Duration = Duration::from_secs(30 * 60);
@@ -385,6 +387,54 @@ async fn verify_staged(
     Ok(())
 }
 
+async fn verify_pi_adapter(bin: &Path, version: &str) -> Result<(), String> {
+    // pi-acp enters its stdio server loop even when passed --version.
+    let mut adapter = crate::process::tokio_command(bin)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|error| format!("Could not start staged pi-acp: {error}"))?;
+    let mut stdin = adapter.stdin.take().expect("piped stdin");
+    let mut stdout = BufReader::new(adapter.stdout.take().expect("piped stdout"));
+    let response = tokio::time::timeout(Duration::from_secs(30), async {
+        stdin
+            .write_all(
+                b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":1,\"clientCapabilities\":{}}}\n",
+            )
+            .await?;
+        // Keep stdin open until pi-acp has answered. EOF shuts down the server.
+        let mut line = String::new();
+        stdout.read_line(&mut line).await?;
+        Ok::<_, std::io::Error>(line)
+    })
+    .await
+    .map_err(|_| "pi-acp ACP handshake timed out")?
+    .map_err(|error| format!("pi-acp ACP handshake failed: {error}"))?;
+    let response: serde_json::Value = serde_json::from_str(&response)
+        .map_err(|error| format!("Invalid pi-acp ACP response: {error}"))?;
+    if response["jsonrpc"] != "2.0"
+        || response["id"] != 1
+        || response
+            .pointer("/result/protocolVersion")
+            .and_then(|value| value.as_u64())
+            != Some(1)
+    {
+        return Err("pi-acp did not return a successful ACP v1 initialization".into());
+    }
+    let reported = response
+        .pointer("/result/agentInfo/version")
+        .and_then(|value| value.as_str());
+    if reported != Some(version) {
+        return Err(format!(
+            "Staged pi-acp reported version {}; expected {version}",
+            reported.unwrap_or("unknown")
+        ));
+    }
+    Ok(())
+}
+
 fn staged_record(
     agent: AgentType,
     prefix: &Path,
@@ -568,7 +618,9 @@ async fn prepare_vendor_runtime(
         install.env("NODE_USE_ENV_PROXY", "1");
     }
     run_tool_install(install, &runtime).await?;
-    verify_staged(agent, &runtime, &executable(&runtime, cmd), version).await?;
+    verify_staged(agent, &runtime, &executable(&runtime, cmd), version)
+        .await
+        .map_err(|error| format!("{cmd} runtime verification: {error}"))?;
     Ok(())
 }
 
@@ -641,7 +693,11 @@ async fn prepare_at(
         }
         let bin = staged_command(agent, &prefix, version);
         // Verify this prefix, never a global/PATH fallback.
-        verify_staged(agent, &prefix, &bin, version).await?;
+        if agent == AgentType::Pi {
+            verify_pi_adapter(&bin, version).await?;
+        } else {
+            verify_staged(agent, &prefix, &bin, version).await?;
+        }
         if agent == AgentType::Codex {
             // The adapter's own --version does not prove its native CLI exists.
             let mut cli = crate::process::tokio_command(&bin);
@@ -876,6 +932,35 @@ pub fn acp_agent_auto_update_status(agent_type: AgentType) -> AutoUpdateStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn pi_adapter_verifies_its_version_over_acp() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let bin = root.path().join("pi-acp");
+        std::fs::write(
+            &bin,
+            r#"#!/bin/sh
+set -eu
+test "$#" = 0
+IFS= read -r request
+case "$request" in *'"method":"initialize"'*) ;; *) exit 2 ;; esac
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1,"agentInfo":{"version":"0.0.35"}}}'
+IFS= read -r next
+"#,
+        )
+        .unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        verify_pi_adapter(&bin, "0.0.35").await.unwrap();
+        let error = verify_pi_adapter(&bin, "0.0.34").await.unwrap_err();
+        assert!(
+            error.contains("reported version 0.0.35; expected 0.0.34"),
+            "{error}"
+        );
+    }
+
     #[cfg(unix)]
     #[tokio::test]
     async fn vendor_runtime_install_uses_official_exact_version_and_rejects_wrong_binary() {

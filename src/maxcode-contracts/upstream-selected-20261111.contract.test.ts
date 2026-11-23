@@ -74,8 +74,8 @@ describe("selected November upstream preserves MaxCode behavior", () => {
   it("pins only maintained adapters and includes the independent fork test", () => {
     const registry = source("src-tauri/src/acp/registry.rs")
     for (const pin of [
-      "claude-agent-acp@0.106.0",
-      "codex-acp@2.6.0",
+      "claude-agent-acp@0.109.0",
+      "codex-acp@2.8.0",
       "zcode-acp-server@0.83.3",
     ]) {
       expect(registry).toContain(pin)
