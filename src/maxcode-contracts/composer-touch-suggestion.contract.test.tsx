@@ -75,6 +75,20 @@ describe("desktop and touch composer suggestion adoption", () => {
     expect(editorRef.current?.getText()).toBe("我的草稿")
   })
 
+  it("renders the desktop Tab hint as a keycap after the suggestion, outside the draft", async () => {
+    const { container } = render(
+      <RichComposer
+        placeholder="Run checks (Tab to use)"
+        promptSuggestion="Run checks"
+        showSuggestionTabHint
+      />
+    )
+    const key = await screen.findByText("Tab", { selector: "kbd" })
+    expect(key.parentElement).toHaveTextContent("Run checks")
+    expect(key.parentElement).not.toHaveTextContent("Tab to use")
+    expect(container.querySelector(".ProseMirror")).not.toContainElement(key)
+  })
+
   it("offers the icon on desktop and touch, separate from placeholder and send", () => {
     const input = source("src/components/chat/message-input.tsx")
     expect(input).toContain(

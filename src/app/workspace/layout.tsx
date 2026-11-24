@@ -21,6 +21,7 @@ import { FolderTitleBar } from "@/components/layout/folder-title-bar"
 import { Sidebar } from "@/components/layout/sidebar"
 import { WorkspaceNavigationRail } from "@/components/layout/workspace-navigation-rail"
 import { SidebarNavigationProvider } from "@/contexts/sidebar-navigation-context"
+import { ConversationLabProvider } from "@/components/conversations/conversation-lab-state"
 import { ConversationUnreadSync } from "@/components/conversations/conversation-unread-sync"
 import { UpdateProvider } from "@/components/providers/update-provider"
 import {
@@ -1378,13 +1379,15 @@ function WorkspaceLayoutInner({ children }: { children: React.ReactNode }) {
                                           listener calls openConversations() to
                                           surface a launcher-opened folder. */}
                                     <WorkspaceOpenFolderListener />
-                                    <UpdateProvider>
-                                      <InAppSettings>
-                                        <FolderLayoutShell>
-                                          {children}
-                                        </FolderLayoutShell>
-                                      </InAppSettings>
-                                    </UpdateProvider>
+                                    <ConversationLabProvider>
+                                      <UpdateProvider>
+                                        <InAppSettings>
+                                          <FolderLayoutShell>
+                                            {children}
+                                          </FolderLayoutShell>
+                                        </InAppSettings>
+                                      </UpdateProvider>
+                                    </ConversationLabProvider>
                                   </WorkbenchRouteProvider>
                                 </TodosViewProvider>
                               </AutomationsViewProvider>

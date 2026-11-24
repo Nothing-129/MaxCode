@@ -57,7 +57,7 @@ describe("MaxCode: live turn activity orb", () => {
   it("replaces the agent icon in the bottom status row throughout the turn", () => {
     const { rerender } = render(view([]))
     const status = screen.getByRole("status")
-    const orb = status.previousElementSibling
+    const orb = status.parentElement?.previousElementSibling
     expect(orb?.tagName).toBe("CANVAS")
     expect(orb).toHaveStyle({ width: "16px", height: "16px" })
     expect(orb).toHaveAttribute("aria-hidden", "true")
@@ -78,14 +78,16 @@ describe("MaxCode: live turn activity orb", () => {
       [view([tool("in_progress")], { awaitingUser: true }), "breathing"],
     ] as const) {
       rerender(next)
-      expect(screen.getByRole("status").previousElementSibling).toBe(orb)
+      expect(
+        screen.getByRole("status").parentElement?.previousElementSibling
+      ).toBe(orb)
       expect(orb).toHaveAttribute("data-orb-state", state)
     }
 
     rerender(view([], { isStreaming: false }))
     const completed = screen.getByRole("status")
     expect(completed).toHaveTextContent("响应已结束")
-    expect(completed.previousElementSibling).toBe(orb)
+    expect(completed.parentElement?.previousElementSibling).toBe(orb)
     expect(orb).toHaveAttribute("data-orb-state", "shaping")
   })
 })

@@ -13,7 +13,6 @@ import {
   estimateChangedLineStats,
 } from "@/lib/line-change-stats"
 import { ThinkingOrb, type ThinkingOrbProps } from "thinking-orbs"
-import { Separator } from "@/components/ui/separator"
 import { getAgentActivity, type AgentActivity } from "@/lib/agent-activity"
 import { cn } from "@/lib/utils"
 
@@ -364,21 +363,23 @@ export function LiveTurnStats({
               "motion-safe:animate-in fade-in-70 zoom-in-90 duration-200"
           )}
         />
-        <span
-          role="status"
-          aria-atomic="true"
-          className={phase === "waiting" ? "maxcode-waiting-label" : undefined}
-        >
-          {activity === "compacting"
-            ? compactionText("compacting")
-            : t(isRetrying ? "retrying" : activity)}
+        <span className="inline-flex items-baseline gap-2">
+          <span
+            role="status"
+            aria-atomic="true"
+            className={
+              phase === "waiting" ? "maxcode-waiting-label" : undefined
+            }
+          >
+            {activity === "compacting"
+              ? compactionText("compacting")
+              : t(isRetrying ? "retrying" : activity)}
+          </span>
+          <span aria-hidden="true" className="text-muted-foreground/50">
+            ·
+          </span>
+          <span className="tabular-nums">{elapsedLabel}</span>
         </span>
-        <Separator
-          orientation="vertical"
-          aria-hidden="true"
-          className="data-[orientation=vertical]:h-2.5"
-        />
-        <span className="tabular-nums">{elapsedLabel}</span>
       </div>
     </div>
   )

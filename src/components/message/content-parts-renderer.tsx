@@ -3222,7 +3222,7 @@ const ToolGroupPart = memo(function ToolGroupPart({
           "data-[state=closed]:slide-out-to-top-1 data-[state=open]:slide-in-from-top-1"
         )}
       >
-        <div className="mt-3 w-full space-y-3 border-l border-border/70 pl-3">
+        <div className="maxcode-activity-details mt-3 w-full space-y-3 border-l border-border/70 pl-3">
           {part.items.map((item, idx) => (
             <ToolCallPart
               key={`grouped-tc-${item.toolCallId ?? idx}-${idx}`}
@@ -3412,7 +3412,7 @@ const CompletedActivitySummary = memo(function CompletedActivitySummary({
         </CollapsibleTrigger>
       </div>
       <CollapsibleContent className="w-full outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0">
-        <div className="mt-3 space-y-3 text-sm">
+        <div className="maxcode-activity-details mt-3 space-y-3">
           {parts.map((part, index) =>
             renderPart(part, `completed-activity-${index}`)
           )}

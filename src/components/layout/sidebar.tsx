@@ -8,6 +8,7 @@ import {
   DesktopChromeIcon,
   desktopChromeButtonClassName,
 } from "./desktop-chrome-icon"
+import { ConversationLab } from "@/components/conversations/conversation-lab"
 import { SidebarNavigationOrderControl } from "./sidebar-navigation-order-control"
 import { SidebarNavigationIcon } from "./sidebar-navigation-icon"
 import { SidebarFooter } from "./sidebar-footer"
@@ -309,7 +310,9 @@ export function Sidebar({
 
   if (!isOpen && !keepVisible) return null
 
-  const headerDateFilter = view === "conversations" && <RecentDateFilter />
+  const headerDateFilter = (view === "conversations" || view === "lab") && (
+    <RecentDateFilter />
+  )
   const sidebarTools = (
     <div className="flex items-center gap-0.5" data-sidebar-tools>
       {!isMobile && (
@@ -554,113 +557,125 @@ export function Sidebar({
             {headerDateFilter}
           </div>
         )}
-        <div data-sidebar-actions className="flex items-center gap-1">
-          {view !== "tasks" ? (
-            <>
-              <SidebarNavButton
-                icon="compose"
-                variant={isMobile ? "filled" : "ghost"}
-                label={t("newChat")}
-                onClick={handleNewConversation}
-              />
-              {/* Search shares the sidebar tools on both desktop and mobile; ⌘K works globally. */}
-              {/* Route navigation respects the saved visibility preference and closes the
+        {view !== "lab" && (
+          <div data-sidebar-actions className="flex items-center gap-1">
+            {view !== "tasks" ? (
+              <>
+                <SidebarNavButton
+                  icon="compose"
+                  variant={isMobile ? "filled" : "ghost"}
+                  label={t("newChat")}
+                  onClick={handleNewConversation}
+                />
+                {/* Search shares the sidebar tools on both desktop and mobile; ⌘K works globally. */}
+                {/* Route navigation respects the saved visibility preference and closes the
               sidebar after navigation on touch layouts. */}
-              {isMobile &&
-                !navigation &&
-                view === "home" &&
-                isNavItemVisible(navItems, "automations") && (
-                  <SidebarNavButton
-                    icon="clock"
-                    label={t("automations")}
-                    active={routeId === "automations"}
-                    onClick={() => {
-                      if (collapseOnNavigate) toggle()
-                      setRoute("automations")
-                    }}
-                    trailing={
-                      unseenFailures > 0 ? (
-                        <span className="absolute -right-1 -top-1 inline-flex h-[0.9375rem] min-w-[0.9375rem] shrink-0 items-center justify-center rounded-full bg-destructive/15 px-1 font-mono text-[0.625rem] font-medium leading-none text-destructive">
-                          {unseenFailures}
-                        </span>
-                      ) : null
-                    }
-                  />
-                )}
-              {isMobile &&
-                !navigation &&
-                view === "home" &&
-                isNavItemVisible(navItems, "tasks") && (
-                  <SidebarNavButton
-                    icon="tasks"
-                    label={t("tasks")}
-                    active={routeId === "tasks"}
-                    onClick={() => {
-                      if (collapseOnNavigate) toggle()
-                      setRoute("tasks")
-                    }}
-                  />
-                )}
-            </>
-          ) : (
-            <SidebarNavButton
-              icon="tasks"
-              variant={isMobile ? "filled" : "ghost"}
-              label={t("navigation.todoBoard")}
-              onClick={() => {
-                setRoute("tasks")
-                if (collapseOnNavigate) toggle()
-              }}
-            />
-          )}
-        </div>
+                {isMobile &&
+                  !navigation &&
+                  view === "home" &&
+                  isNavItemVisible(navItems, "automations") && (
+                    <SidebarNavButton
+                      icon="clock"
+                      label={t("automations")}
+                      active={routeId === "automations"}
+                      onClick={() => {
+                        if (collapseOnNavigate) toggle()
+                        setRoute("automations")
+                      }}
+                      trailing={
+                        unseenFailures > 0 ? (
+                          <span className="absolute -right-1 -top-1 inline-flex h-[0.9375rem] min-w-[0.9375rem] shrink-0 items-center justify-center rounded-full bg-destructive/15 px-1 font-mono text-[0.625rem] font-medium leading-none text-destructive">
+                            {unseenFailures}
+                          </span>
+                        ) : null
+                      }
+                    />
+                  )}
+                {isMobile &&
+                  !navigation &&
+                  view === "home" &&
+                  isNavItemVisible(navItems, "tasks") && (
+                    <SidebarNavButton
+                      icon="tasks"
+                      label={t("tasks")}
+                      active={routeId === "tasks"}
+                      onClick={() => {
+                        if (collapseOnNavigate) toggle()
+                        setRoute("tasks")
+                      }}
+                    />
+                  )}
+              </>
+            ) : (
+              <SidebarNavButton
+                icon="tasks"
+                variant={isMobile ? "filled" : "ghost"}
+                label={t("navigation.todoBoard")}
+                onClick={() => {
+                  setRoute("tasks")
+                  if (collapseOnNavigate) toggle()
+                }}
+              />
+            )}
+          </div>
+        )}
       </div>
 
-      {/* On touch layouts, clicking a conversation card auto-closes the sidebar
+      {view === "lab" ? (
+        <ConversationLab onNavigate={collapseOnNavigate ? toggle : undefined} />
+      ) : (
+        <>
+          {/* On touch layouts, clicking a conversation card auto-closes the sidebar
           (mobile Drawer, or a coarse-pointer device in the desktop shell). */}
-      <div
-        className="flex flex-col flex-1 min-h-0 overflow-hidden pt-1.5"
-        onClick={
-          collapseOnNavigate
-            ? (e) => {
-                const target = e.target as HTMLElement
-                if (target.closest("[data-conversation-id]")) {
-                  toggle()
-                }
+          <div
+            className="flex flex-col flex-1 min-h-0 overflow-hidden pt-1.5"
+            onClick={
+              collapseOnNavigate
+                ? (e) => {
+                    const target = e.target as HTMLElement
+                    if (target.closest("[data-conversation-id]")) {
+                      toggle()
+                    }
+                  }
+                : undefined
+            }
+          >
+            <SidebarConversationList
+              key={`${view}:${view === "conversations" ? `${navigation?.date}:${navigation?.startTime}:${navigation?.endDate}:${navigation?.endTime}` : ""}`}
+              view={view}
+              groupByFolder={
+                view === "conversations" && navigation?.groupByFolder
               }
-            : undefined
-        }
-      >
-        <SidebarConversationList
-          key={`${view}:${view === "conversations" ? `${navigation?.date}:${navigation?.startTime}:${navigation?.endDate}:${navigation?.endTime}` : ""}`}
-          view={view}
-          groupByFolder={view === "conversations" && navigation?.groupByFolder}
-          onToggleFolderGrouping={
-            view === "conversations"
-              ? navigation?.toggleFolderGrouping
-              : undefined
-          }
-          activityDate={view === "conversations" ? navigation?.date : undefined}
-          activityStartTime={
-            view === "conversations" ? navigation?.startTime : undefined
-          }
-          activityEndTime={
-            view === "conversations" ? navigation?.endTime : undefined
-          }
-          activityEndDate={
-            view === "conversations" ? navigation?.endDate : undefined
-          }
-          ref={listRef}
-          showCompleted={showCompleted}
-          showWorktrees={showWorktrees}
-          showRecent={view === "home" ? showRecent : view !== "projects"}
-          showTodos={view === "tasks" || (view === "home" && showTodos)}
-          sortMode={view === "conversations" ? "updated" : sortMode}
-          sectionOrder={sectionOrder}
-          onNavigate={collapseOnNavigate ? toggle : undefined}
-        />
-      </div>
-      {isMobile && !navigation && <SidebarFooter />}
+              onToggleFolderGrouping={
+                view === "conversations"
+                  ? navigation?.toggleFolderGrouping
+                  : undefined
+              }
+              activityDate={
+                view === "conversations" ? navigation?.date : undefined
+              }
+              activityStartTime={
+                view === "conversations" ? navigation?.startTime : undefined
+              }
+              activityEndTime={
+                view === "conversations" ? navigation?.endTime : undefined
+              }
+              activityEndDate={
+                view === "conversations" ? navigation?.endDate : undefined
+              }
+              ref={listRef}
+              showCompleted={showCompleted}
+              showWorktrees={showWorktrees}
+              showRecent={view === "home" ? showRecent : view !== "projects"}
+              showTodos={view === "tasks" || (view === "home" && showTodos)}
+              sortMode={view === "conversations" ? "updated" : sortMode}
+              sectionOrder={sectionOrder}
+              onNavigate={collapseOnNavigate ? toggle : undefined}
+            />
+          </div>
+          {isMobile && !navigation && <SidebarFooter />}
+        </>
+      )}
     </aside>
   )
 }

@@ -101,7 +101,7 @@ export function MarkdownLink({
   }
 
   // A codeg:// reference link renders as an inline badge, mirroring the
-  // composer's reference chips: session / commit / agent links, plus the inert
+  // composer's reference chips for commits and agents, plus the inert
   // `codeg://embedded/…` badge a path-less pasted attachment serializes to (its
   // bytes travel out of band, so it has no openable target). The same parser the
   // editor uses on draft restore recovers refType/id/meta from the uri; the link
@@ -135,7 +135,11 @@ export function MarkdownLink({
       )
     }
 
-    const reference = parseCodegReferenceUri(href, nodeText(children))
+    const label = nodeText(children)
+    const reference = parseCodegReferenceUri(href, label)
+    if (reference?.refType === "session") {
+      return <span>{label ? children : reference.label}</span>
+    }
     if (reference) return <ReferenceBadge data={reference} />
   }
 
@@ -152,7 +156,7 @@ export function MarkdownLink({
   // A file reference — a `file://` uri (rewritten to a local path by
   // remark-file-uri-links before it reaches us) or a bare local path — renders
   // as an inline file badge, visually matching the composer's `@`-file chips and
-  // the inline session/commit/agent badges above, while staying clickable: the
+  // the inline commit/agent badges above, while staying clickable: the
   // same link-safety flow (`handleClick` → modal → `useOpenLinkOrFile`) opens it
   // in the workspace file panel.
   //

@@ -111,7 +111,10 @@ export const ToolHeader = ({
         <span className="shrink-0">
           {icon ?? <WrenchIcon className="size-4 text-muted-foreground" />}
         </span>
-        <span className="min-w-0 flex-1 truncate whitespace-nowrap font-medium text-sm">
+        <span
+          data-slot="tool-title"
+          className="min-w-0 flex-1 truncate whitespace-nowrap font-medium text-sm"
+        >
           {title ?? derivedName}
         </span>
         {titleSuffix ? <span className="shrink-0">{titleSuffix}</span> : null}

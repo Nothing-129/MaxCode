@@ -278,6 +278,57 @@ pub async fn get_conversation_core(
     })?
 }
 
+pub(crate) async fn search_conversation_text_core(
+    conn: &sea_orm::DatabaseConnection,
+    conversation_ids: Vec<i32>,
+    query: &str,
+) -> Result<Vec<(i32, String)>, AppCommandError> {
+    let query = query.trim();
+    if conversation_ids.len() > 8 || query.is_empty() || query.len() > 2048 {
+        return Err(AppCommandError::invalid_input(
+            "Invalid conversation search",
+        ));
+    }
+    let pattern = regex::RegexBuilder::new(&regex::escape(query))
+        .case_insensitive(true)
+        .build()
+        .map_err(|_| AppCommandError::invalid_input("Invalid conversation search"))?;
+    let mut matches = Vec::new();
+    for id in conversation_ids {
+        let summary = conversation_service::get_by_id(conn, id).await?;
+        let Some(external_id) = summary.external_id else {
+            continue;
+        };
+        // Read the parser directly. Searching must never backfill or rename a session.
+        let Ok(detail) = get_conversation_core(conn, summary.agent_type, external_id).await else {
+            continue;
+        };
+        let snippet = detail
+            .turns
+            .iter()
+            .rev()
+            .filter(|turn| !matches!(turn.role, TurnRole::System))
+            .flat_map(|turn| &turn.blocks)
+            .find_map(|block| match block {
+                ContentBlock::Text { text } => {
+                    let found = pattern.find(text)?;
+                    let start = text[..found.start()]
+                        .char_indices()
+                        .rev()
+                        .nth(29)
+                        .map(|(offset, _)| offset)
+                        .unwrap_or(0);
+                    Some(text[start..].chars().take(160).collect::<String>())
+                }
+                _ => None,
+            });
+        if let Some(snippet) = snippet {
+            matches.push((id, snippet));
+        }
+    }
+    Ok(matches)
+}
+
 async fn list_all_local_conversations(
     conn: &sea_orm::DatabaseConnection,
     what: &'static str,

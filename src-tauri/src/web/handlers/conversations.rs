@@ -205,6 +205,27 @@ pub async fn get_folder_conversation_outline(
     Ok(Json(result))
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchConversationTextParams {
+    conversation_ids: Vec<i32>,
+    query: String,
+}
+
+pub async fn search_conversation_text(
+    Extension(state): Extension<Arc<AppState>>,
+    Json(params): Json<SearchConversationTextParams>,
+) -> Result<Json<Vec<(i32, String)>>, AppCommandError> {
+    Ok(Json(
+        conv_commands::search_conversation_text_core(
+            &state.db.conn,
+            params.conversation_ids,
+            &params.query,
+        )
+        .await?,
+    ))
+}
+
 pub async fn list_folders(
     Extension(state): Extension<Arc<AppState>>,
 ) -> Result<Json<Vec<FolderInfo>>, AppCommandError> {

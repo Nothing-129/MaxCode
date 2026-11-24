@@ -4435,6 +4435,21 @@ export function AcpConnectionsProvider({ children }: { children: ReactNode }) {
             const after = next.get(key)
             if (before?.status === "prompting" && after?.status !== "prompting")
               noteTurnEndedUnseen(before)
+            // An attach can receive the initial catalog entirely in a snapshot.
+            // Fill gaps before notifying subscribers, while preserving options
+            // already cached by live events from another session of this agent.
+            if (after && action.patch.selectorsReady && !after.configStale) {
+              const cached = getCachedSelectors(after.agentType)
+              const modes = cached?.modes
+                ? undefined
+                : (after.modes ?? undefined)
+              const configOptions = cached?.configOptions?.length
+                ? undefined
+                : (after.configOptions ?? undefined)
+              if (modes || configOptions?.length) {
+                updateCachedSelectors(after.agentType, { modes, configOptions })
+              }
+            }
           }
           mirrorLiveMessage(key)
           notifyKeyListeners(key)

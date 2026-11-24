@@ -2384,6 +2384,7 @@ export function MessageInput({
                 ariaLabel={resolvedPlaceholder}
                 removeFileLabel={(name) => t("removeAttachmentAria", { name })}
                 promptSuggestion={offeredSuggestion}
+                showSuggestionTabHint={!useTouchSuggestion}
                 autoFocus={autoFocus}
                 referenceSearch={referenceSearch}
                 mentionUiLabels={mentionUiLabels}

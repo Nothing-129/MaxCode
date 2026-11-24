@@ -184,6 +184,10 @@ pub fn build_router(
             post(handlers::conversations::get_folder_conversation_turns),
         )
         .route(
+            "/search_conversation_text",
+            post(handlers::conversations::search_conversation_text),
+        )
+        .route(
             "/get_folder_conversation_outline",
             post(handlers::conversations::get_folder_conversation_outline),
         )

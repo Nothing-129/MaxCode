@@ -7,9 +7,8 @@ import { describe, expect, it, vi } from "vitest"
 // MarkdownLink unit test runs after that layer, so it could not catch the
 // regression. Only the link-safety hook is stubbed (irrelevant to badges).
 //
-// These are ASSISTANT-path guards: `codeg://` reference links render as inline
-// badges via MarkdownLink + rehype-allow-codeg regardless of role. (User messages
-// no longer go through MessageResponse — see message/plain-text-with-badges.tsx.)
+// Assistant messages use MarkdownLink + rehype-allow-codeg for inline
+// references. User messages use message/plain-text-with-badges.tsx.
 vi.mock("@/components/ai-elements/link-safety", () => ({
   useStreamdownLinkSafety: () => ({ enabled: false }),
 }))
@@ -31,23 +30,6 @@ describe("MessageResponse — codeg references survive sanitization (real Stream
     })
     expect(container.textContent).toContain("Codex CLI")
     expect(container.textContent).toContain("hi")
-    expect(container.textContent).not.toContain("[blocked]")
-  })
-
-  it("renders a session reference inline as a badge", async () => {
-    const { container } = render(
-      <MessageResponse>
-        {"see [#42](codeg://session/claude_code_abc)"}
-      </MessageResponse>
-    )
-    await waitFor(() => {
-      expect(
-        container.querySelector(
-          "[data-reference-badge][data-ref-type='session']"
-        )
-      ).not.toBeNull()
-    })
-    expect(container.textContent).toContain("see")
     expect(container.textContent).not.toContain("[blocked]")
   })
 

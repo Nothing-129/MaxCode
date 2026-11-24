@@ -49,16 +49,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import { ConversationDeleteDialog } from "./conversation-delete-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ConversationTitleLabel } from "./conversation-title-label"
@@ -853,26 +844,12 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("deleteConversationTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("deleteConversationDescription", {
-                title:
-                  formatConversationTitle(conversation.title) ||
-                  t("untitledConversation"),
-              })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>
-              {t("delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConversationDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={conversation.title}
+        onConfirm={handleDeleteConfirm}
+      />
 
       {detailsOpen && (
         <SessionDetailsDialog

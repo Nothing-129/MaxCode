@@ -2,6 +2,33 @@
   "version": 2,
   "hotspots": [
     {
+      "id": "sidebar.experimental-conversation-inbox",
+      "category": "product",
+      "origins": ["worktree-2026-11-24"],
+      "description": "The experimental view shares the standard sidebar header and conversation update-time filter and has a flat title and transcript search, project filters showing one badge or two overlapping badges, a compose palette, compact snoozed and settled shelves, and local snooze schedules. Projectless sessions display a filled chat bubble in the same SVG frame as project initials and the Chat label. Full-size unread rows emphasize the title and show a green circled check with Done when not in progress. Runtime requests, including delegated approval and input, and terminal failures can wake snoozed threads early. Runtime status takes priority over the individually dismissible wake badge and unread completion. Manual wake clears the snooze. Inactive conversations can show their unsent draft. Inline snooze and settle controls use the row background. The search field is transparent until hovered. Project filtering is toolbar-only. Context actions and snooze choices have leading icons. The context menu supports shared completion, scoped todo linking, session details and confirmed deletion.",
+      "paths": [
+        "src/components/conversations/conversation-lab.tsx",
+        "src/components/conversations/conversation-lab-projects.tsx",
+        "src/components/conversations/conversation-lab-row.tsx",
+        "src/components/conversations/conversation-delete-dialog.tsx",
+        "src/components/conversations/lab-project-badge.tsx",
+        "src/components/conversations/conversation-lab-snooze.tsx",
+        "src-tauri/src/commands/conversations.rs",
+        "src-tauri/src/web/handlers/conversations.rs",
+        "src-tauri/src/web/router.rs",
+        "src/lib/conversation-lab.ts",
+        "src/lib/conversation-lab-status.ts",
+        "src/components/conversations/use-lab-signals.ts",
+        "src/components/conversations/conversation-lab-state.tsx",
+        "src/app/workspace/layout.tsx",
+        "src/components/layout/sidebar.tsx",
+        "src/components/layout/sidebar-navigation-icon.tsx",
+        "src/contexts/sidebar-navigation-context.tsx",
+        "src/lib/sidebar-navigation.ts"
+      ],
+      "contracts": ["src/maxcode-contracts/conversation-lab.contract.test.tsx"]
+    },
+    {
       "id": "runtime.selected-upstream-reliability-20261123",
       "category": "runtime",
       "origins": ["2b2abab7d", "1359725db", "848beb4ef", "dfd93db02", "ae8583918", "6fb15321b", "1874fd9e1"],
@@ -786,7 +813,7 @@
         "worktree-2026-11-02",
         "worktree-2026-11-20"
       ],
-      "description": "Desktop and touch composers offer a separate 44px adoption arrow before send only for an empty, available composer between turns. Touch and phone composers show predicted text without the Tab suffix. Wrapped suggestions contribute their full height to the shared editor scroll area. Placeholder taps only focus; adopting fills and focuses without submitting or overwriting a live draft. Desktop Tab adoption is retained.",
+      "description": "Desktop and touch composers offer a separate 44px adoption arrow before send only for an empty, available composer between turns. Touch and phone composers show predicted text without the Tab suffix. Wrapped suggestions contribute their full height to the shared editor scroll area. Placeholder taps only focus; adopting fills and focuses without submitting or overwriting a live draft. Desktop predictions end with an inline Tab keycap that stays outside the editable document.",
       "paths": [
         "src/components/chat/message-input.tsx",
         "src/components/chat/composer/rich-composer.tsx",
@@ -1288,7 +1315,7 @@
         "worktree-2026-10-27",
         "worktree-2026-11-23"
       ],
-      "description": "The live status uses localized processing copy for initial and inter-step waits, including the gap following a completed tool. The initial pending heading uses the same copy with an ellipsis. Observed reasoning, output, tools, context compaction, confirmation and retry retain their dedicated statuses. The particle animation and elapsed clock span the turn.",
+      "description": "The live status uses localized processing copy for initial and inter-step waits, including the gap following a completed tool. The initial pending heading uses the same copy with an ellipsis. Observed reasoning, output, tools, context compaction, confirmation and retry retain their dedicated statuses. The particle animation and elapsed clock span the turn. A muted decorative middle dot with equal inline spacing separates the status and elapsed time.",
       "paths": [
         "src/components/message/live-turn-stats.tsx",
         "src/lib/agent-activity.ts",
@@ -1296,6 +1323,7 @@
       ],
       "contracts": [
         "src/maxcode-contracts/compact-live-status.contract.test.tsx",
+        "src/maxcode-contracts/live-turn-no-file-stats.contract.test.tsx",
         "src/maxcode-contracts/live-turn-status-text-only.contract.test.tsx",
         "src/maxcode-contracts/activity-feedback.contract.test.tsx"
       ]
@@ -2004,11 +2032,14 @@
     {
       "id": "chat.activity-summary-no-divider",
       "category": "product",
-      "description": "Completed activity summaries use a compact text disclosure with a chevron, without a trailing horizontal divider.",
+      "description": "Completed activity summaries use a compact text disclosure with a chevron, without a trailing horizontal divider. Revealed work details and grouped tool titles use compact typography scoped to the activity disclosure.",
       "origins": [
-        "worktree-2026-10-26"
+        "worktree-2026-10-26",
+        "worktree-2026-11-23"
       ],
       "paths": [
+        "src/app/globals.css",
+        "src/components/ai-elements/tool.tsx",
         "src/components/message/content-parts-renderer.tsx"
       ],
       "contracts": [
@@ -2955,6 +2986,22 @@
       ],
       "contracts": [
         "src/maxcode-contracts/upstream-runtime-20261015.contract.test.ts"
+      ]
+    },
+    {
+      "id": "chat.draft-selector-cache",
+      "category": "product",
+      "description": "Ready, accepted ACP snapshots fill missing cached selector catalogs so new drafts can show model and thinking options while connecting, including after a renderer restart. Existing cached options take precedence over snapshot fallback, and live readiness still gates message delivery.",
+      "origins": [
+        "worktree-2026-11-24"
+      ],
+      "paths": [
+        "src/contexts/acp-connections-context.tsx",
+        "src/hooks/use-connection.ts",
+        "src/lib/selectors-cache-storage.ts"
+      ],
+      "contracts": [
+        "src/maxcode-contracts/draft-selector-cache.contract.test.tsx"
       ]
     },
     {
@@ -5373,6 +5420,20 @@
       ]
     },
     {
+      "id": "chat.session-reference-text",
+      "category": "product",
+      "description": "Assistant Markdown displays non-navigable session references as ordinary inline text for both current and legacy session IDs.",
+      "origins": [
+        "worktree-2026-11-24"
+      ],
+      "paths": [
+        "src/components/ai-elements/markdown-link.tsx"
+      ],
+      "contracts": [
+        "src/maxcode-contracts/session-reference-text.contract.test.tsx"
+      ]
+    },
+    {
       "id": "chat.file-link-presentation",
       "category": "product",
       "description": "Transcript file links align their labels with the surrounding prose baseline, use the full available width and wrap long filenames on desktop and mobile, with body-sized blue labels, outline image-link icons, and offline VSCode Icons artwork for other files determined from exact filenames and compound extensions, including distinct Markdown/MDX/HTML/CSS/JS/TS/React/config formats and native theme variants. Composer reference chips remain compact and all file actions are preserved.",
@@ -7266,12 +7327,14 @@
       "id": "composer.compact-project-picker",
       "category": "product",
       "origins": [
-        "worktree-2026-11-17"
+        "worktree-2026-11-17",
+        "worktree-2026-11-24"
       ],
-      "description": "The new conversation, automation, task, todo, Forge, skills settings and conversation filter single-folder selectors share one searchable menu and use compact single-line names, a trailing selection checkmark; paths remain available as hints and search tokens. Keep a separate folder scroller and fixed chat footer, focus search on open, show empty search results and disambiguating paths for duplicate display names; filtering never commits selection. Use regular-weight project names, modest row corners, transparent active and selected backgrounds and a restrained local shadow. Align the popup start edge to the measured composer input border instead of the inset chip. The chat footer is a compact single row with its folderless explanation in the hover title. Pointer hover temporarily adds a pale background, independent of the persistent current-folder checkmark; an unhovered active row stays transparent. Hide the folder scroller rail while retaining wheel, touchpad and keyboard scrolling.",
+      "description": "The new conversation, automation, task, todo, Forge, skills settings and conversation filter single-folder selectors share one searchable menu and use compact single-line names, a trailing selection checkmark; paths remain available as hints and search tokens. In a new conversation pin Chat mode first, place the only divider below Chat mode and keep the icon-free search field and scrollable folder list together below the divider, focus search on open, show empty search results and disambiguating paths for duplicate display names; filtering never commits selection. Use regular-weight project names, modest row corners, transparent active and selected backgrounds and a restrained local shadow. Align the popup start edge to the measured composer input border instead of the inset chip. The chat action is a compact single row with its folderless explanation in the hover title. Match its glyph to folder rows in visual height, leading alignment and foreground color. Pointer hover temporarily adds a pale background, independent of the persistent current-folder checkmark; an unhovered active row stays transparent. Hide the folder scroller rail while retaining wheel, touchpad and keyboard scrolling.",
       "paths": [
         "src/components/chat/conversation-context-bar.tsx",
         "src/components/shared/folder-select.tsx",
+        "src/components/ui/command.tsx",
         "src/components/settings/skills-settings.tsx",
         "src/components/automations/automation-editor.tsx",
         "src/lib/composer-menu-position.ts",

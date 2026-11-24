@@ -2,7 +2,7 @@
 
 import { defaultFilter } from "cmdk"
 import { SELECTOR_MENU_SURFACE } from "@/components/chat/selector-menu-style"
-import { memo, useState } from "react"
+import { memo, useState, type ReactNode } from "react"
 import { useTranslations } from "next-intl"
 import { Check, ChevronDown, Folder, MessageSquare } from "lucide-react"
 
@@ -102,8 +102,9 @@ interface FolderMenuProps {
 
 export function FolderMenuContent({
   alignOffset,
+  children,
   ...props
-}: FolderMenuProps & { alignOffset?: number }) {
+}: FolderMenuProps & { alignOffset?: number; children?: ReactNode }) {
   return (
     <PopoverContent
       align="start"
@@ -114,6 +115,7 @@ export function FolderMenuContent({
       )}
       data-composer-selector-content={props.composer ? "" : undefined}
     >
+      {children}
       <FolderMenuList {...props} />
     </PopoverContent>
   )
@@ -146,9 +148,14 @@ function FolderMenuList({
     <Command
       shouldFilter={false}
       onKeyDown={composer ? undefined : (event) => event.stopPropagation()}
-      className="min-h-0 rounded-xl [&_[cmdk-input-wrapper]]:mx-1 [&_[cmdk-input-wrapper]]:shrink-0 [&_[cmdk-input-wrapper]]:px-1 [&_[cmdk-input-wrapper]]:py-2.5 [&_[cmdk-input-wrapper]]:border-border/60"
+      className={cn(
+        "min-h-0 rounded-xl [&_[cmdk-input-wrapper]]:mx-1 [&_[cmdk-input-wrapper]]:shrink-0 [&_[cmdk-input-wrapper]]:px-1 [&_[cmdk-input-wrapper]]:py-2.5 [&_[cmdk-input-wrapper]]:border-border/60",
+        composer &&
+          "[&_[cmdk-input-wrapper]]:border-b-0 [&_[cmdk-input-wrapper]]:px-0 [&_[cmdk-input-wrapper]]:pb-1"
+      )}
     >
       <CommandInput
+        showSearchIcon={!composer}
         autoFocus
         value={query}
         onValueChange={setQuery}

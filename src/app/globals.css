@@ -3370,6 +3370,16 @@ div.monaco-diff-editor.side-by-side .editor.modified {
 .chat-message-text :is(strong, b) {
   font-weight: 600;
 }
+
+/* Revealed activity is secondary to the surrounding reply. */
+.maxcode-activity-details {
+  --chat-font-size: 0.75rem;
+  font-size: var(--chat-font-size);
+}
+.maxcode-activity-details [data-slot="tool-title"] {
+  font-size: inherit;
+}
+
 /* One body-sized paragraph gap, including around tables. Edge paragraphs
    add no padding to the message itself. Lists retain their compact rhythm. */
 .chat-message-text .chat-markdown > p {

@@ -1,0 +1,689 @@
+"use client"
+
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useNow, useTranslations } from "next-intl"
+import { ChevronDown, Search, X } from "lucide-react"
+import { toast } from "sonner"
+import { AgentIcon } from "@/components/agent-icon"
+import { useTabActions, useTabStore } from "@/contexts/tab-context"
+import { useWorkbenchRoute } from "@/contexts/workbench-route-context"
+import { useAppWorkspaceStore } from "@/stores/app-workspace-store"
+import { formatFolderLabelWithAlias } from "@/lib/folder-display"
+import {
+  labGroup,
+  labSnoozeUntil,
+  labSettledAt,
+  labGroups,
+  labHasWoken,
+  labKey,
+  type LabGroup,
+} from "@/lib/conversation-lab"
+import { SessionDetailsDialog } from "./session-details-dialog"
+import { ConversationDeleteDialog } from "./conversation-delete-dialog"
+import { useOptionalTodosView } from "@/contexts/todos-view-context"
+import {
+  TodoConversationLinkDialog,
+  type TodoConversationLinkTarget,
+} from "@/components/todos/todo-conversation-link-dialog"
+import { formatConversationTitle } from "@/lib/conversation-title"
+import { useConversationUnreadStore } from "@/stores/conversation-unread-store"
+import {
+  deleteConversation,
+  updateConversationStatus,
+  updateConversationPinned,
+} from "@/lib/api"
+import { useSidebarNavigation } from "@/contexts/sidebar-navigation-context"
+import { updatedWithinDateRange } from "@/lib/sidebar-navigation"
+import { getTransport } from "@/lib/transport"
+import { isImeCompositionKey } from "@/lib/ime-composition"
+import { toErrorMessage } from "@/lib/app-error"
+import type { DbConversationSummary, FolderDetail } from "@/lib/types"
+import { cn } from "@/lib/utils"
+import { LabProjectTools } from "./conversation-lab-projects"
+import { LabProjectBadge } from "./lab-project-badge"
+import { useLabState } from "./conversation-lab-state"
+
+import { LabRow } from "./conversation-lab-row"
+
+interface Row {
+  c: DbConversationSummary
+  project: string
+  projectId: string
+}
+const shelves = ["running", "snoozed", "finished"] as const
+
+function useContentMatches(query: string, candidates: Row[]) {
+  const [result, setResult] = useState<{
+    query: string
+    matches: Map<number, string>
+    busy: boolean
+    error?: string
+  }>()
+  useEffect(() => {
+    if (!query || !candidates.length) return
+    let active = true
+    const timer = setTimeout(async () => {
+      const matches = new Map<number, string>()
+      try {
+        for (let i = 0; active && i < candidates.length; i += 8) {
+          const conversationIds = candidates.slice(i, i + 8).map((r) => r.c.id)
+          const response = await getTransport().call<[number, string][]>(
+            "search_conversation_text",
+            { conversationIds, query }
+          )
+          if (!active) return
+          for (const [id, text] of response) matches.set(id, text)
+          setResult({
+            query,
+            matches: new Map(matches),
+            busy: i + 8 < candidates.length,
+          })
+        }
+      } catch (e) {
+        if (active)
+          setResult({ query, matches, busy: false, error: toErrorMessage(e) })
+      }
+    }, 250)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [query, candidates])
+  return query && candidates.length && result?.query === query
+    ? result
+    : undefined
+}
+
+function LabShelf({
+  group,
+  count,
+  children,
+}: {
+  group: (typeof shelves)[number]
+  count: number
+  children: (expanded: boolean) => React.ReactNode
+}) {
+  const l = useTranslations("Folder.sidebar.lab")
+  const key = "maxcode:lab-shelf:" + group
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(key) === "1"
+    } catch {
+      return false
+    }
+  })
+  return (
+    <>
+      <details open={open} className="group/section shrink-0">
+        <summary
+          className="flex cursor-pointer list-none items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-sidebar-foreground"
+          onClick={(e) => {
+            e.preventDefault()
+            setOpen(!open)
+            try {
+              localStorage.setItem(key, open ? "0" : "1")
+            } catch {}
+          }}
+        >
+          <ChevronDown className="size-3 -rotate-90 group-open/section:rotate-0" />
+          {l(group)}
+          <span className="ms-auto tabular-nums">{count}</span>
+        </summary>
+        {open && children(true)}
+      </details>
+      {!open && children(false)}
+    </>
+  )
+}
+
+export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
+  const t = useTranslations("Folder.sidebar")
+  const l = useTranslations("Folder.sidebar.lab")
+  const untitled = useTranslations("Folder.conversationCard")(
+    "untitledConversation"
+  )
+  const folders = useAppWorkspaceStore((s) => s.allFolders)
+  const conversations = useAppWorkspaceStore((s) => s.conversations)
+  const loading = useAppWorkspaceStore((s) => s.conversationsLoading)
+  const error = useAppWorkspaceStore((s) => s.conversationsError)
+  const refresh = useAppWorkspaceStore((s) => s.refreshConversations)
+  const {
+    openTab,
+    openChatModeTab,
+    openNewConversationTab,
+    closeConversationTab,
+  } = useTabActions()
+  const { openConversations } = useWorkbenchRoute()
+  const selected = useTabStore(
+    (s) => s.tabs.find((tab) => tab.id === s.activeTabId)?.conversationId
+  )
+  const todoState = useOptionalTodosView()?.state
+  const tTodos = useTranslations("Todos")
+  const [linkTarget, setLinkTarget] =
+    useState<TodoConversationLinkTarget | null>(null)
+  const [dialog, setDialog] = useState<{
+    kind: "details" | "delete"
+    c: DbConversationSummary
+  } | null>(null)
+  async function complete(c: DbConversationSummary) {
+    try {
+      await updateConversationStatus(c.id, "completed")
+      useAppWorkspaceStore
+        .getState()
+        .updateConversationLocal(c.id, { status: "completed" })
+      useConversationUnreadStore.getState().markRead(c.id)
+    } catch (e) {
+      toast.error(toErrorMessage(e))
+    }
+  }
+  async function remove(c: DbConversationSummary) {
+    try {
+      await deleteConversation(c.id)
+      closeConversationTab(c.folder_id, c.id, c.agent_type)
+      await refresh()
+    } catch (e) {
+      toast.error(toErrorMessage(e))
+    }
+  }
+  const [projects, setProjects] = useState<string[]>([])
+  const [query, setQuery] = useState("")
+  const [cursor, setCursor] = useState(0)
+  const input = useRef<HTMLInputElement>(null)
+  const now = useNow({ updateInterval: 5000 }).getTime()
+  const { marks, signals, seenFailures, change } = useLabState()
+  const [drag, setDrag] = useState<DbConversationSummary | null>(null)
+  const [order, setOrder] = useState<string[]>(() => {
+    try {
+      const value: unknown = JSON.parse(
+        localStorage.getItem("maxcode:lab-row-order") || "[]"
+      )
+      return Array.isArray(value)
+        ? value.filter((k): k is string => typeof k === "string")
+        : []
+    } catch {
+      return []
+    }
+  })
+  const available = useMemo(
+    () => folders.filter((f) => f.kind !== "chat" && f.parent_id == null),
+    [folders]
+  )
+  const { date, endDate, startTime, endTime } = useSidebarNavigation() ?? {}
+  const chatLabel = t("sectionChats")
+  const rows = useMemo(() => {
+    const byId = new Map(folders.map((f) => [f.id, f]))
+    return conversations
+      .flatMap((c): Row[] => {
+        if (
+          (date &&
+            endDate &&
+            startTime &&
+            endTime &&
+            !updatedWithinDateRange(
+              c.updated_at,
+              date,
+              endDate,
+              startTime,
+              endTime
+            )) ||
+          c.hide_from_conversation_list ||
+          c.parent_id != null ||
+          (c.kind !== "regular" && c.kind !== "chat")
+        )
+          return []
+        const folder = byId.get(c.folder_id)
+        const root = byId.get(folder?.parent_id ?? c.folder_id) ?? folder
+        const project =
+          root && root.kind !== "chat" && c.kind !== "chat" ? root : null
+        const projectId = project ? String(project.id) : "none"
+        return projects.length && !projects.includes(projectId)
+          ? []
+          : [
+              {
+                c,
+                project: project
+                  ? formatFolderLabelWithAlias(project)
+                  : chatLabel,
+                projectId,
+              },
+            ]
+      })
+      .sort(
+        (a, b) =>
+          Date.parse(b.c.updated_at) - Date.parse(a.c.updated_at) ||
+          b.c.id - a.c.id
+      )
+  }, [
+    conversations,
+    folders,
+    projects,
+    chatLabel,
+    date,
+    endDate,
+    startTime,
+    endTime,
+  ])
+  const groups = useMemo(() => {
+    const g: Record<LabGroup, Row[]> = {
+      pinned: [],
+      main: [],
+      running: [],
+      snoozed: [],
+      finished: [],
+    }
+    for (const row of rows)
+      g[
+        labGroup(row.c, marks.get(labKey(row.c)), now, signals.get(row.c.id))
+      ].push(row)
+    const markedAt = (r: Row) => {
+      const mark = marks.get(labKey(r.c))
+      return (
+        labSettledAt(mark) ?? labSnoozeUntil(mark) ?? Date.parse(r.c.updated_at)
+      )
+    }
+    g.pinned.sort(
+      (a, b) => Date.parse(b.c.pinned_at!) - Date.parse(a.c.pinned_at!)
+    )
+    g.finished.sort((a, b) => markedAt(b) - markedAt(a))
+    g.snoozed.sort((a, b) => markedAt(a) - markedAt(b))
+    if (order.length) {
+      const ranks = new Map(order.map((key, i) => [key, i]))
+      for (const section of [g.pinned, g.main])
+        section.sort(
+          (a, b) =>
+            (ranks.get(labKey(a.c)) ?? -1) - (ranks.get(labKey(b.c)) ?? -1)
+        )
+    }
+    return g
+  }, [rows, marks, now, order, signals])
+  const term = query.trim().toLocaleLowerCase()
+  const titles = useMemo(
+    () =>
+      term
+        ? rows.filter((r) =>
+            (r.c.title || untitled).toLocaleLowerCase().includes(term)
+          )
+        : [],
+    [rows, term, untitled]
+  )
+  const candidates = useMemo(() => {
+    if (!term) return []
+    const ids = new Set(titles.map((r) => r.c.id))
+    return rows.filter((r) => r.c.external_id && !ids.has(r.c.id))
+  }, [rows, titles, term])
+  const content = useContentMatches(term, candidates)
+  const results = [
+    ...titles,
+    ...candidates.filter((r) => content?.matches.has(r.c.id)),
+  ]
+  const activeIndex = Math.min(cursor, results.length - 1)
+  const [settledLimit, setSettledLimit] = useState(10)
+  function afterOpen(opened: unknown) {
+    if (!opened) {
+      toast.info(t("folderHeaderMenu.splitLimitReached"))
+      return false
+    }
+    openConversations()
+    onNavigate?.()
+    return true
+  }
+  function start(f?: FolderDetail) {
+    afterOpen(f ? openNewConversationTab(f.id, f.path) : openChatModeTab())
+  }
+  function open(c: DbConversationSummary) {
+    const opened = afterOpen(openTab(c.folder_id, c.id, c.agent_type, false))
+    if (opened && labHasWoken(marks.get(labKey(c)), now)) change(c)
+    return opened
+  }
+  function search(value: string) {
+    setQuery(value)
+    setCursor(0)
+  }
+  function choose(r: Row) {
+    if (open(r.c)) search("")
+  }
+  async function move(
+    target: "pinned" | "main" | "finished",
+    before?: DbConversationSummary,
+    after = false
+  ) {
+    const c = drag
+    setDrag(null)
+    if (!c || before?.id === c.id) return
+    try {
+      if (target === "finished") {
+        change(c, { settledAt: now })
+        return
+      }
+      const pin = target === "pinned"
+      if (pin !== !!c.pinned_at) {
+        await updateConversationPinned(c.id, pin)
+        useAppWorkspaceStore.getState().updateConversationLocal(c.id, {
+          pinned_at: pin ? new Date().toISOString() : null,
+        })
+      }
+      change(c)
+      const key = labKey(c)
+      const groupKeys = groups[target]
+        .map((r) => labKey(r.c))
+        .filter((k) => k !== key)
+      const index = before
+        ? groupKeys.indexOf(labKey(before))
+        : groupKeys.length
+      groupKeys.splice(index + (before && after ? 1 : 0), 0, key)
+      setOrder((previous) => {
+        const recent = new Set(groupKeys)
+        const next = [...previous.filter((k) => !recent.has(k)), ...groupKeys]
+        return next
+      })
+    } catch (e) {
+      toast.error(toErrorMessage(e))
+    }
+  }
+  useEffect(() => {
+    if (order.length) {
+      try {
+        localStorage.setItem("maxcode:lab-row-order", JSON.stringify(order))
+      } catch {}
+    }
+  }, [order])
+  function target(
+    group: LabGroup,
+    before?: DbConversationSummary
+  ): React.HTMLAttributes<HTMLDivElement> {
+    if (!drag || group === "snoozed" || group === "running") return {}
+    return {
+      onDragOver: (e) => {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = "move"
+      },
+      onDrop: (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const rect = e.currentTarget.getBoundingClientRect()
+        void move(group, before, e.clientY > rect.top + rect.height / 2)
+      },
+    }
+  }
+  function renderRows(group: LabGroup, expanded = true) {
+    const items = groups[group]
+    const limit = group === "finished" ? settledLimit : items.length
+    const visible = items.filter(
+      (r, i) => (expanded && i < limit) || r.c.id === selected
+    )
+    return (
+      <>
+        {visible.map(({ c, project, projectId }) => (
+          <div
+            key={labKey(c)}
+            draggable={group !== "running"}
+            onDragStart={(e) => {
+              if (group === "running") return
+              e.dataTransfer.setData("text/plain", String(c.id))
+              e.dataTransfer.effectAllowed = "move"
+              setDrag(c)
+            }}
+            onDragEnd={() => setDrag(null)}
+            {...target(group, c)}
+          >
+            <LabRow
+              c={c}
+              project={project}
+              hasProject={projectId !== "none"}
+              group={group}
+              mark={marks.get(labKey(c))}
+              now={now}
+              selected={selected === c.id}
+              open={() => open(c)}
+              signal={signals.get(c.id)}
+              failureSeen={
+                seenFailures.get(labKey(c)) === signals.get(c.id)?.edge
+              }
+              change={(mark) =>
+                change(
+                  c,
+                  mark,
+                  typeof mark === "number" && mark > now
+                    ? signals.get(c.id)?.edge
+                    : undefined
+                )
+              }
+              complete={() => void complete(c)}
+              details={() => setDialog({ kind: "details", c })}
+              remove={() => setDialog({ kind: "delete", c })}
+              linkTodo={
+                todoState &&
+                (todoState.mode === "personal" || todoState.active_team_id)
+                  ? () =>
+                      setLinkTarget({
+                        conversationId: c.id,
+                        title: formatConversationTitle(c.title) || untitled,
+                        scopeId:
+                          todoState.mode === "personal"
+                            ? "personal"
+                            : todoState.active_team_id!,
+                        scopeName:
+                          todoState.mode === "personal"
+                            ? tTodos("personalMode")
+                            : (todoState.teams.find(
+                                (team) => team.id === todoState.active_team_id
+                              )?.name ?? tTodos("teamMode")),
+                      })
+                  : undefined
+              }
+            />
+          </div>
+        ))}
+        {expanded && items.length > visible.length && (
+          <button
+            className="px-3 py-1 text-xs text-muted-foreground"
+            onClick={() => setSettledLimit(limit + 25)}
+          >
+            {t("showMoreConversations", {
+              count: items.length - visible.length,
+            })}
+          </button>
+        )}
+      </>
+    )
+  }
+  const activeRowId = results[activeIndex]
+    ? "lab-result-" + results[activeIndex].c.id
+    : undefined
+  useEffect(() => {
+    if (activeRowId)
+      document
+        .getElementById(activeRowId)
+        ?.scrollIntoView?.({ block: "nearest" })
+  }, [activeRowId])
+  return (
+    <section
+      aria-label={t("navigation.lab")}
+      className="flex min-h-0 flex-1 flex-col px-2 pb-2"
+    >
+      <div className="flex items-center gap-1 pb-2">
+        <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md bg-transparent px-2 hover:bg-interaction-hover focus-within:ring-1 focus-within:ring-ring">
+          <Search className="size-3.5 shrink-0 text-muted-foreground" />
+          <input
+            ref={input}
+            type="search"
+            value={query}
+            aria-label={t("searchPlaceholder")}
+            placeholder={l("search")}
+            aria-controls={term ? "lab-search-list" : undefined}
+            aria-activedescendant={term ? activeRowId : undefined}
+            onChange={(e) => search(e.target.value)}
+            onKeyDown={(e) => {
+              if (isImeCompositionKey(e)) return
+              if (e.key === "Escape") {
+                e.preventDefault()
+                search("")
+                return
+              }
+              if (!term || activeIndex < 0) return
+              if (e.key === "Enter") {
+                e.preventDefault()
+                choose(results[activeIndex])
+              }
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault()
+                setCursor(
+                  (activeIndex +
+                    (e.key === "ArrowDown" ? 1 : -1) +
+                    results.length) %
+                    results.length
+                )
+              }
+            }}
+            className="h-7 w-full min-w-0 bg-transparent text-xs outline-none [&::-webkit-search-cancel-button]:hidden"
+          />
+          {query && (
+            <button
+              type="button"
+              className="shrink-0"
+              aria-label={l("clear")}
+              onClick={() => {
+                search("")
+                input.current?.focus()
+              }}
+            >
+              <X className="size-3" />
+            </button>
+          )}
+        </label>
+        <LabProjectTools
+          projects={available}
+          selected={projects}
+          setSelected={setProjects}
+          start={start}
+        />
+      </div>
+      {error && (
+        <button
+          onClick={() => void refresh()}
+          className="p-2 text-start text-xs text-destructive"
+        >
+          {error} · {l("retry")}
+        </button>
+      )}
+      {term ? (
+        <div className="min-h-0 flex-1 overflow-auto">
+          <div role="listbox" id="lab-search-list" aria-label={l("search")}>
+            {results.map((r, i) => (
+              <button
+                id={"lab-result-" + r.c.id}
+                key={r.c.id}
+                role="option"
+                aria-selected={i === activeIndex}
+                onMouseMove={() => setCursor(i)}
+                onClick={() => choose(r)}
+                className={cn(
+                  "block w-full rounded-lg p-2 text-start",
+                  i === activeIndex && "bg-sidebar-accent"
+                )}
+              >
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <LabProjectBadge
+                    name={r.projectId === "none" ? null : r.project}
+                  />
+                  <span className="truncate">{r.project}</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="flex-1 truncate text-sm">
+                    {r.c.title || untitled}
+                  </span>
+                  <AgentIcon agentType={r.c.agent_type} className="size-3.5" />
+                </span>
+                {content?.matches.get(r.c.id) && (
+                  <small className="line-clamp-2 text-muted-foreground">
+                    {content.matches.get(r.c.id)}
+                  </small>
+                )}
+              </button>
+            ))}
+          </div>
+          {content?.error && (
+            <p role="alert" className="p-2 text-xs text-destructive">
+              {content.error}
+            </p>
+          )}
+          {!results.length && !content?.error && (
+            <p role="status" className="p-2 text-xs text-muted-foreground">
+              {candidates.length && (!content || content.busy)
+                ? l("loading")
+                : t("noMatchingConversations")}
+            </p>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="min-h-0 flex-1 overflow-y-auto" {...target("main")}>
+            {drag && (
+              <div
+                className="rounded border border-dashed px-2 py-1 text-xs text-muted-foreground"
+                {...target("pinned")}
+              >
+                {l("pinnedDrag")}
+              </div>
+            )}
+            {renderRows("pinned")}
+            {drag && (
+              <div
+                className="border-t px-2 py-1 text-xs text-muted-foreground"
+                {...target("main")}
+              >
+                {l("activeDrag")}
+              </div>
+            )}
+            {renderRows("main")}
+            {!error && !labGroups.some((g) => groups[g].length) && (
+              <p role="status" className="p-2 text-xs text-muted-foreground">
+                {loading ? l("loading") : t("noMatchingConversations")}
+              </p>
+            )}
+          </div>
+          {(drag || shelves.some((g) => groups[g].length > 0)) && (
+            <div className="max-h-[55%] shrink-0 overflow-y-auto border-t border-sidebar-border/60">
+              {shelves.map(
+                (group) =>
+                  (groups[group].length > 0 ||
+                    (drag && group === "finished")) && (
+                    <div key={group} {...target(group)}>
+                      <LabShelf group={group} count={groups[group].length}>
+                        {(expanded) => renderRows(group, expanded)}
+                      </LabShelf>
+                    </div>
+                  )
+              )}
+            </div>
+          )}
+        </>
+      )}
+      {linkTarget && (
+        <TodoConversationLinkDialog
+          target={linkTarget}
+          onClose={() => setLinkTarget(null)}
+        />
+      )}
+      {dialog?.kind === "details" && (
+        <SessionDetailsDialog
+          open
+          summary={dialog.c}
+          onOpenChange={(open) => {
+            if (!open) setDialog(null)
+          }}
+        />
+      )}
+      {dialog?.kind === "delete" && (
+        <ConversationDeleteDialog
+          open
+          title={dialog.c.title}
+          onConfirm={() => void remove(dialog.c)}
+          onOpenChange={(open) => {
+            if (!open) setDialog(null)
+          }}
+        />
+      )}
+    </section>
+  )
+}

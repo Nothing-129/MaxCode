@@ -33,16 +33,18 @@ describe("MaxCode: live status shows the phase and total elapsed time", () => {
           />
         </NextIntlClientProvider>
       )
-      expect(screen.getByRole("status")).toHaveTextContent(label)
-      expect(screen.getByText("3 分 5 秒")).toBeVisible()
+      const status = screen.getByRole("status")
+      const elapsed = screen.getByText("3 分 5 秒")
+      expect(status).toHaveTextContent(label)
+      expect(elapsed).toBeVisible()
       expect(container.querySelector(".lucide-timer")).toBeNull()
-      expect(screen.getByRole("status")).not.toHaveTextContent("3 分")
+      expect(status).not.toHaveTextContent("3 分")
       expect(container).not.toHaveTextContent("tok/s")
       expect(container).not.toHaveTextContent("|")
-      const separators = container.querySelectorAll('[data-slot="separator"]')
-      expect(separators).toHaveLength(1)
-      expect(separators[0]).toHaveAttribute("data-orientation", "vertical")
-      expect(separators[0]).toHaveAttribute("aria-hidden", "true")
+      const dot = screen.getByText("·")
+      expect(dot).toHaveAttribute("aria-hidden", "true")
+      expect(dot.previousElementSibling).toBe(status)
+      expect(dot.nextElementSibling).toBe(elapsed)
     }
   )
 

@@ -1,13 +1,19 @@
 import type { DbConversationSummary } from "@/lib/types"
 import type { SidebarSectionKey } from "@/lib/sidebar-view-mode-storage"
 
-export type SidebarView = "home" | "conversations" | "projects" | "tasks"
+export type SidebarView =
+  | "home"
+  | "conversations"
+  | "projects"
+  | "tasks"
+  | "lab"
 
 const VIEW_SECTIONS: Record<SidebarView, readonly SidebarSectionKey[]> = {
   home: ["pinned", "folders", "chats", "recent", "todos"],
   conversations: ["pinned", "recent"],
   projects: ["folders"],
   tasks: ["todos"],
+  lab: [],
 }
 
 export function sidebarViewSections(view: SidebarView) {
@@ -31,6 +37,25 @@ export function minuteBoundary(value: unknown, side: "start" | "end"): string {
   return `${value.slice(0, 5)}:${side === "start" ? "00" : "59"}`
 }
 
+export function updatedWithinDateRange(
+  updatedAt: string,
+  date: string,
+  endDate: string,
+  startTime: string,
+  endTime: string
+) {
+  const updated = new Date(updatedAt)
+  if (!Number.isFinite(updated.getTime())) return false
+  const day = localDateKey(updated)
+  if (day < date || day > endDate) return false
+  // Compare wall-clock seconds so both occurrences of a repeated DST hour match.
+  const clock = updated.toTimeString().slice(0, 8)
+  return (
+    (day !== date || clock >= startTime) &&
+    (day !== endDate || clock <= endTime)
+  )
+}
+
 export function conversationsOnDate(
   conversations: readonly DbConversationSummary[],
   date: string,
@@ -48,14 +73,12 @@ export function conversationsOnDate(
         (conversation.kind !== "regular" && conversation.kind !== "chat")
       )
         return false
-      const updated = new Date(conversation.updated_at)
-      const day = localDateKey(updated)
-      if (day < date || day > endDate) return false
-      // Compare wall-clock seconds so both occurrences of a repeated DST hour match.
-      const clock = updated.toTimeString().slice(0, 8)
-      return (
-        (day !== date || clock >= startTime) &&
-        (day !== endDate || clock <= endTime)
+      return updatedWithinDateRange(
+        conversation.updated_at,
+        date,
+        endDate,
+        startTime,
+        endTime
       )
     })
     .sort(

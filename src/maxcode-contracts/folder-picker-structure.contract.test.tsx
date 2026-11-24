@@ -34,15 +34,35 @@ function setup() {
   return { user: userEvent.setup(), onSelect, onSelectChatMode }
 }
 describe("folder selector structure", () => {
-  it("pins chat mode outside the folder scroller and distinguishes duplicate names by path", async () => {
+  it("places chat mode above search and search above the scrollable folder list", async () => {
     const { user } = setup()
     await user.click(screen.getByRole("button"))
+    const chat = screen.getByTitle("不关联任何工作区")
+    const divider = screen.getByRole("separator")
+    const search = screen.getByRole("combobox")
+    const folders = screen.getByRole("listbox")
+    expect(search.parentElement?.querySelector("svg")).toBeNull()
     expect(
-      screen.getByTitle("不关联任何工作区").closest("[data-folder-scroll]")
-    ).toBeNull()
+      chat.compareDocumentPosition(divider) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(
+      divider.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(
+      search.compareDocumentPosition(folders) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(chat.closest("[data-folder-scroll]")).toBeNull()
     expect(screen.getByText("/one/repo")).toBeVisible()
     expect(screen.getByText("/two/repo")).toBeVisible()
     expect(screen.getByPlaceholderText("搜索文件夹...")).toHaveFocus()
+  })
+  it("matches the chat glyph to the folder ink color and optical height", async () => {
+    const { user } = setup()
+    await user.click(screen.getByRole("button"))
+    const glyph = screen
+      .getByRole("button", { name: "聊天模式" })
+      .querySelector("svg")
+    expect(glyph).toHaveClass("size-4", "text-foreground", "scale-y-90")
   })
   it("shows an explicit empty state without switching folders and keeps chat mode reachable", async () => {
     const { user, onSelect, onSelectChatMode } = setup()
@@ -50,7 +70,9 @@ describe("folder selector structure", () => {
     await user.type(screen.getByPlaceholderText("搜索文件夹..."), "zzzzz")
     expect(screen.getByRole("status")).toHaveTextContent("没有匹配的文件夹")
     expect(onSelect).not.toHaveBeenCalled()
-    await user.click(screen.getByText("聊天模式"))
+    await user.tab({ shift: true })
+    expect(screen.getByRole("button", { name: "聊天模式" })).toHaveFocus()
+    await user.keyboard("{Enter}")
     expect(onSelectChatMode).toHaveBeenCalledOnce()
   })
   it("searches paths and commits only after Enter", async () => {

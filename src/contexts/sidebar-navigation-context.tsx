@@ -21,6 +21,7 @@ export const NAVIGATION_IDS = [
   "projects",
   "tasks",
   "automations",
+  "lab",
 ] as const
 export type NavigationId = (typeof NAVIGATION_IDS)[number]
 const GROUP_MODES = ["recent", "folder"] as const
@@ -41,6 +42,7 @@ const SIDEBAR_VIEWS: readonly SidebarView[] = [
   "conversations",
   "projects",
   "tasks",
+  "lab",
 ]
 
 const SidebarNavigationContext = createContext<{
