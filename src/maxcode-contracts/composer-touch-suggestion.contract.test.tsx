@@ -6,7 +6,6 @@ import {
   RichComposer,
   type RichComposerHandle,
 } from "@/components/chat/composer/rich-composer"
-import { source } from "./contract-source"
 
 afterEach(cleanup)
 
@@ -36,7 +35,8 @@ describe("desktop and touch composer suggestion adoption", () => {
     const button = screen.getByRole("button", { name: "采纳建议" })
     expect(button).toHaveAttribute("type", "button")
     expect(setText).not.toHaveBeenCalled()
-    expect(button).toHaveClass("size-8")
+    expect(button).toHaveClass("text-muted-foreground")
+    expect(button).toHaveTextContent("Tab")
     fireEvent.click(button)
     expect(setText).toHaveBeenCalledWith("允许，继续查")
     expect(focus).toHaveBeenCalledOnce()
@@ -75,36 +75,19 @@ describe("desktop and touch composer suggestion adoption", () => {
     expect(editorRef.current?.getText()).toBe("我的草稿")
   })
 
-  it("renders the desktop Tab hint as a keycap after the suggestion, outside the draft", async () => {
-    const { container } = render(
-      <RichComposer
-        placeholder="Run checks (Tab to use)"
-        promptSuggestion="Run checks"
-        showSuggestionTabHint
+  it("offers a labeled inline action on touch screens", () => {
+    const editorRef = createRef<RichComposerHandle>()
+    render(
+      <AcceptPromptSuggestion
+        touch
+        editorRef={editorRef}
+        suggestion="继续"
+        label="采纳建议"
       />
     )
-    const key = await screen.findByText("Tab", { selector: "kbd" })
-    expect(key.parentElement).toHaveTextContent("Run checks")
-    expect(key.parentElement).not.toHaveTextContent("Tab to use")
-    expect(container.querySelector(".ProseMirror")).not.toContainElement(key)
-  })
-
-  it("offers the icon on desktop and touch, separate from placeholder and send", () => {
-    const input = source("src/components/chat/message-input.tsx")
-    expect(input).toContain(
-      "const useTouchSuggestion = isMobile || isCoarsePointer"
-    )
-    expect(input).toMatch(/useTouchSuggestion\s*\? offeredSuggestion/)
-    expect(input).toMatch(
-      /\{offeredSuggestion && composerEmpty && \(\s*<AcceptPromptSuggestion/
-    )
-    expect(input).toMatch(
-      /<AcceptPromptSuggestion[\s\S]*?\/>(?:\s*\)\})\s*\{actionButtons\}/
-    )
-    const button = source(
-      "src/components/chat/composer/accept-prompt-suggestion.tsx"
-    )
-    expect(button).not.toContain("onSubmit")
-    expect(button).not.toContain("handleSend")
+    const button = screen.getByRole("button", { name: "采纳建议" })
+    expect(button).toHaveTextContent("采纳建议")
+    expect(button).toHaveClass("text-muted-foreground")
+    expect(button).not.toHaveTextContent("Tab")
   })
 })

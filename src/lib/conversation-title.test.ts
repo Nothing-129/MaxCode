@@ -12,6 +12,12 @@ describe("formatConversationTitle", () => {
     expect(formatConversationTitle("")).toBe("")
   })
 
+  it("keeps separators inside an automation name", () => {
+    expect(formatConversationTitle("1124｜自动｜上午 | 发布")).toBe(
+      "上午 | 发布"
+    )
+  })
+
   it("leaves plain prose untouched", () => {
     expect(formatConversationTitle("Fix the login bug")).toBe(
       "Fix the login bug"

@@ -2384,7 +2384,16 @@ export function MessageInput({
                 ariaLabel={resolvedPlaceholder}
                 removeFileLabel={(name) => t("removeAttachmentAria", { name })}
                 promptSuggestion={offeredSuggestion}
-                showSuggestionTabHint={!useTouchSuggestion}
+                suggestionAction={
+                  offeredSuggestion && (
+                    <AcceptPromptSuggestion
+                      editorRef={editorRef}
+                      suggestion={offeredSuggestion}
+                      label={t("acceptPromptSuggestion")}
+                      touch={useTouchSuggestion}
+                    />
+                  )
+                }
                 autoFocus={autoFocus}
                 referenceSearch={referenceSearch}
                 mentionUiLabels={mentionUiLabels}
@@ -2531,13 +2540,6 @@ export function MessageInput({
                   )}
                 </div>
                 <div className="maxcode-composer-actions flex min-h-8 shrink-0 items-center gap-2">
-                  {offeredSuggestion && composerEmpty && (
-                    <AcceptPromptSuggestion
-                      editorRef={editorRef}
-                      suggestion={offeredSuggestion}
-                      label={t("acceptPromptSuggestion")}
-                    />
-                  )}
                   {actionButtons}
                 </div>
               </div>

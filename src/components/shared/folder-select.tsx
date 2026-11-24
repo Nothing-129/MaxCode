@@ -2,7 +2,14 @@
 
 import { defaultFilter } from "cmdk"
 import { SELECTOR_MENU_SURFACE } from "@/components/chat/selector-menu-style"
-import { memo, useState, type ReactNode } from "react"
+import {
+  memo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+  type Ref,
+} from "react"
 import { useTranslations } from "next-intl"
 import { Check, ChevronDown, Folder, MessageSquare } from "lucide-react"
 
@@ -13,7 +20,6 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "@/components/ui/command"
 import {
   Popover,
@@ -34,6 +40,11 @@ export interface FolderSelectOption {
   path?: string | null
 }
 
+interface FolderMenuOption extends FolderSelectOption {
+  icon?: ReactNode
+  shortcut?: string
+}
+
 /**
  * The string cmdk matches the query against. Everything the user might type for
  * a folder goes in — the alias, the real directory name, and the full path — so
@@ -49,7 +60,7 @@ export const FolderOptionItem = memo(function FolderOptionItem({
   showPath = false,
   onSelect,
 }: {
-  folder: FolderSelectOption
+  folder: FolderMenuOption
   selected: boolean
   showPath?: boolean
   onSelect: () => void
@@ -62,7 +73,7 @@ export const FolderOptionItem = memo(function FolderOptionItem({
       data-current={selected}
       className="min-h-8 gap-2.5 rounded-lg px-2.5 py-1.5 data-[selected=true]:bg-transparent hover:bg-muted/60 data-[selected=true]:hover:bg-muted/60 [&_svg]:stroke-[1.5]"
     >
-      <Folder className="h-4 w-4" />
+      {folder.icon ?? <Folder className="h-4 w-4" />}
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate font-normal">
           <FolderAliasLabel name={folder.name} alias={folder.alias ?? null} />
@@ -79,57 +90,131 @@ export const FolderOptionItem = memo(function FolderOptionItem({
           </span>
         ) : null}
       </div>
-      {selected ? <Check className="h-4 w-4 shrink-0" /> : null}
+      {folder.shortcut && (
+        <kbd className="shrink-0 text-xs text-muted-foreground">
+          {folder.shortcut}
+        </kbd>
+      )}
+      {selected && <Check aria-hidden="true" className="h-4 w-4 shrink-0" />}
     </CommandItem>
   )
 })
 
+interface FolderMenuAction {
+  label: string
+  description?: string
+  chat?: boolean
+  selected?: boolean
+  shortcut?: string
+  onSelect: () => void
+}
+
 interface FolderMenuProps {
-  folders: readonly FolderSelectOption[]
-  value: number | null
+  folders: readonly FolderMenuOption[]
+  value: number | readonly number[] | null
   labelSearch: string
   labelEmpty: string
   onSelect: (id: number) => void
-  footer?: {
-    label: string
-    description?: string
-    chat?: boolean
-    selected: boolean
-    onSelect: () => void
-  }
+  actions?: readonly FolderMenuAction[]
   composer?: boolean
+  loop?: boolean
 }
 
+type FolderMenuPopoverProps = Pick<
+  ComponentProps<typeof PopoverContent>,
+  | "alignOffset"
+  | "side"
+  | "onClickCapture"
+  | "onKeyDownCapture"
+  | "onCloseAutoFocus"
+  | "onEscapeKeyDown"
+>
+
 export function FolderMenuContent({
-  alignOffset,
-  children,
-  ...props
-}: FolderMenuProps & { alignOffset?: number; children?: ReactNode }) {
+  labelSearch,
+  actions,
+  composer,
+  folders,
+  value,
+  labelEmpty,
+  onSelect,
+  loop,
+  ...popoverProps
+}: FolderMenuProps & FolderMenuPopoverProps) {
+  const searchRef = useRef<HTMLInputElement>(null)
+
   return (
     <PopoverContent
+      {...popoverProps}
       align="start"
-      alignOffset={alignOffset}
+      aria-label={labelSearch}
       className={cn(
         SELECTOR_MENU_SURFACE,
         "w-72 overflow-hidden max-h-(--radix-popover-content-available-height) shadow-[0_4px_16px_-4px_rgb(0_0_0/0.08)]"
       )}
-      data-composer-selector-content={props.composer ? "" : undefined}
+      data-composer-selector-content={composer ? "" : undefined}
+      onOpenAutoFocus={(event) => {
+        event.preventDefault()
+        searchRef.current?.focus()
+      }}
     >
-      {children}
-      <FolderMenuList {...props} />
+      {actions?.map((action) => {
+        const Icon = action.chat ? MessageSquare : Folder
+        return (
+          <button
+            key={action.label}
+            type="button"
+            title={action.description}
+            aria-pressed={action.selected}
+            onClick={action.onSelect}
+            className="mx-1 flex min-h-8 shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-start text-sm hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring [&_svg]:stroke-[1.5]"
+          >
+            <Icon
+              aria-hidden="true"
+              className={cn(
+                "size-4 shrink-0 text-foreground",
+                action.chat && "origin-top scale-y-90"
+              )}
+            />
+            <span className="min-w-0 flex-1 truncate">{action.label}</span>
+            {action.shortcut && (
+              <kbd className="shrink-0 text-xs text-muted-foreground">
+                {action.shortcut}
+              </kbd>
+            )}
+            {action.selected && (
+              <Check aria-hidden="true" className="size-4 shrink-0" />
+            )}
+          </button>
+        )
+      })}
+      {!!actions?.length && (
+        <hr className="mx-1 mt-1 shrink-0 border-border/60" />
+      )}
+      <FolderMenuList
+        searchRef={searchRef}
+        folders={folders}
+        value={value}
+        labelSearch={labelSearch}
+        labelEmpty={labelEmpty}
+        onSelect={onSelect}
+        composer={composer}
+        loop={loop}
+      />
     </PopoverContent>
   )
 }
 
 function FolderMenuList({
+  searchRef,
   folders,
   value,
   labelSearch,
   labelEmpty,
   onSelect,
-  footer,
   composer,
-}: FolderMenuProps) {
+  loop,
+}: Omit<FolderMenuProps, "actions"> & { searchRef: Ref<HTMLInputElement> }) {
   const [query, setQuery] = useState("")
   const displayName = (folder: FolderSelectOption) =>
     folder.alias?.trim() || folder.name
@@ -143,22 +228,19 @@ function FolderMenuList({
     (folder) => defaultFilter(folderSearchValue(folder), query) > 0
   )
 
-  const FooterIcon = footer?.chat ? MessageSquare : Folder
   return (
     <Command
       shouldFilter={false}
+      loop={loop}
       onKeyDown={composer ? undefined : (event) => event.stopPropagation()}
-      className={cn(
-        "min-h-0 rounded-xl [&_[cmdk-input-wrapper]]:mx-1 [&_[cmdk-input-wrapper]]:shrink-0 [&_[cmdk-input-wrapper]]:px-1 [&_[cmdk-input-wrapper]]:py-2.5 [&_[cmdk-input-wrapper]]:border-border/60",
-        composer &&
-          "[&_[cmdk-input-wrapper]]:border-b-0 [&_[cmdk-input-wrapper]]:px-0 [&_[cmdk-input-wrapper]]:pb-1"
-      )}
+      className="min-h-0 rounded-xl [&_[cmdk-input-wrapper]]:mx-1 [&_[cmdk-input-wrapper]]:shrink-0 [&_[cmdk-input-wrapper]]:border-b-0 [&_[cmdk-input-wrapper]]:px-0 [&_[cmdk-input-wrapper]]:pt-2.5 [&_[cmdk-input-wrapper]]:pb-1"
     >
       <CommandInput
-        showSearchIcon={!composer}
-        autoFocus
+        ref={searchRef}
+        showSearchIcon={false}
         value={query}
         onValueChange={setQuery}
+        aria-label={labelSearch}
         placeholder={labelSearch}
         className="h-8 rounded-full bg-muted/70 px-3 py-1 text-xs"
       />
@@ -176,41 +258,21 @@ function FolderMenuList({
             </div>
           )}
           <CommandGroup>
-            {/* Keep project names on one line; paths remain searchable. */}
             {visibleFolders.map((f) => (
               <FolderOptionItem
                 showPath={(nameCounts.get(displayName(f)) ?? 0) > 1}
                 key={f.id}
                 folder={f}
-                selected={f.id === value}
+                selected={
+                  typeof value === "number"
+                    ? f.id === value
+                    : (value?.includes(f.id) ?? false)
+                }
                 onSelect={() => onSelect(f.id)}
               />
             ))}
           </CommandGroup>
         </div>
-        {footer && (
-          <div
-            data-folder-chat-footer={footer.chat ? "" : undefined}
-            className="shrink-0 bg-popover"
-          >
-            <CommandSeparator className="mx-2 bg-border/60" />
-            <CommandGroup forceMount>
-              <CommandItem
-                value="__folder_footer__"
-                title={footer.description}
-                className="min-h-8 gap-2.5 rounded-lg px-2.5 py-1.5 text-muted-foreground data-[selected=true]:bg-transparent hover:bg-muted/60 data-[selected=true]:hover:bg-muted/60 [&_svg]:stroke-[1.5]"
-                forceMount
-                onSelect={footer.onSelect}
-              >
-                <FooterIcon className="h-4 w-4" />
-                <span className="min-w-0 flex-1 truncate font-normal text-foreground">
-                  {footer.label}
-                </span>
-                {footer.selected && <Check className="h-4 w-4 shrink-0" />}
-              </CommandItem>
-            </CommandGroup>
-          </div>
-        )}
       </CommandList>
     </Command>
   )
@@ -243,7 +305,7 @@ interface FolderSelectProps {
    *  real, selectable state. Omit for a picker that must end up on a folder. */
   allLabel?: string
   /** Show the folderless-chat icon and explanation for the null choice. */
-  chatFooter?: boolean
+  chatOption?: boolean
   /** Trigger text while nothing is selected and there is no `allLabel`. */
   placeholder?: string
   /** Called when the pinned "all folders" row is picked. Required with
@@ -265,7 +327,7 @@ export function FolderSelect({
   value,
   onChange,
   allLabel,
-  chatFooter = false,
+  chatOption = false,
   placeholder,
   onSelectAll,
   variant = "pill",
@@ -365,18 +427,22 @@ export function FolderSelect({
           setOpen(false)
           onChange(id)
         }}
-        footer={
+        actions={
           allLabel
-            ? {
-                label: allLabel,
-                description: chatFooter ? t("chatModeDescription") : undefined,
-                chat: chatFooter,
-                selected: value === null,
-                onSelect: () => {
-                  setOpen(false)
-                  onSelectAll?.()
+            ? [
+                {
+                  label: allLabel,
+                  description: chatOption
+                    ? t("chatModeDescription")
+                    : undefined,
+                  chat: chatOption,
+                  selected: value === null,
+                  onSelect: () => {
+                    setOpen(false)
+                    onSelectAll?.()
+                  },
                 },
-              }
+              ]
             : undefined
         }
       />

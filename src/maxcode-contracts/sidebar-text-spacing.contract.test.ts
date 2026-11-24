@@ -41,9 +41,8 @@ describe("sidebar text and spacing", () => {
     const titleLabel = source(
       "src/components/conversations/conversation-title-label.tsx"
     )
-    expect(titleLabel).toContain("w-[4ch]")
-    expect(titleLabel).toContain("tabular-nums")
-    expect(titleLabel).toContain("parseStructuredConversationTitle")
+    expect(titleLabel).not.toContain("w-[4ch]")
+    expect(titleLabel).toContain("formatConversationTitle")
     const list = source(
       "src/components/conversations/sidebar-conversation-list.tsx"
     )
@@ -52,11 +51,10 @@ describe("sidebar text and spacing", () => {
     )
     expect(list).toContain("relative h-[2rem] rounded-full py-px")
     expect(list).toContain("h-full min-h-0 px-2 pb-1.5")
-    expect(list).toContain("px-2 [--conv-rail-axis:0.875rem]")
+    expect(list).toContain("[--conv-rail-axis:0.875rem]")
     expect(list).toContain("recentConversationFolderLabel(conv, allFolders)")
-    expect(list).toContain(
-      '(row.recent || (isMobile && !row.todoId)) && conv.kind === "chat"'
+    expect(list).toMatch(
+      /\(stackMetadata \|\| \(isMobile && !groupedRecent && !row\.todoId\)\) &&\s+conv\.kind === "chat"\s+\? t\("sectionChats"\)/
     )
-    expect(list).toContain('? t("sectionChats")')
   })
 })

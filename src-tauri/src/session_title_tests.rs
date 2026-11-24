@@ -25,7 +25,7 @@ fn created_at() -> DateTime<Utc> {
 }
 
 #[test]
-fn structured_title_normalizes_separators_and_created_date() {
+fn legacy_title_strips_date_and_category() {
     for title in [
         "0907｜顶部栏闪烁",
         "0907 | 顶部栏闪烁",
@@ -34,18 +34,18 @@ fn structured_title_normalizes_separators_and_created_date() {
         "0907｜修复｜顶部栏闪烁",
     ] {
         assert_eq!(
-            normalize_structured_title(title, created_at()).as_deref(),
-            Some("0903｜顶部栏闪烁")
+            normalize_structured_title(title).as_deref(),
+            Some("顶部栏闪烁")
         );
     }
     assert_eq!(
-        normalize_structured_title("0907/优化/CI/CD", created_at()).as_deref(),
-        Some("0903｜CI/CD")
+        normalize_structured_title("0907/优化/CI/CD").as_deref(),
+        Some("CI/CD")
     );
     for topic in ["CI/CD", "设计/权限", "修复/优化"] {
         assert_eq!(
-            normalize_structured_title(&format!("0907｜{topic}"), created_at()),
-            Some(format!("0903｜{topic}"))
+            normalize_structured_title(&format!("0907｜{topic}")),
+            Some(topic.to_string())
         );
     }
     for invalid in [
@@ -55,10 +55,7 @@ fn structured_title_normalizes_separators_and_created_date() {
         "abcd｜修复｜闪烁",
         "0907｜修复｜闪烁｜多余字段",
     ] {
-        assert!(
-            normalize_structured_title(invalid, created_at()).is_none(),
-            "{invalid}"
-        );
+        assert!(normalize_structured_title(invalid).is_none(), "{invalid}");
     }
 }
 
@@ -71,22 +68,19 @@ fn other_category_accepts_topics_and_normalizes_legacy_fallbacks() {
         "0909 | 其他 | 未命名",
         "0909｜未知｜未命名",
     ] {
-        assert_eq!(
-            normalize_structured_title(title, created_at()).as_deref(),
-            Some("0903｜未命名")
-        );
+        assert_eq!(normalize_structured_title(title).as_deref(), Some("未命名"));
         assert!(can_overwrite_auto_title(Some(title), "你好"));
     }
     assert_eq!(
-        normalize_structured_title("0909丨其他丨日常问候", created_at()).as_deref(),
-        Some("0903｜日常问候")
+        normalize_structured_title("0909丨其他丨日常问候").as_deref(),
+        Some("日常问候")
     );
     assert!(!can_overwrite_auto_title(
         Some("0909｜日常问候"),
         "修复登录"
     ));
-    assert!(normalize_structured_title("0909｜未知｜日常问候", created_at()).is_none());
-    assert!(normalize_structured_title("0909丨其他丨日常丨问候", created_at()).is_none());
+    assert!(normalize_structured_title("0909｜未知｜日常问候").is_none());
+    assert!(normalize_structured_title("0909丨其他丨日常丨问候").is_none());
 }
 
 #[test]
@@ -103,35 +97,34 @@ fn date_topic_and_fallback_apply_to_every_locale() {
         TitleLocale::Pt,
         TitleLocale::Ar,
     ] {
-        let prompt = title_prompt_for_message("你好", "0909｜未知｜未命名", created_at(), locale);
+        let prompt = title_prompt_for_message("你好", "0909｜未知｜未命名", locale);
         assert!(!prompt.contains("MMDD"));
         assert!(!prompt.contains("createdAt"));
         assert!(!prompt.contains("功能、设计"));
         assert!(!prompt.contains("0903"));
         assert!(prompt.contains("未命名"));
         assert!(!prompt.contains("未知"));
-        assert!(prompt.contains("Any understandable conversational intent is a valid topic"));
+        assert!(!prompt.contains("Topic interpretation:"));
+        assert!(prompt.matches("未命名").count() >= 2);
     }
 }
 
 #[tokio::test]
-async fn model_generates_only_topic_and_creation_date_is_added_locally() {
+async fn model_generates_only_topic() {
     let server = mock(vec![reply("委托批次与数据权限")], Duration::ZERO).await;
     let result = llm_title_via_api(
         &runtime(&server),
         "调整权限",
         "1102｜设计｜旧主题",
-        created_at(),
         TitleLocale::Zh,
     )
     .await
     .unwrap();
-    assert_eq!(result, "0903｜委托批次与数据权限");
+    assert_eq!(result, "委托批次与数据权限");
     let unchanged = llm_title_via_api(
         &runtime(&server),
         "调整权限",
         "委托批次与数据权限",
-        created_at(),
         TitleLocale::Zh,
     )
     .await
@@ -148,17 +141,11 @@ async fn model_generates_only_topic_and_creation_date_is_added_locally() {
         extract_chat_completion_title(&reply("未命名").1).as_deref(),
         Some("未命名")
     );
+    assert_eq!(title_from_model("未命名").as_deref(), Some("未命名"));
+    assert_eq!(title_from_model("CI/CD").as_deref(), Some("CI/CD"));
     assert_eq!(
-        title_from_model("未命名", created_at()).as_deref(),
-        Some("0903｜未命名")
-    );
-    assert_eq!(
-        title_from_model("CI/CD", created_at()).as_deref(),
-        Some("0903｜CI/CD")
-    );
-    assert_eq!(
-        title_from_model("1231｜修复｜权限", created_at()).as_deref(),
-        Some("0903｜权限")
+        title_from_model("1231｜修复｜权限").as_deref(),
+        Some("权限")
     );
 }
 
@@ -241,16 +228,10 @@ async fn invalid_responses_retry_but_authentication_does_not() {
         Duration::ZERO,
     )
     .await;
-    let result = llm_title_via_api(
-        &runtime(&server),
-        "顶部栏闪烁",
-        "原始标题",
-        created_at(),
-        TitleLocale::Zh,
-    )
-    .await
-    .unwrap();
-    assert_eq!(result, "0903｜顶部栏闪烁");
+    let result = llm_title_via_api(&runtime(&server), "顶部栏闪烁", "原始标题", TitleLocale::Zh)
+        .await
+        .unwrap();
+    assert_eq!(result, "顶部栏闪烁");
     assert_eq!(server.requests.lock().unwrap().len(), 3);
 
     let server = mock(
@@ -261,15 +242,11 @@ async fn invalid_responses_retry_but_authentication_does_not() {
         Duration::ZERO,
     )
     .await;
-    assert!(llm_title_via_api(
-        &runtime(&server),
-        "顶部栏闪烁",
-        "原始标题",
-        created_at(),
-        TitleLocale::Zh
-    )
-    .await
-    .is_err());
+    assert!(
+        llm_title_via_api(&runtime(&server), "顶部栏闪烁", "原始标题", TitleLocale::Zh)
+            .await
+            .is_err()
+    );
     assert_eq!(server.requests.lock().unwrap().len(), 1);
 
     let server = mock(
@@ -283,15 +260,11 @@ async fn invalid_responses_retry_but_authentication_does_not() {
         Duration::ZERO,
     )
     .await;
-    assert!(llm_title_via_api(
-        &runtime(&server),
-        "顶部栏闪烁",
-        "原始标题",
-        created_at(),
-        TitleLocale::Zh
-    )
-    .await
-    .is_ok());
+    assert!(
+        llm_title_via_api(&runtime(&server), "顶部栏闪烁", "原始标题", TitleLocale::Zh)
+            .await
+            .is_ok()
+    );
     assert_eq!(server.requests.lock().unwrap().len(), 2);
 }
 
@@ -334,7 +307,7 @@ async fn structured_fallback_covers_empty_text_images_and_model_failures() {
             generate_manual_title(&db.conn, &summary, &turns)
                 .await
                 .unwrap(),
-            "0903｜未命名"
+            "未命名"
         );
     }
     let server = mock(vec![reply("")], Duration::ZERO).await;
@@ -344,7 +317,7 @@ async fn structured_fallback_covers_empty_text_images_and_model_failures() {
         generate_manual_title(&db.conn, &summary, &turns)
             .await
             .unwrap(),
-        "0903｜未命名"
+        "未命名"
     );
     assert_eq!(server.requests.lock().unwrap().len(), 3);
     summary.title = Some("0909｜修复｜已有主题".into());
@@ -352,23 +325,20 @@ async fn structured_fallback_covers_empty_text_images_and_model_failures() {
         generate_manual_title(&db.conn, &summary, &[])
             .await
             .unwrap(),
-        "0903｜已有主题"
+        "已有主题"
     );
     assert_eq!(
-        normalize_structured_title("0909｜其他｜未命名", created_at()).as_deref(),
-        Some("0903｜未命名")
+        normalize_structured_title("0909｜其他｜未命名").as_deref(),
+        Some("未命名")
     );
-    assert!(normalize_structured_title("0909｜未知｜猜测主题", created_at()).is_none());
-    assert!(can_overwrite_auto_title(Some("0903｜未命名"), "新内容"));
+    assert!(normalize_structured_title("0909｜未知｜猜测主题").is_none());
+    assert!(can_overwrite_auto_title(Some("未命名"), "新内容"));
 
     let emitter = EventEmitter::test_web_only(Arc::new(WebEventBroadcaster::new()));
     let summary = conversation_service::get_by_id(&db.conn, id).await.unwrap();
     recover_auto_title(&db.conn, &emitter, &summary, &[image_only_turn()]).await;
     let saved = conversation_service::get_by_id(&db.conn, id).await.unwrap();
-    assert_eq!(
-        saved.title,
-        Some(structured_title_fallback(None, saved.created_at))
-    );
+    assert_eq!(saved.title, Some(title_fallback(None)));
     assert!(!saved.title_locked);
 }
 
@@ -422,7 +392,7 @@ async fn manual_refresh_image_only_message_sends_reply_context() {
     )
     .await
     .unwrap();
-    assert!(title.ends_with("｜统一客户分类"));
+    assert!(title == "统一客户分类");
     let requests = server.requests.lock().unwrap();
     assert_eq!(requests.len(), 1);
     let request = requests[0].to_string();
@@ -494,7 +464,7 @@ async fn recovery_uses_original_context_and_preserves_locked_titles() {
     wait_until_idle(id).await;
     let saved = conversation_service::get_by_id(&db.conn, id).await.unwrap();
     assert!(saved.title_locked);
-    let refined = format!("{}｜顶部栏闪烁", created_date_mmdd(summary.created_at));
+    let refined = "顶部栏闪烁".to_string();
     assert_eq!(saved.title.as_deref(), Some(refined.as_str()));
     assert_eq!(
         events.try_recv().unwrap().payload["summary"]["title"],
@@ -629,7 +599,7 @@ async fn manual_refresh_replaces_locked_title_without_unlocking_or_changing_sett
         generate_manual_title(&db.conn, &current, &[])
             .await
             .unwrap(),
-        structured_title_fallback(None, current.created_at)
+        "请求期间重新命名"
     );
     let failed = mock(
         vec![(
@@ -644,7 +614,7 @@ async fn manual_refresh_replaces_locked_title_without_unlocking_or_changing_sett
         generate_manual_title(&db.conn, &current, &turns)
             .await
             .unwrap(),
-        structured_title_fallback(None, current.created_at)
+        "请求期间重新命名"
     );
     let after = conversation_service::get_by_id(&db.conn, id).await.unwrap();
     assert_eq!(after.title, current.title);
@@ -746,10 +716,7 @@ async fn recovered_title_is_returned_in_live_detail() {
             .await
             .unwrap();
         assert_eq!(detail.summary.title, saved.title);
-        assert_eq!(
-            detail.summary.title,
-            Some(structured_title_fallback(None, row.created_at))
-        );
+        assert_eq!(detail.summary.title, Some(title_fallback(None)));
         assert!(!detail.summary.title_locked);
     }
 }
@@ -786,18 +753,13 @@ async fn greeting_kickoff_calls_http_for_each_supported_agent(
                 index + 1,
                 "{agent:?} must send an HTTP request"
             );
-            assert!(requests[index]["messages"][0]["content"]
-                .as_str()
-                .unwrap()
-                .contains("你好"));
             let prompt = requests[index]["messages"][0]["content"].as_str().unwrap();
-            assert!(prompt.contains(
-                "Greetings, thanks, introductions, and short questions must receive descriptive titles"
-            ));
-            assert!(prompt.contains("only when the supplied content has no interpretable meaning"));
+            assert!(prompt.contains("你好"));
+            assert!(prompt.contains("未命名"));
+            assert!(!prompt.contains("Topic interpretation:"));
         }
         let saved = conversation_service::get_by_id(&db.conn, id).await.unwrap();
-        assert!(saved.title.unwrap().ends_with("｜日常问候"), "{agent:?}");
+        assert!(saved.title.as_deref() == Some("日常问候"), "{agent:?}");
         assert!(saved.title_locked);
     }
 }

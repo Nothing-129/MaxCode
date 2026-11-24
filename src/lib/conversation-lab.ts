@@ -6,6 +6,7 @@ export const labGroups = [
   "pinned",
   "main",
   "running",
+  "completed",
   "snoozed",
   "finished",
 ] as const
@@ -43,13 +44,26 @@ export function labGroup(
   c: DbConversationSummary,
   mark: LabMark | undefined,
   now: number,
-  signal?: LabSignal
+  signal?: LabSignal,
+  unread = false
 ): LabGroup {
   if (mark === "finished" || labSettledAt(mark) !== undefined) return "finished"
   if ((labSnoozeUntil(mark) ?? 0) > now) return "snoozed"
   if (c.pinned_at) return "pinned"
-  if (signal?.edge) return "main"
-  if (signal || isRunningConversationStatus(c.status)) return "running"
+  if (signal) {
+    return signal.kind === "working" ||
+      signal.kind === "goal" ||
+      signal.kind === "waiting"
+      ? "running"
+      : "main"
+  }
+  if (isRunningConversationStatus(c.status)) return "running"
+  if (
+    unread &&
+    !labHasWoken(mark, now) &&
+    (c.status === "pending_review" || c.status === "completed")
+  )
+    return "completed"
   return "main"
 }
 
@@ -116,6 +130,28 @@ export function snoozePresets(now: number) {
     })
 }
 
+function formatLabUnit(amount: number, unit: string, locale: string) {
+  return new Intl.NumberFormat(locale, {
+    style: "unit",
+    unit,
+    unitDisplay: "narrow",
+  }).format(amount)
+}
+
+export function formatLabWorkingDuration(delta: number, locale: string) {
+  const seconds = Number.isFinite(delta)
+    ? Math.max(0, Math.floor(delta / 1000))
+    : 0
+  if (seconds < 60) return formatLabUnit(seconds, "second", locale)
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return formatLabUnit(minutes, "minute", locale)
+  return (
+    formatLabUnit(Math.floor(minutes / 60), "hour", locale) +
+    " " +
+    formatLabUnit(minutes % 60, "minute", locale)
+  )
+}
+
 export function compactLabTime(
   delta: number,
   locale: string,
@@ -130,9 +166,5 @@ export function compactLabTime(
       : minutes < 1440
         ? ([round(minutes / 60), "hour"] as const)
         : ([round(minutes / 1440), "day"] as const)
-  return new Intl.NumberFormat(locale, {
-    style: "unit",
-    unit,
-    unitDisplay: "narrow",
-  }).format(amount)
+  return formatLabUnit(amount, unit, locale)
 }

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 
@@ -86,12 +86,10 @@ describe("FolderSelect", () => {
     await user.type(screen.getByPlaceholderText("searchFolder"), "zzzz")
 
     expect(screen.queryByText("other-repo")).toBeNull()
-    // Two nodes read "allFolders" — the trigger's own summary and the pinned
-    // row; the row is the one inside the list.
-    const row = screen
-      .getAllByText("allFolders")
-      .find((el) => el.closest("[data-slot=command-item]"))
-    await user.click(row!)
+    const row = within(screen.getByRole("dialog")).getByRole("button", {
+      name: "allFolders",
+    })
+    await user.click(row)
     expect(onSelectAll).toHaveBeenCalled()
   })
 
@@ -175,11 +173,9 @@ describe("FolderSelect", () => {
 
   it("does not check the all-folders row while a folder it cannot resolve is selected", async () => {
     const allRowCheck = () =>
-      screen
-        .getAllByText("allFolders")
-        .find((el) => el.closest("[data-slot=command-item]"))
-        ?.closest("[data-slot=command-item]")
-        ?.querySelector("svg.lucide-check") ?? null
+      within(screen.getByRole("dialog"))
+        .getByRole("button", { name: "allFolders" })
+        .querySelector("svg.lucide-check")
 
     // Control: "all" really is the selection, so the row carries the check.
     const first = open(FOLDERS, { value: null })

@@ -4,11 +4,16 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useNow, useTranslations } from "next-intl"
 import { ChevronDown, Search, X } from "lucide-react"
 import { toast } from "sonner"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { AgentIcon } from "@/components/agent-icon"
 import { useTabActions, useTabStore } from "@/contexts/tab-context"
 import { useWorkbenchRoute } from "@/contexts/workbench-route-context"
 import { useAppWorkspaceStore } from "@/stores/app-workspace-store"
-import { formatFolderLabelWithAlias } from "@/lib/folder-display"
+import {
+  excludeChatFolders,
+  filterTopLevelFolders,
+  formatFolderLabelWithAlias,
+} from "@/lib/folder-display"
 import {
   labGroup,
   labSnoozeUntil,
@@ -49,8 +54,9 @@ interface Row {
   c: DbConversationSummary
   project: string
   projectId: string
+  projectColor?: string
 }
-const shelves = ["running", "snoozed", "finished"] as const
+const shelves = ["running", "completed", "snoozed", "finished"] as const
 
 function useContentMatches(query: string, candidates: Row[]) {
   const [result, setResult] = useState<{
@@ -105,7 +111,10 @@ function LabShelf({
 }) {
   const l = useTranslations("Folder.sidebar.lab")
   const key = "maxcode:lab-shelf:" + group
+  const completedLabel = useTranslations("Folder.statusLabels")("completed")
+  const isActivityShelf = group === "running" || group === "completed"
   const [open, setOpen] = useState(() => {
+    if (isActivityShelf) return true
     try {
       return localStorage.getItem(key) === "1"
     } catch {
@@ -120,29 +129,37 @@ function LabShelf({
           onClick={(e) => {
             e.preventDefault()
             setOpen(!open)
+            if (isActivityShelf) return
             try {
               localStorage.setItem(key, open ? "0" : "1")
             } catch {}
           }}
         >
           <ChevronDown className="size-3 -rotate-90 group-open/section:rotate-0" />
-          {l(group)}
+          {group === "completed" ? completedLabel : l(group)}
           <span className="ms-auto tabular-nums">{count}</span>
         </summary>
         {open && children(true)}
       </details>
-      {!open && children(false)}
+      {!open && !isActivityShelf && children(false)}
     </>
   )
 }
 
-export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
+export function ConversationLab({
+  mobile,
+  onNavigate,
+}: {
+  mobile: boolean
+  onNavigate?: () => void
+}) {
   const t = useTranslations("Folder.sidebar")
   const l = useTranslations("Folder.sidebar.lab")
   const untitled = useTranslations("Folder.conversationCard")(
     "untitledConversation"
   )
   const folders = useAppWorkspaceStore((s) => s.allFolders)
+  const openFolders = useAppWorkspaceStore((s) => s.folders)
   const conversations = useAppWorkspaceStore((s) => s.conversations)
   const loading = useAppWorkspaceStore((s) => s.conversationsLoading)
   const error = useAppWorkspaceStore((s) => s.conversationsError)
@@ -208,6 +225,10 @@ export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
     () => folders.filter((f) => f.kind !== "chat" && f.parent_id == null),
     [folders]
   )
+  const composeProjects = useMemo(
+    () => excludeChatFolders(filterTopLevelFolders(openFolders)),
+    [openFolders]
+  )
   const { date, endDate, startTime, endTime } = useSidebarNavigation() ?? {}
   const chatLabel = t("sectionChats")
   const rows = useMemo(() => {
@@ -245,6 +266,7 @@ export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
                   ? formatFolderLabelWithAlias(project)
                   : chatLabel,
                 projectId,
+                projectColor: project?.color,
               },
             ]
       })
@@ -263,17 +285,25 @@ export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
     startTime,
     endTime,
   ])
+  const unreadIds = useConversationUnreadStore((s) => s.unreadIds)
   const groups = useMemo(() => {
     const g: Record<LabGroup, Row[]> = {
       pinned: [],
       main: [],
       running: [],
+      completed: [],
       snoozed: [],
       finished: [],
     }
     for (const row of rows)
       g[
-        labGroup(row.c, marks.get(labKey(row.c)), now, signals.get(row.c.id))
+        labGroup(
+          row.c,
+          marks.get(labKey(row.c)),
+          now,
+          signals.get(row.c.id),
+          unreadIds.has(row.c.id)
+        )
       ].push(row)
     const markedAt = (r: Row) => {
       const mark = marks.get(labKey(r.c))
@@ -295,13 +325,19 @@ export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
         )
     }
     return g
-  }, [rows, marks, now, order, signals])
+  }, [rows, marks, now, order, signals, unreadIds])
+  const visibleShelves = shelves.filter(
+    (group) =>
+      groups[group].length > 0 || (group === "finished" && (mobile || drag))
+  )
   const term = query.trim().toLocaleLowerCase()
   const titles = useMemo(
     () =>
       term
         ? rows.filter((r) =>
-            (r.c.title || untitled).toLocaleLowerCase().includes(term)
+            (formatConversationTitle(r.c.title) || untitled)
+              .toLocaleLowerCase()
+              .includes(term)
           )
         : [],
     [rows, term, untitled]
@@ -391,7 +427,13 @@ export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
     group: LabGroup,
     before?: DbConversationSummary
   ): React.HTMLAttributes<HTMLDivElement> {
-    if (!drag || group === "snoozed" || group === "running") return {}
+    if (
+      !drag ||
+      group === "snoozed" ||
+      group === "running" ||
+      group === "completed"
+    )
+      return {}
     return {
       onDragOver: (e) => {
         e.preventDefault()
@@ -413,12 +455,12 @@ export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
     )
     return (
       <>
-        {visible.map(({ c, project, projectId }) => (
+        {visible.map(({ c, project, projectId, projectColor }) => (
           <div
             key={labKey(c)}
-            draggable={group !== "running"}
+            draggable={group !== "running" && group !== "completed"}
             onDragStart={(e) => {
-              if (group === "running") return
+              if (group === "running" || group === "completed") return
               e.dataTransfer.setData("text/plain", String(c.id))
               e.dataTransfer.effectAllowed = "move"
               setDrag(c)
@@ -430,6 +472,7 @@ export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
               c={c}
               project={project}
               hasProject={projectId !== "none"}
+              projectColor={projectColor}
               group={group}
               mark={marks.get(labKey(c))}
               now={now}
@@ -553,6 +596,7 @@ export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
         </label>
         <LabProjectTools
           projects={available}
+          composeProjects={composeProjects}
           selected={projects}
           setSelected={setProjects}
           start={start}
@@ -567,7 +611,7 @@ export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
         </button>
       )}
       {term ? (
-        <div className="min-h-0 flex-1 overflow-auto">
+        <ScrollArea className="min-h-0 flex-1">
           <div role="listbox" id="lab-search-list" aria-label={l("search")}>
             {results.map((r, i) => (
               <button
@@ -585,12 +629,13 @@ export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <LabProjectBadge
                     name={r.projectId === "none" ? null : r.project}
+                    folderColor={r.projectColor}
                   />
                   <span className="truncate">{r.project}</span>
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="flex-1 truncate text-sm">
-                    {r.c.title || untitled}
+                    {formatConversationTitle(r.c.title) || untitled}
                   </span>
                   <AgentIcon agentType={r.c.agent_type} className="size-3.5" />
                 </span>
@@ -614,48 +659,46 @@ export function ConversationLab({ onNavigate }: { onNavigate?: () => void }) {
                 : t("noMatchingConversations")}
             </p>
           )}
-        </div>
+        </ScrollArea>
       ) : (
         <>
-          <div className="min-h-0 flex-1 overflow-y-auto" {...target("main")}>
-            {drag && (
-              <div
-                className="rounded border border-dashed px-2 py-1 text-xs text-muted-foreground"
-                {...target("pinned")}
-              >
-                {l("pinnedDrag")}
-              </div>
-            )}
-            {renderRows("pinned")}
-            {drag && (
-              <div
-                className="border-t px-2 py-1 text-xs text-muted-foreground"
-                {...target("main")}
-              >
-                {l("activeDrag")}
-              </div>
-            )}
-            {renderRows("main")}
-            {!error && !labGroups.some((g) => groups[g].length) && (
-              <p role="status" className="p-2 text-xs text-muted-foreground">
-                {loading ? l("loading") : t("noMatchingConversations")}
-              </p>
-            )}
-          </div>
-          {(drag || shelves.some((g) => groups[g].length > 0)) && (
-            <div className="max-h-[55%] shrink-0 overflow-y-auto border-t border-sidebar-border/60">
-              {shelves.map(
-                (group) =>
-                  (groups[group].length > 0 ||
-                    (drag && group === "finished")) && (
-                    <div key={group} {...target(group)}>
-                      <LabShelf group={group} count={groups[group].length}>
-                        {(expanded) => renderRows(group, expanded)}
-                      </LabShelf>
-                    </div>
-                  )
+          <div className="min-h-0 flex-1" {...target("main")}>
+            <ScrollArea className="h-full">
+              {drag && (
+                <div
+                  className="rounded border border-dashed px-2 py-1 text-xs text-muted-foreground"
+                  {...target("pinned")}
+                >
+                  {l("pinnedDrag")}
+                </div>
               )}
-            </div>
+              {renderRows("pinned")}
+              {drag && (
+                <div
+                  className="border-t px-2 py-1 text-xs text-muted-foreground"
+                  {...target("main")}
+                >
+                  {l("activeDrag")}
+                </div>
+              )}
+              {renderRows("main")}
+              {!error && !labGroups.some((g) => groups[g].length) && (
+                <p role="status" className="p-2 text-xs text-muted-foreground">
+                  {loading ? l("loading") : t("noMatchingConversations")}
+                </p>
+              )}
+            </ScrollArea>
+          </div>
+          {visibleShelves.length > 0 && (
+            <ScrollArea className="min-h-0 max-h-[55%] shrink-0 border-t border-sidebar-border/60">
+              {visibleShelves.map((group) => (
+                <div key={group} {...target(group)}>
+                  <LabShelf group={group} count={groups[group].length}>
+                    {(expanded) => renderRows(group, expanded)}
+                  </LabShelf>
+                </div>
+              ))}
+            </ScrollArea>
           )}
         </>
       )}

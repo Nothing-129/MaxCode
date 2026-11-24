@@ -176,7 +176,7 @@ describe("ConversationManageDialog", () => {
     await screen.findByText("on main")
 
     await user.click(screen.getByRole("button", { name: /alpha/ }))
-    await user.click(paletteRow("All folders"))
+    await user.click(screen.getByRole("button", { name: "All folders" }))
 
     await waitFor(() => expect(lastQueryFolderIds()).toEqual([1, 2, 3]))
   })
@@ -215,7 +215,7 @@ describe("ConversationManageDialog", () => {
     await waitFor(() => expect(h.listAll).toHaveBeenCalledTimes(1))
 
     await user.click(screen.getByRole("button", { name: /#1/ }))
-    await user.click(paletteRow("All folders"))
+    await user.click(screen.getByRole("button", { name: "All folders" }))
 
     await waitFor(() =>
       expect(
@@ -238,7 +238,7 @@ describe("ConversationManageDialog", () => {
 
     const trigger = screen.getByRole("button", { name: /alpha-feature/ })
     await user.click(trigger)
-    await user.click(paletteRow("All folders"))
+    await user.click(screen.getByRole("button", { name: "All folders" }))
     await waitFor(() => expect(lastQueryFolderIds()).toEqual([1, 2, 3]))
 
     // ...and it is still there to go back to.
@@ -363,7 +363,7 @@ describe("ConversationManageDialog", () => {
     expect(screen.queryByText("beta")).toBeNull()
 
     await user.click(screen.getByRole("button", { name: /alpha/ }))
-    await user.click(paletteRow("All folders"))
+    await user.click(screen.getByRole("button", { name: "All folders" }))
 
     await waitFor(() => expect(screen.getByText("beta")).toBeTruthy())
   })

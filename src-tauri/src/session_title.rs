@@ -5,7 +5,7 @@
 //! Grok's own `generated_title` is English-biased and lives in a separate
 //! prompt from `~/.grok/AGENTS.md`, while Codex CLI does not automatically
 //! generate a semantic title. A configured lightweight HTTP model refines
-//! the existing title or a creation-date fallback into a short title in the
+//! the existing title or a plain fallback into a short title in the
 //! app UI language. Manual rename (`title_locked`) always wins.
 
 use std::collections::{HashMap, HashSet};
@@ -13,8 +13,8 @@ use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
+#[cfg(test)]
 use chrono::{DateTime, Utc};
-use chrono_tz::Asia::Shanghai;
 use regex::Regex;
 use sea_orm::DatabaseConnection;
 use tracing::Instrument;
@@ -300,9 +300,7 @@ pub fn can_overwrite_auto_title(current: Option<&str>, first_message: &str) -> b
     if is_placeholder_title(current) {
         return true;
     }
-    if normalize_structured_title(current, Utc::now())
-        .is_some_and(|title| title.ends_with("｜未命名"))
-    {
+    if normalize_structured_title(current).is_some_and(|title| is_placeholder_title(&title)) {
         return true;
     }
     let heuristic = heuristic_title(first_message);
@@ -349,17 +347,12 @@ pub fn resolve_title_locale(settings: &SystemLanguageSettings) -> TitleLocale {
     }
 }
 
-fn created_date_mmdd(created_at: DateTime<Utc>) -> String {
-    created_at
-        .with_timezone(&Shanghai)
-        .format("%m%d")
-        .to_string()
-}
-
-fn structured_title_fallback(original: Option<&str>, created_at: DateTime<Utc>) -> String {
-    original
-        .and_then(|title| normalize_structured_title(title, created_at))
-        .unwrap_or_else(|| format!("{}｜未命名", created_date_mmdd(created_at)))
+fn title_fallback(original: Option<&str>) -> String {
+    let title = original.unwrap_or("").trim();
+    if is_placeholder_title(title) {
+        return "未命名".into();
+    }
+    legacy_title_topic(title).unwrap_or(title).to_owned()
 }
 
 async fn save_auto_title_fallback(
@@ -367,7 +360,7 @@ async fn save_auto_title_fallback(
     emitter: &EventEmitter,
     summary: &crate::models::DbConversationSummary,
 ) {
-    let fallback = structured_title_fallback(summary.title.as_deref(), summary.created_at);
+    let fallback = title_fallback(summary.title.as_deref());
     if !summary.title_locked && summary.title.as_deref() != Some(fallback.as_str()) {
         match conversation_service::refresh_auto_title(conn, summary.id, fallback).await {
             Ok(true) => {
@@ -384,128 +377,73 @@ pub fn title_prompt(snippet: &str, original_title: &str, locale: TitleLocale) ->
     match locale {
         TitleLocale::En => format!(
             "Write a concise, specific sidebar title for the conversation below.\n\
-             Rules:\n\
-             - Output only the topic, without a date or category.\n\
-             - Derive the topic from the actual conversation content and do not repeat the project name.\n\
-             - Keep the title short, concrete, and suitable for the sidebar.\n\
-             - If the topic cannot be determined, do not guess; output the current title unchanged.\n\
-             Output only the title, with no quotes, prefix, or explanation.\n\n\
+             Write the title in English. Name the main request or subject, including simple greetings and questions. Omit the project name. Return only the title. If the content has no discernible meaning, return 未命名.\n\n\
              Current title:\n{original_title}\n\n\
              Conversation content:\n{snippet}"
         ),
         TitleLocale::Zh => format!(
             "为下面的对话生成一个简洁、具体、适合左侧栏显示的标题。\n\
-             规则：\n\
-             - 只生成主题，不要日期或类型。\n\
-             - 主题根据对话实际内容提炼，不要重复项目名称。\n\
-             - 标题保持简洁、具体，适合左侧栏显示。\n\
-             - 无法判断主题时不要猜，原样输出当前标题。\n\
-             只输出标题，不要引号、前缀或解释。\n\n\
+             用简体中文写出这段对话主要在做什么或讨论什么。问候和简短提问也按实际内容起名。不要重复项目名称。只输出标题正文。内容无法理解时输出「未命名」。\n\n\
              当前标题：\n{original_title}\n\n\
              对话内容：\n{snippet}"
         ),
         TitleLocale::ZhTw => format!(
             "為下面的對話產生一個簡潔、具體、適合側邊欄顯示的標題。\n\
-             規則：\n\
-             - 只產生主題，不要日期或類型。\n\
-             - 主題依據對話實際內容提煉，不要重複專案名稱。\n\
-             - 標題保持簡潔、具體，適合側邊欄顯示。\n\
-             - 無法判斷主題時不要猜，原樣輸出目前標題。\n\
-             只輸出標題，不要引號、前綴或解釋。\n\n\
+             用繁體中文寫出這段對話主要在做什麼或討論什麼。問候和簡短提問也依實際內容命名。省略專案名稱，只輸出標題。內容無法理解時輸出「未命名」。\n\n\
              目前標題：\n{original_title}\n\n\
              對話內容：\n{snippet}"
         ),
         TitleLocale::Ja => format!(
             "次の会話に、サイドバー向けの簡潔で具体的なタイトルを付けてください。\n\
-             ルール：\n\
-             - トピックのみを生成し、日付や分類を付けないでください。\n\
-             - 実際の会話内容からトピックを抽出し、プロジェクト名を繰り返さないでください。\n\
-             - 判定できない場合は推測せず、現在のタイトルをそのまま出力してください。\n\
-             タイトルだけを出力し、引用符、接頭辞、説明は付けないでください。\n\n\
+             主な依頼や話題を日本語で表してください。挨拶や短い質問にも内容に合う名前を付けてください。プロジェクト名は省き、タイトルだけを出力してください。内容を解釈できない場合は「未命名」と出力してください。\n\n\
              現在のタイトル：\n{original_title}\n\n\
              会話内容：\n{snippet}"
         ),
         TitleLocale::Ko => format!(
             "다음 대화에 사이드바용으로 간결하고 구체적인 제목을 만드세요.\n\
-             규칙:\n\
-             - 주제만 생성하고 날짜나 유형은 포함하지 마세요.\n\
-             - 실제 대화 내용에서 주제를 추출하고 프로젝트 이름을 반복하지 마세요.\n\
-             - 주제를 판단할 수 없으면 추측하지 말고 현재 제목을 그대로 출력하세요.\n\
-             따옴표, 접두사, 설명 없이 제목만 출력하세요.\n\n\
+             주요 요청이나 주제를 한국어로 표현하세요. 인사나 짧은 질문에도 내용에 맞는 제목을 붙이세요. 프로젝트 이름은 생략하고 제목만 출력하세요. 내용을 이해할 수 없으면 未命名을 출력하세요.\n\n\
              현재 제목:\n{original_title}\n\n\
              대화 내용:\n{snippet}"
         ),
         TitleLocale::Es => format!(
             "Escribe un título breve y específico para la barra lateral.\n\
-             Reglas:\n\
-             - Genera solo el tema, sin fecha ni categoría.\n\
-             - Extrae el tema del contenido real y no repitas el nombre del proyecto.\n\
-             - Si no se puede determinar el tema, no inventes; conserva el título actual sin cambios.\n\
-             Devuelve solo el título, sin comillas, prefijos ni explicación.\n\n\
+             Escribe en español el asunto o la petición principal, incluso si es un saludo o una pregunta breve. Omite el nombre del proyecto y devuelve solo el título. Si el contenido carece de sentido, devuelve 未命名.\n\n\
              Título actual:\n{original_title}\n\n\
              Contenido de la conversación:\n{snippet}"
         ),
         TitleLocale::De => format!(
             "Schreibe einen kurzen, konkreten Titel für die Seitenleiste.\n\
-             Regeln:\n\
-             - Erzeuge nur das Thema, ohne Datum oder Kategorie.\n\
-             - Leite das Thema aus dem tatsächlichen Gespräch ab und wiederhole den Projektnamen nicht.\n\
-             - Wenn das Thema nicht bestimmbar ist, rate nicht und gib den aktuellen Titel unverändert aus.\n\
-             Gib nur den Titel aus, ohne Anführungszeichen, Präfix oder Erklärung.\n\n\
+             Benenne das zentrale Anliegen auf Deutsch, auch bei einem Gruß oder einer kurzen Frage. Lass den Projektnamen weg und gib nur den Titel aus. Ist kein Sinn erkennbar, gib 未命名 aus.\n\n\
              Aktueller Titel:\n{original_title}\n\n\
              Gesprächsinhalt:\n{snippet}"
         ),
         TitleLocale::Fr => format!(
             "Écris un titre bref et précis adapté à la barre latérale.\n\
-             Règles :\n\
-             - Génère uniquement le sujet, sans date ni catégorie.\n\
-             - Déduis le sujet du contenu réel et ne répète pas le nom du projet.\n\
-             - Si le sujet est indéterminable, ne devine pas et conserve le titre actuel sans modification.\n\
-             Retourne uniquement le titre, sans guillemets, préfixe ni explication.\n\n\
+             Exprime en français la demande ou le sujet principal, même pour une salutation ou une brève question. Omets le nom du projet et renvoie uniquement le titre. Si le contenu est incompréhensible, renvoie 未命名.\n\n\
              Titre actuel :\n{original_title}\n\n\
              Contenu de la conversation :\n{snippet}"
         ),
         TitleLocale::Pt => format!(
             "Escreva um título curto e específico para a barra lateral.\n\
-             Regras:\n\
-             - Gere apenas o tema, sem data nem categoria.\n\
-             - Extraia o tema do conteúdo real e não repita o nome do projeto.\n\
-             - Se não for possível determinar o tema, não adivinhe; mantenha o título atual inalterado.\n\
-             Retorne apenas o título, sem aspas, prefixo ou explicação.\n\n\
+             Escreva em português o pedido ou assunto principal, mesmo para uma saudação ou pergunta breve. Omita o nome do projeto e retorne apenas o título. Se o conteúdo for incompreensível, retorne 未命名.\n\n\
              Título atual:\n{original_title}\n\n\
              Conteúdo da conversa:\n{snippet}"
         ),
         TitleLocale::Ar => format!(
             "اكتب عنوانًا موجزًا ومحددًا للمحادثة ومناسبًا للشريط الجانبي.\n\
-             القواعد:\n\
-             - أنشئ الموضوع فقط، دون تاريخ أو تصنيف.\n\
-             - استخلص الموضوع من المحتوى الفعلي ولا تكرر اسم المشروع.\n\
-             - إذا تعذر تحديد الموضوع فلا تخمّن، وأخرج العنوان الحالي دون تغيير.\n\
-             أخرج العنوان فقط، بلا علامات اقتباس أو بادئة أو شرح.\n\n\
+             اكتب بالعربية عنوانًا يعبّر عن الطلب أو الموضوع الرئيسي، حتى لو كان تحية أو سؤالًا قصيرًا. احذف اسم المشروع وأخرج العنوان وحده. إذا تعذّر فهم المحتوى فأخرج 未命名.\n\n\
              العنوان الحالي:\n{original_title}\n\n\
              محتوى المحادثة:\n{snippet}"
         ),
     }
 }
 
-fn title_prompt_for_message(
-    message: &str,
-    original_title: &str,
-    created_at: DateTime<Utc>,
-    locale: TitleLocale,
-) -> String {
+fn title_prompt_for_message(message: &str, original_title: &str, locale: TitleLocale) -> String {
     let redacted = redact_title_input(message);
     let snippet: String = redacted.chars().take(LLM_SNIPPET_MAX_CHARS).collect();
-    let original = structured_title_fallback(Some(original_title), created_at);
-    let topic = original
-        .split_once('｜')
-        .map(|(_, topic)| topic)
-        .unwrap_or("未命名");
-    let safe_original_title = redact_title_input(topic);
-    let prompt = title_prompt(&snippet, &safe_original_title, locale);
-    format!(
-        "{prompt}\n\nTopic interpretation: Any understandable conversational intent is a valid topic, even without a coding task. Greetings, thanks, introductions, and short questions must receive descriptive titles; do not treat brevity or a lack of technical detail as an unknown topic. Write the topic in the requested language. For example, 你好 has the topic 日常问候 in Chinese.\n\nFallback exception: only when the supplied content has no interpretable meaning, output exactly 未命名. Use 未命名 only for this fallback."
-    )
+    let original = title_fallback(Some(original_title));
+    let safe_original_title = truncate_chars(&redact_title_input(&original), LLM_TITLE_MAX_CHARS);
+    title_prompt(&snippet, &safe_original_title, locale)
 }
 
 pub fn clean_llm_title(raw: &str) -> Option<String> {
@@ -600,10 +538,7 @@ pub(crate) async fn generate_manual_title(
         Ok(title) => Ok(title),
         Err(error) => {
             tracing::error!(conversation_id = summary.id, error_code = ?error.code, "title generation unavailable; using structured fallback");
-            Ok(structured_title_fallback(
-                summary.title.as_deref(),
-                summary.created_at,
-            ))
+            Ok(title_fallback(summary.title.as_deref()))
         }
     }
 }
@@ -686,12 +621,7 @@ async fn try_generate_manual_title(
         .map(|value| resolve_title_locale(&value))
         .unwrap_or(TitleLocale::En);
     let original = summary.title.as_deref().unwrap_or("");
-    let title = llm_title_via_api(&settings, &seed, original, summary.created_at, locale).await?;
-    normalize_structured_title(&title, summary.created_at).ok_or_else(|| {
-        AppCommandError::configuration_invalid(
-            "The model could not generate a structured title from this conversation",
-        )
-    })
+    llm_title_via_api(&settings, &seed, original, locale).await
 }
 
 fn original_title_seed(turns: &[crate::models::MessageTurn]) -> Option<String> {
@@ -791,7 +721,7 @@ async fn start_auto_title(
         return;
     }
     save_auto_title_fallback(&conn, &emitter, &summary).await;
-    let fallback = structured_title_fallback(summary.title.as_deref(), summary.created_at);
+    let fallback = title_fallback(summary.title.as_deref());
     if first_message.trim().is_empty() {
         return;
     }
@@ -801,7 +731,6 @@ async fn start_auto_title(
     } else {
         summary.title.unwrap_or(fallback)
     };
-    let created_at = summary.created_at;
 
     let locale = crate::commands::system_settings::load_system_language_settings(&conn)
         .await
@@ -847,19 +776,13 @@ async fn start_auto_title(
             }
         }
         let _guard = RefineGuard(conversation_id);
-        let refined = match llm_title_via_api(
-            &title_model,
-            &first_message,
-            &original_title,
-            created_at,
-            locale,
-        )
-        .instrument(tracing::info_span!(
-            "auto_title",
-            conversation_id,
-            ?agent_type
-        ))
-        .await
+        let refined = match llm_title_via_api(&title_model, &first_message, &original_title, locale)
+            .instrument(tracing::info_span!(
+                "auto_title",
+                conversation_id,
+                ?agent_type
+            ))
+            .await
         {
             Ok(title) => title,
             Err(e) => {
@@ -868,9 +791,7 @@ async fn start_auto_title(
             }
         };
 
-        let unnamed = refined
-            .split_once('｜')
-            .is_some_and(|(_, topic)| is_placeholder_title(topic));
+        let unnamed = is_placeholder_title(&refined);
         tracing::info!(
             conversation_id,
             ?agent_type,
@@ -1054,13 +975,22 @@ fn extract_chat_completion_title(body: &serde_json::Value) -> Option<String> {
         .and_then(clean_model_topic)
 }
 
-/// Accept date/topic and legacy date/type/topic titles; always emit date/topic.
-/// The creation date is authoritative; preserve slashes inside the topic.
-pub(crate) fn normalize_structured_title(raw: &str, created_at: DateTime<Utc>) -> Option<String> {
+/// Read historical date and category prefixes without modifying the topic.
+pub(crate) fn normalize_structured_title(raw: &str) -> Option<String> {
     let title = clean_llm_title(raw)?;
+    legacy_title_topic(&title).map(|topic| truncate_chars(topic, LLM_TITLE_MAX_CHARS))
+}
+
+pub(crate) fn legacy_title_topic(title: &str) -> Option<&str> {
     let (date, remainder) = title.split_once(['｜', '丨', '|', '/'])?;
     let date = date.trim();
     if date.len() != 4 || !date.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    if title
+        .split_once('/')
+        .is_some_and(|(prefix, tail)| prefix.trim() == date && !tail.contains('/'))
+    {
         return None;
     }
     let remainder = remainder.trim();
@@ -1074,8 +1004,11 @@ pub(crate) fn normalize_structured_title(raw: &str, created_at: DateTime<Utc>) -
     });
     let topic = if let Some((kind, topic)) = legacy_fields {
         let kind = kind.trim();
+        if kind == "自动" && !topic.trim().is_empty() {
+            return Some(topic.trim());
+        }
         if [
-            "功能", "设计", "修复", "优化", "发布", "探索", "文档", "研究", "其他",
+            "开发", "功能", "设计", "修复", "优化", "发布", "探索", "文档", "研究", "其他",
         ]
         .contains(&kind)
             || (kind == "未知" && topic.trim() == "未命名")
@@ -1090,26 +1023,20 @@ pub(crate) fn normalize_structured_title(raw: &str, created_at: DateTime<Utc>) -
     if topic.is_empty() || topic.contains(['｜', '丨', '|']) {
         return None;
     }
-    Some(truncate_chars(
-        &format!("{}｜{topic}", created_date_mmdd(created_at)),
-        LLM_TITLE_MAX_CHARS,
-    ))
+    Some(topic)
 }
 
-/// Models generate only the topic. Dates always come from the stored creation time.
-fn title_from_model(raw: &str, created_at: DateTime<Utc>) -> Option<String> {
+/// Store the topic returned by the title model.
+fn title_from_model(raw: &str) -> Option<String> {
     let title = clean_model_topic(raw)?;
     // Tolerate responses from an older prompt, ignoring their date and category.
-    if let Some(title) = normalize_structured_title(&title, created_at) {
+    if let Some(title) = normalize_structured_title(&title) {
         return Some(title);
     }
     if title.contains(['｜', '丨', '|']) {
         return None;
     }
-    Some(truncate_chars(
-        &format!("{}｜{title}", created_date_mmdd(created_at)),
-        LLM_TITLE_MAX_CHARS,
-    ))
+    Some(truncate_chars(&title, LLM_TITLE_MAX_CHARS))
 }
 
 fn provider_error_detail(raw: &str) -> String {
@@ -1128,10 +1055,9 @@ async fn llm_title_via_api(
     settings: &crate::commands::system_settings::TitleModelRuntimeSettings,
     message: &str,
     original_title: &str,
-    created_at: DateTime<Utc>,
     locale: TitleLocale,
 ) -> Result<String, crate::app_error::AppCommandError> {
-    let prompt = title_prompt_for_message(message, original_title, created_at, locale);
+    let prompt = title_prompt_for_message(message, original_title, locale);
     let client = reqwest::Client::builder()
         .timeout(LLM_TIMEOUT)
         .build()
@@ -1175,7 +1101,7 @@ async fn llm_title_via_api(
                             == Some("length");
                         if !truncated {
                             if let Some(title) = title {
-                                if let Some(normalized) = title_from_model(&title, created_at) {
+                                if let Some(normalized) = title_from_model(&title) {
                                     return Ok(normalized);
                                 }
                             }
@@ -1246,7 +1172,6 @@ pub(crate) async fn test_title_model_connection(
         settings,
         "Test the conversation title model configuration",
         "Test the conversation title model configuration",
-        Utc::now(),
         locale,
     )
     .await
@@ -1255,12 +1180,6 @@ pub(crate) async fn test_title_model_connection(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn fixed_created_at() -> DateTime<Utc> {
-        DateTime::parse_from_rfc3339("2026-09-02T16:30:00Z")
-            .expect("valid timestamp")
-            .with_timezone(&Utc)
-    }
 
     #[test]
     fn placeholders() {
@@ -1361,21 +1280,19 @@ mod tests {
     fn title_prompt_requests_only_topic_without_date_rules() {
         let prompt = title_prompt("修复登录状态", "登录状态", TitleLocale::Zh);
 
-        assert_eq!(created_date_mmdd(fixed_created_at()), "0903");
-        assert!(prompt.contains("只生成主题，不要日期或类型"));
+        assert!(prompt.contains("只输出标题正文"));
         assert!(!prompt.contains("0903"));
         assert!(!prompt.contains("createdAt"));
         assert!(!prompt.contains("MMDD"));
         assert!(prompt.contains("不要重复项目名称"));
-        assert!(prompt.contains("无法判断主题时不要猜，原样输出当前标题"));
+        assert!(prompt.contains("内容无法理解时输出「未命名」"));
         assert!(prompt.contains("当前标题：\n登录状态"));
     }
 
     #[test]
     fn title_prompt_uses_only_the_first_400_user_characters() {
         let message = format!("{}SHOULD_NOT_APPEAR", "中".repeat(LLM_SNIPPET_MAX_CHARS));
-        let prompt =
-            title_prompt_for_message(&message, "原始标题", fixed_created_at(), TitleLocale::Zh);
+        let prompt = title_prompt_for_message(&message, "原始标题", TitleLocale::Zh);
         assert!(prompt.contains(&"中".repeat(LLM_SNIPPET_MAX_CHARS)));
         assert!(!prompt.contains("SHOULD_NOT_APPEAR"));
     }
@@ -1386,8 +1303,7 @@ mod tests {
             "{} password=secret-near-the-limit user@example.com",
             "中".repeat(350)
         );
-        let prompt =
-            title_prompt_for_message(&message, "原始标题", fixed_created_at(), TitleLocale::Zh);
+        let prompt = title_prompt_for_message(&message, "原始标题", TitleLocale::Zh);
 
         assert!(!prompt.contains("secret-near-the-limit"));
         assert!(!prompt.contains("user@example.com"));
@@ -1400,7 +1316,6 @@ mod tests {
         let prompt = title_prompt_for_message(
             "无法判断主题",
             "0903｜修复｜登录 password=secret",
-            fixed_created_at(),
             TitleLocale::Zh,
         );
 

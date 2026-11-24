@@ -4,7 +4,7 @@ import { composerMenuAlignOffset } from "@/lib/composer-menu-position"
 import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
-import { Check, ChevronDown, Folder, MessageSquare } from "lucide-react"
+import { ChevronDown, Folder } from "lucide-react"
 import type { OverlayScrollbarsComponentRef } from "overlayscrollbars-react"
 import { useAppWorkspaceStore } from "@/stores/app-workspace-store"
 import { useTabActions, useTabStore } from "@/contexts/tab-context"
@@ -563,26 +563,19 @@ export const FolderPicker = memo(function FolderPicker({
           setOpen(false)
           void onSelect(id)
         }}
-      >
-        <button
-          type="button"
-          title={labelChatModeDescription}
-          aria-pressed={isChatMode}
-          onClick={() => {
-            setOpen(false)
-            onSelectChatMode()
-          }}
-          className="mx-1 flex min-h-8 shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-start text-sm hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring [&_svg]:stroke-[1.5]"
-        >
-          <MessageSquare
-            aria-hidden="true"
-            className="size-4 shrink-0 origin-top scale-y-90 text-foreground"
-          />
-          <span className="flex-1">{labelChatMode}</span>
-          {isChatMode && <Check aria-hidden="true" className="size-4" />}
-        </button>
-        <hr className="mx-1 mt-1 shrink-0 border-border/60" />
-      </FolderMenuContent>
+        actions={[
+          {
+            label: labelChatMode,
+            description: labelChatModeDescription,
+            chat: true,
+            selected: isChatMode,
+            onSelect: () => {
+              setOpen(false)
+              onSelectChatMode()
+            },
+          },
+        ]}
+      />
     </Popover>
   )
 })

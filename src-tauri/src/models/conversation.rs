@@ -30,6 +30,7 @@ pub struct DbConversationSummary {
     pub hide_from_conversation_list: bool,
     pub id: i32,
     pub folder_id: i32,
+    #[serde(serialize_with = "serialize_conversation_title")]
     pub title: Option<String>,
     /// Mirror of `conversation.title_locked`: a user action named this row (a
     /// rename, or a fork's `[Fork] ` prefix), so the auto-title backfill must
@@ -382,4 +383,15 @@ pub struct ImportSelectedResult {
     pub folders: Vec<ImportFolderOutcome>,
     /// Human-readable per-folder failure messages, capped by the command.
     pub errors: Vec<String>,
+}
+
+fn serialize_conversation_title<S: serde::Serializer>(
+    title: &Option<String>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    use serde::Serialize;
+    title
+        .as_deref()
+        .map(|raw| crate::session_title::legacy_title_topic(raw).unwrap_or(raw))
+        .serialize(serializer)
 }

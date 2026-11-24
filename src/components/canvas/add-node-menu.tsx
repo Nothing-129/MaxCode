@@ -1,7 +1,7 @@
 "use client"
 
 import { Input } from "@/components/ui/input"
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useReactFlow } from "@xyflow/react"
 import {
   Bot,
@@ -15,6 +15,8 @@ import {
 } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { AgentIcon } from "@/components/agent-icon"
+import { FolderMenuContent } from "@/components/shared/folder-select"
+import { Popover, PopoverAnchor } from "@/components/ui/popover"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +31,6 @@ import { useAcpAgents } from "@/hooks/use-acp-agents"
 import type { CreateCanvasNodeInput } from "@/lib/api"
 import { formatConversationTitle } from "@/lib/conversation-title"
 import { getAgentLabel } from "@/lib/custom-agents"
-import { formatFolderLabelWithAlias } from "@/lib/folder-display"
 import { useAppWorkspaceStore } from "@/stores/app-workspace-store"
 import {
   CARD_HEIGHT,
@@ -77,12 +78,17 @@ export function AddNodeMenu({
   side = "bottom",
 }: AddNodeMenuProps) {
   const t = useTranslations("Canvas")
+  const folderLabels = useTranslations("Folder.conversationContextBar")
   const { screenToFlowPosition } = useReactFlow()
   const folders = useAppWorkspaceStore((s) => s.folders)
   const folderGroups = useAppWorkspaceStore((s) => s.folderGroups)
   const conversations = useAppWorkspaceStore((s) => s.conversations)
   const { agents } = useAcpAgents()
   const [query, setQuery] = useState("")
+  const [folderOpen, setFolderOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const openFolderAfterMenu = useRef(false)
+  const restoreFolderFocus = useRef(false)
 
   const recentConversations = useMemo(() => {
     const eligible = conversations.filter(isCanvasEligible)
@@ -118,171 +124,190 @@ export function AddNodeMenu({
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={triggerClassName}
-          aria-label={t("addNode")}
-          title={t("addNode")}
+    <Popover open={folderOpen} onOpenChange={setFolderOpen}>
+      <DropdownMenu>
+        <PopoverAnchor asChild>
+          <DropdownMenuTrigger asChild>
+            <button
+              ref={triggerRef}
+              type="button"
+              className={triggerClassName}
+              aria-label={t("addNode")}
+              title={t("addNode")}
+            >
+              <Plus className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+        </PopoverAnchor>
+        <DropdownMenuContent
+          align="start"
+          side={side}
+          className="w-52"
+          onCloseAutoFocus={(event) => {
+            if (!openFolderAfterMenu.current) return
+            event.preventDefault()
+            openFolderAfterMenu.current = false
+            setFolderOpen(true)
+          }}
         >
-          <Plus className="size-4" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side={side} className="w-52">
-        {/* One click, one card. The folder it belongs to is the workspace's
+          {/* One click, one card. The folder it belongs to is the workspace's
             active one (chat mode when there is none) — the same answer the tab
             strip's new-conversation button gives without asking, and the card's
             own folder chip stays editable right up to the first message. */}
-        <DropdownMenuItem
-          onSelect={() =>
-            onNewConversation(dropPoint(DETAIL_CARD_WIDTH, DETAIL_CARD_HEIGHT))
-          }
-        >
-          <MessageSquarePlus className="text-muted-foreground" />
-          {t("newConversation")}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
+          <DropdownMenuItem
+            onSelect={() =>
+              onNewConversation(
+                dropPoint(DETAIL_CARD_WIDTH, DETAIL_CARD_HEIGHT)
+              )
+            }
+          >
+            <MessageSquarePlus className="text-muted-foreground" />
+            {t("newConversation")}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => {
+              openFolderAfterMenu.current = true
+            }}
+          >
             <Folder className="text-muted-foreground" />
             {t("addFolderRegion")}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
-            {folders.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-muted-foreground">
-                {t("noFolders")}
-              </div>
-            ) : (
-              folders.map((f) => (
-                <DropdownMenuItem
-                  key={f.id}
-                  onSelect={() =>
-                    createRegion({ kind: "folder", folderId: f.id })
-                  }
-                >
-                  <Folder className="text-muted-foreground" />
-                  <span className="min-w-0 truncate">
-                    {formatFolderLabelWithAlias(f)}
-                  </span>
-                </DropdownMenuItem>
-              ))
-            )}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Layers className="text-muted-foreground" />
-            {t("addGroupRegion")}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
-            {folderGroups.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-muted-foreground">
-                {t("noGroups")}
-              </div>
-            ) : (
-              folderGroups.map((g) => (
-                <DropdownMenuItem
-                  key={g.id}
-                  onSelect={() =>
-                    createRegion({ kind: "group", folderGroupId: g.id })
-                  }
-                >
-                  <Layers className="text-muted-foreground" />
-                  <span className="min-w-0 truncate">{g.name}</span>
-                </DropdownMenuItem>
-              ))
-            )}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Bot className="text-muted-foreground" />
-            {t("addAgentRegion")}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
-            {agents.map((a) => (
-              <DropdownMenuItem
-                key={a.agent_type}
-                onSelect={() =>
-                  createRegion({ kind: "agent", agentType: a.agent_type })
-                }
-              >
-                <AgentIcon agentType={a.agent_type} className="size-4" />
-                <span className="min-w-0 truncate">
-                  {getAgentLabel(a.agent_type)}
-                </span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <MessageSquare className="text-muted-foreground" />
-            {t("addConversationCard")}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-64">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("searchConversations")}
-              className="mx-1 mb-1 w-[calc(100%-0.5rem)] rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none focus-visible:ring-0"
-              onKeyDown={(e) => e.stopPropagation()}
-            />
-            <div className="max-h-64 overflow-y-auto">
-              {recentConversations.length === 0 ? (
+          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Layers className="text-muted-foreground" />
+              {t("addGroupRegion")}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
+              {folderGroups.length === 0 ? (
                 <div className="px-3 py-2 text-xs text-muted-foreground">
-                  {t("noConversations")}
+                  {t("noGroups")}
                 </div>
               ) : (
-                recentConversations.map((c) => (
+                folderGroups.map((g) => (
                   <DropdownMenuItem
-                    key={c.id}
-                    onSelect={() => {
-                      const { x, y } = dropPoint(CARD_WIDTH, CARD_HEIGHT)
-                      onCreate({
-                        kind: "conversation",
-                        conversationId: c.id,
-                        x,
-                        y,
-                        width: CARD_WIDTH,
-                        height: CARD_HEIGHT,
-                      })
-                    }}
+                    key={g.id}
+                    onSelect={() =>
+                      createRegion({ kind: "group", folderGroupId: g.id })
+                    }
                   >
-                    <AgentIcon agentType={c.agent_type} className="size-4" />
-                    <span className="min-w-0 truncate">
-                      {c.title
-                        ? formatConversationTitle(c.title)
-                        : t("untitled")}
-                    </span>
+                    <Layers className="text-muted-foreground" />
+                    <span className="min-w-0 truncate">{g.name}</span>
                   </DropdownMenuItem>
                 ))
               )}
-            </div>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => createRegion({ kind: "custom" })}>
-          <Sparkles className="text-muted-foreground" />
-          {t("addCustomRegion")}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => {
-            const { x, y } = dropPoint(NOTE_W, NOTE_H)
-            onCreate({
-              kind: "note",
-              x,
-              y,
-              width: NOTE_W,
-              height: NOTE_H,
-            })
-          }}
-        >
-          <StickyNote className="text-muted-foreground" />
-          {t("addNote")}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Bot className="text-muted-foreground" />
+              {t("addAgentRegion")}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
+              {agents.map((a) => (
+                <DropdownMenuItem
+                  key={a.agent_type}
+                  onSelect={() =>
+                    createRegion({ kind: "agent", agentType: a.agent_type })
+                  }
+                >
+                  <AgentIcon agentType={a.agent_type} className="size-4" />
+                  <span className="min-w-0 truncate">
+                    {getAgentLabel(a.agent_type)}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <MessageSquare className="text-muted-foreground" />
+              {t("addConversationCard")}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-64">
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("searchConversations")}
+                className="mx-1 mb-1 w-[calc(100%-0.5rem)] rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none focus-visible:ring-0"
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+              <div className="max-h-64 overflow-y-auto">
+                {recentConversations.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">
+                    {t("noConversations")}
+                  </div>
+                ) : (
+                  recentConversations.map((c) => (
+                    <DropdownMenuItem
+                      key={c.id}
+                      onSelect={() => {
+                        const { x, y } = dropPoint(CARD_WIDTH, CARD_HEIGHT)
+                        onCreate({
+                          kind: "conversation",
+                          conversationId: c.id,
+                          x,
+                          y,
+                          width: CARD_WIDTH,
+                          height: CARD_HEIGHT,
+                        })
+                      }}
+                    >
+                      <AgentIcon agentType={c.agent_type} className="size-4" />
+                      <span className="min-w-0 truncate">
+                        {c.title
+                          ? formatConversationTitle(c.title)
+                          : t("untitled")}
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </div>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => createRegion({ kind: "custom" })}>
+            <Sparkles className="text-muted-foreground" />
+            {t("addCustomRegion")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              const { x, y } = dropPoint(NOTE_W, NOTE_H)
+              onCreate({
+                kind: "note",
+                x,
+                y,
+                width: NOTE_W,
+                height: NOTE_H,
+              })
+            }}
+          >
+            <StickyNote className="text-muted-foreground" />
+            {t("addNote")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <FolderMenuContent
+        side={side}
+        folders={folders}
+        value={null}
+        labelSearch={folderLabels("searchFolder")}
+        labelEmpty={t("noFolders")}
+        onSelect={(folderId) => {
+          restoreFolderFocus.current = true
+          setFolderOpen(false)
+          createRegion({ kind: "folder", folderId })
+        }}
+        onEscapeKeyDown={() => {
+          restoreFolderFocus.current = true
+        }}
+        onCloseAutoFocus={(event) => {
+          if (!restoreFolderFocus.current) return
+          event.preventDefault()
+          restoreFolderFocus.current = false
+          triggerRef.current?.focus()
+        }}
+      />
+    </Popover>
   )
 }

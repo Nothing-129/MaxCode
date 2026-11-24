@@ -1,3 +1,8 @@
+import {
+  folderTitleTintVars,
+  normalizeFolderThemeColor,
+} from "@/lib/theme-presets"
+
 const colors = [
   "text-gray-600 dark:text-gray-400",
   "text-red-600 dark:text-red-400",
@@ -25,48 +30,68 @@ function projectIdentity(name: string) {
   const normalized = name.normalize("NFKC").trim()
   const words = normalized.match(/[\p{L}\p{N}]+/gu) ?? []
   const letters = Array.from(words[0] ?? "")
-  const second =
-    letters.slice(1).find((letter) => /\p{N}/u.test(letter)) ??
-    (words.length > 1
-      ? Array.from(words[words.length - 1])[0]
-      : letters[letters.length - 1])
-  const initials = letters.length
-    ? Array.from((letters[0] + second).toUpperCase())
-        .slice(0, 2)
-        .join("")
-    : "PR"
+  const first = letters[0]
+  const han = /\p{Script=Han}/u
+  const singleHan = !!first && han.test(first)
+  let initials = "PR"
+  if (first) {
+    let second = ""
+    if (!singleHan) {
+      if (han.test(normalized)) {
+        second = letters[1] && !han.test(letters[1]) ? letters[1] : ""
+      } else {
+        second =
+          letters.slice(1).find((letter) => /\p{N}/u.test(letter)) ??
+          (words.length > 1
+            ? Array.from(words[words.length - 1])[0]
+            : letters.length > 1
+              ? letters[letters.length - 1]
+              : "") ??
+          ""
+      }
+    }
+    initials = Array.from((first + second).toUpperCase())
+      .slice(0, 2)
+      .join("")
+  }
   let color = 0
   for (const letter of normalized.toLowerCase()) {
     color = (color * 31 + letter.codePointAt(0)!) % colors.length
   }
-  return { initials, color: colors[color] }
+  return { initials, singleHan, color: colors[color] }
 }
 
 export function LabProjectBadge({
   name,
-  small = false,
+  folderColor,
 }: {
   name: string | null
-  small?: boolean
+  folderColor?: string
 }) {
   const project = name === null ? null : projectIdentity(name)
+  const tint = project
+    ? folderTitleTintVars(normalizeFolderThemeColor(folderColor))
+    : undefined
+  const color = tint
+    ? "folder-title-tint"
+    : (project?.color ?? "text-slate-600 dark:text-slate-400")
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 16 16"
-      className={`${tile} ${small ? "size-3.5" : "size-4"} ${project?.color ?? "text-slate-600 dark:text-slate-400"}`}
+      className={`${tile} size-4 ${color}`}
+      style={tint}
     >
       {project ? (
         <text
           x="8"
-          y="10.8"
+          y="8"
+          dominantBaseline="central"
           textAnchor="middle"
           fill="currentColor"
-          fontSize="8.25"
+          fontSize={project.singleHan ? 11 : 9}
           fontWeight="700"
-          textLength="12"
-          lengthAdjust="spacingAndGlyphs"
-          className="font-mono"
+          className={project.singleHan ? "font-sans" : "font-mono"}
         >
           {project.initials}
         </text>

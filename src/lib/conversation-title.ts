@@ -28,6 +28,13 @@ export function parseStructuredConversationTitle(title: string): {
   kind: string
   topic: string
 } | null {
+  // Automation names are user supplied and may contain their own separators.
+  const automation = /^\s*(\d{4})\s*[｜丨|]\s*自动\s*[｜丨|]([\s\S]+)$/.exec(
+    title
+  )
+  if (automation?.[2]?.trim()) {
+    return { date: automation[1]!, kind: "自动", topic: automation[2].trim() }
+  }
   const parts = title.split(/[｜丨|]/).map((part) => part.trim())
   if (parts.length !== 2 && parts.length !== 3) return null
   const date = parts[0]!

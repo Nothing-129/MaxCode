@@ -677,7 +677,7 @@ export function AutomationEditor({
           </h3>
           <div className="flex flex-wrap items-center gap-2">
             <FolderSelect
-              chatFooter={action === "launch_session"}
+              chatOption={action === "launch_session"}
               variant="field"
               folders={selectableFolders}
               value={folderId}

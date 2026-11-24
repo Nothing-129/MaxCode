@@ -9,10 +9,10 @@ const priority = [
   "input",
   "limited",
   "failed",
-  "preparing",
   "waiting",
   "goal",
   "working",
+  "preparing",
 ] as const
 export type LabStatusKind = (typeof priority)[number]
 export interface LabSignal {

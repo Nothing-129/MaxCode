@@ -3,14 +3,14 @@ import { COMPOSER_SIZING } from "@/components/chat/composer/composer-sizing"
 import { source } from "./contract-source"
 
 describe("suggestion adoption preserves single-line composer height", () => {
-  it("fits suggestion adoption into the original 32px action row", () => {
+  it("keeps suggestion adoption outside the 32px action row", () => {
     const input = source("src/components/chat/message-input.tsx")
     expect(input).toContain(
       "maxcode-composer-actions flex min-h-8 shrink-0 items-center"
     )
     expect(
-      source("src/components/chat/composer/accept-prompt-suggestion.tsx")
-    ).toContain("size-8")
+      input.slice(input.indexOf('className="maxcode-composer-actions'))
+    ).not.toContain("<AcceptPromptSuggestion")
 
     // Unlayered motion CSS overrides Tailwind utilities even when the
     // utility is more specific. It must leave action-row geometry alone.

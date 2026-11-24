@@ -1,7 +1,11 @@
-import { render, screen } from "@testing-library/react"
+import { act, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { ReactFlowProvider } from "@xyflow/react"
 import { describe, expect, it, vi } from "vitest"
 import { FolderPicker } from "@/components/chat/conversation-context-bar"
+import { AddNodeMenu } from "@/components/canvas/add-node-menu"
+import { useAppWorkspaceStore } from "@/stores/app-workspace-store"
+import type { FolderDetail } from "@/lib/types"
 
 import { NextIntlClientProvider } from "next-intl"
 import messages from "@/i18n/messages/en.json"
@@ -12,6 +16,10 @@ const folders = [
   { id: 2, name: "repo", alias: "同名项目", path: "/two/repo" },
   { id: 3, name: "maxcode", path: "/work/maxcode" },
 ]
+
+vi.mock("@/hooks/use-acp-agents", () => ({
+  useAcpAgents: () => ({ agents: [] }),
+}))
 function setup() {
   const onSelect = vi.fn()
   const onSelectChatMode = vi.fn()
@@ -85,7 +93,7 @@ describe("folder selector structure", () => {
   })
 })
 
-it("uses the compact menu in shared folder fields and filters", async () => {
+it("pins all folders above the same icon-free search used by the composer", async () => {
   const user = userEvent.setup()
   const onChange = vi.fn()
   render(
@@ -100,15 +108,56 @@ it("uses the compact menu in shared folder fields and filters", async () => {
     </NextIntlClientProvider>
   )
   await user.click(screen.getByRole("button"))
-  expect(screen.getByRole("combobox")).toHaveFocus()
+  const search = screen.getByRole("combobox")
+  const all = screen.getByRole("button", { name: "All folders" })
+  expect(search).toHaveFocus()
+  expect(search.parentElement?.querySelector("svg")).toBeNull()
+  expect(
+    all.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy()
   expect(screen.queryByText("/work/maxcode")).toBeNull()
   expect(screen.getByText("/one/repo")).toBeVisible()
-  const options = screen.getAllByRole("option")
-  expect(options[options.length - 1]).toHaveTextContent("All folders")
   await user.type(screen.getByRole("combobox"), "/two/repo")
   expect(onChange).not.toHaveBeenCalled()
   await user.keyboard("{Enter}")
   expect(onChange).toHaveBeenCalledWith(2)
   await user.click(screen.getByRole("button"))
   expect(screen.getByRole("combobox")).toHaveValue("")
+})
+
+it("opens the searchable folder menu when adding a canvas folder region", async () => {
+  const user = userEvent.setup()
+  const previous = useAppWorkspaceStore.getState()
+  const onCreate = vi.fn()
+  useAppWorkspaceStore.setState({ folders: folders as FolderDetail[] })
+  try {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ReactFlowProvider>
+          <AddNodeMenu onCreate={onCreate} onNewConversation={vi.fn()} />
+        </ReactFlowProvider>
+      </NextIntlClientProvider>
+    )
+    const trigger = screen.getByRole("button", {
+      name: messages.Canvas.addNode,
+    })
+    await user.click(trigger)
+    await user.click(
+      screen.getByRole("menuitem", { name: messages.Canvas.addFolderRegion })
+    )
+    const search = await screen.findByRole("combobox")
+    expect(search).toHaveFocus()
+    await user.type(search, "/two/repo")
+    expect(screen.getAllByRole("option")).toHaveLength(1)
+    expect(onCreate).not.toHaveBeenCalled()
+    await user.keyboard("{Enter}")
+    expect(onCreate).toHaveBeenCalledOnce()
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "folder", folderId: 2 })
+    )
+    expect(search).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  } finally {
+    act(() => useAppWorkspaceStore.setState(previous))
+  }
 })

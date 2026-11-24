@@ -378,7 +378,11 @@ function WorkspaceContent({ children }: { children: React.ReactNode }) {
                 )}
                 style={
                   {
-                    "--conversation-header-left": `${sidebarOpen ? 12 : leftReserve + 12}px`,
+                    "--conversation-header-left": sidebarOpen
+                      ? routeId === "taskConversation"
+                        ? "calc(3.5rem + 12px)"
+                        : "12px"
+                      : `${leftReserve + 12}px`,
                     "--conversation-header-right": `${convReservesRight ? rightReserve + 12 : 12}px`,
                   } as CSSProperties
                 }

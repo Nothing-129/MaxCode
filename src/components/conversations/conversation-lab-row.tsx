@@ -1,7 +1,8 @@
 "use client"
 
+import { formatConversationTitle } from "@/lib/conversation-title"
 import { useState } from "react"
-import { useLocale, useTranslations } from "next-intl"
+import { useLocale, useNow, useTranslations } from "next-intl"
 import {
   AlarmClock,
   Check,
@@ -46,6 +47,7 @@ import { toErrorMessage } from "@/lib/app-error"
 import { isImeCompositionKey } from "@/lib/ime-composition"
 import {
   compactLabTime,
+  formatLabWorkingDuration,
   labHasWoken,
   labSnoozeUntil,
   labSettledAt,
@@ -81,10 +83,21 @@ const badgeStyles = {
   woken: [AlarmClock, "text-orange-700 dark:text-orange-400"],
 } as const
 
+function WorkingDuration({ start }: { start: number }) {
+  const now = useNow({ updateInterval: 1000 })
+  const locale = useLocale()
+  return (
+    <span className="tabular-nums">
+      {formatLabWorkingDuration(now.getTime() - start, locale)}
+    </span>
+  )
+}
+
 export function LabRow({
   c,
   project,
   hasProject,
+  projectColor,
   group,
   mark,
   now,
@@ -101,6 +114,7 @@ export function LabRow({
   c: DbConversationSummary
   project: string
   hasProject: boolean
+  projectColor?: string
   group: LabGroup
   mark?: LabMark
   now: number
@@ -137,7 +151,7 @@ export function LabRow({
   const wake = () => change()
   const toggleSettlement = () =>
     change(finished ? undefined : { settledAt: Date.now() })
-  const title = c.title || t("untitledConversation")
+  const title = formatConversationTitle(c.title) || t("untitledConversation")
   const updated = Date.parse(c.updated_at)
   const elapsed = compactLabTime(
     snoozed
@@ -162,7 +176,12 @@ export function LabRow({
   const status = liveKind ?? (showWoke ? "woken" : unread ? "done" : undefined)
   const BadgeIcon = status ? badgeStyles[status][0] : undefined
   const start = signal?.startedAt ?? started
-  const projectIcon = <LabProjectBadge name={hasProject ? project : null} />
+  const projectIcon = (
+    <LabProjectBadge
+      name={hasProject ? project : null}
+      folderColor={projectColor}
+    />
+  )
   async function pin() {
     try {
       await updateConversationPinned(c.id, !c.pinned_at)
@@ -207,7 +226,7 @@ export function LabRow({
                   </span>
                   <span
                     className={cn(
-                      "flex items-center gap-1 group-hover/row:invisible group-focus-within/row:invisible",
+                      "flex items-center gap-1 group-hover/row:invisible group-has-[[aria-haspopup=menu][data-state=open]]/row:invisible",
                       snoozed && "text-amber-600 dark:text-amber-400"
                     )}
                   >
@@ -219,6 +238,7 @@ export function LabRow({
                 <>
                   <span className="flex h-5 items-center gap-1.5 text-xs text-muted-foreground">
                     {projectIcon}
+                    <span className="min-w-0 flex-1 truncate">{project}</span>
                     {hasDraft && (
                       <SquarePen
                         role="img"
@@ -227,8 +247,7 @@ export function LabRow({
                       />
                     )}
                     {c.pinned_at && <Pin className="size-3 shrink-0" />}
-                    <span className="min-w-0 flex-1 truncate">{project}</span>
-                    <span className="flex shrink-0 items-center gap-1 group-hover/row:invisible group-focus-within/row:invisible">
+                    <span className="flex shrink-0 items-center gap-1 group-hover/row:invisible group-has-[[aria-haspopup=menu][data-state=open]]/row:invisible">
                       {status && BadgeIcon ? (
                         <span
                           aria-hidden={showWoke || undefined}
@@ -242,7 +261,9 @@ export function LabRow({
                           {l(status)}
                           {(status === "working" || status === "goal") &&
                             start != null &&
-                            " " + compactLabTime(now - start, locale)}
+                            Number.isFinite(start) && (
+                              <WorkingDuration start={start} />
+                            )}
                         </span>
                       ) : (
                         elapsed
@@ -253,7 +274,7 @@ export function LabRow({
                     <span
                       className={cn(
                         "min-w-0 flex-1 truncate text-sm",
-                        unread && "font-semibold"
+                        unread && group !== "completed" && "font-semibold"
                       )}
                     >
                       {title}
@@ -267,11 +288,12 @@ export function LabRow({
               )}
             </button>
             <div className="pointer-events-none absolute end-1 top-0 flex items-center">
-              <div className="pointer-events-none flex items-center opacity-0 group-hover/row:pointer-events-auto group-hover/row:opacity-100 group-focus-within/row:pointer-events-auto group-focus-within/row:opacity-100 has-[[data-state=open]]:opacity-100">
+              <div className="pointer-events-none flex items-center opacity-0 group-hover/row:pointer-events-auto group-hover/row:opacity-100 has-[[data-state=open]]:opacity-100">
                 {!compact && canSnooze && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
+                        tabIndex={-1}
                         className={rowAction}
                         aria-label={l("snooze")}
                         title={l("snooze")}
@@ -288,6 +310,7 @@ export function LabRow({
                   </DropdownMenu>
                 )}
                 <button
+                  tabIndex={-1}
                   className={cn(
                     rowAction,
                     !compact && "w-auto gap-1 px-1.5 text-xs"

@@ -10,7 +10,6 @@ describe("MaxCode contract: mobile header conversation tools", () => {
       "<MobileHeaderActionsSlot active={activeTabId === tabId}>"
     )
     expect(header).toContain("{conversationMenuItems}")
-    expect(header).not.toContain('t("newConversation")')
     const titleBar = source("src/components/layout/folder-title-bar.tsx")
     expect(titleBar).toContain("{isConversations && conversationActions}")
     expect(titleBar).toContain(

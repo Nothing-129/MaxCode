@@ -32,9 +32,7 @@ import { cn } from "@/lib/utils"
 import {
   conversationTitleTopic,
   formatConversationTitle,
-  parseStructuredConversationTitle,
 } from "@/lib/conversation-title"
-import { foldReferenceLinks } from "@/lib/reference-link"
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -156,7 +154,6 @@ interface SidebarConversationCardProps {
   selectionId?: string
   isOpenInTab?: boolean
   timeLabel?: string
-  showTitleDate?: boolean
   isMobile?: boolean
   compactMobile?: boolean
   stackMetadata?: boolean
@@ -201,7 +198,6 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
   isSelected,
   isOpenInTab = false,
   timeLabel,
-  showTitleDate = true,
   isMobile = false,
   compactMobile = false,
   stackMetadata = false,
@@ -332,11 +328,6 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
   const stackedTitle = stackedLayout
     ? formatConversationTitle(conversation.title)
     : ""
-  const stackedTitleDate =
-    stackedLayout && showTitleDate
-      ? parseStructuredConversationTitle(foldReferenceLinks(conversation.title))
-          ?.date
-      : undefined
 
   return (
     <>
@@ -457,10 +448,7 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
                     >
                       {stackedTitle || t("untitledConversation")}
                     </span>
-                    {(stackedTitleDate ||
-                      showFolderMeta ||
-                      timeLabel ||
-                      conversation.origin_cwd) &&
+                    {(showFolderMeta || timeLabel || conversation.origin_cwd) &&
                       (stackMetadata ? (
                         <span
                           data-mobile-conversation-meta
@@ -494,16 +482,9 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
                           data-mobile-conversation-meta
                           className={cn(
                             "grid min-w-0 items-center gap-2 text-xs leading-[0.875rem] text-muted-foreground",
-                            showTitleDate
-                              ? "grid-cols-[4ch_minmax(0,1fr)_auto]"
-                              : "grid-cols-[minmax(0,1fr)_auto]"
+                            "grid-cols-[minmax(0,1fr)_auto]"
                           )}
                         >
-                          {showTitleDate && (
-                            <span className="tabular-nums">
-                              {stackedTitleDate}
-                            </span>
-                          )}
                           <span className="flex min-w-0 items-center gap-1">
                             {showFolderMeta && (
                               <span
@@ -548,7 +529,6 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
                           : "flex-1"
                       )}
                       title={conversation.title}
-                      showDate={showTitleDate}
                       fallback={t("untitledConversation")}
                     />
                     {/* Re-parented out of a removed worktree: history loads fine,

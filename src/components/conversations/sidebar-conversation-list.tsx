@@ -3994,8 +3994,6 @@ export function SidebarConversationList({
     const inFolderSection = isFolderConversationRow(row)
     const isPinnedRow =
       conv.pinned_at != null && !row.todoId && !inFolderSection
-    const inChatSection =
-      !row.recent && !row.todoId && !inFolderSection && !isPinnedRow
     const groupedRecent = Boolean(recentFolders && row.recent)
     const stackMetadata = Boolean((row.recent && !groupedRecent) || isPinnedRow)
     const recentFolderName =
@@ -4011,7 +4009,6 @@ export function SidebarConversationList({
         conversation={conv}
         isMobile={isMobile}
         compactMobile={Boolean(row.todoId) || inFolderSection || groupedRecent}
-        showTitleDate={!inFolderSection && !inChatSection && !groupedRecent}
         stackMetadata={stackMetadata}
         selectionId={`${selectionMotionId}:${row.todoId ?? (row.recent ? "recent" : conv.folder_id)}`}
         isSelected={

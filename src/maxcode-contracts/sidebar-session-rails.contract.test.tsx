@@ -81,7 +81,6 @@ describe("sidebar session tree rails", () => {
         >
           <SidebarConversationCard
             conversation={{ ...parent, title: "1119｜修复｜调整窗口显示" }}
-            showTitleDate={false}
             isMobile={isMobile}
             compactMobile
             isSelected={false}

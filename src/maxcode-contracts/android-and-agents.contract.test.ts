@@ -95,14 +95,14 @@ describe("MaxCode contract: agent compatibility", () => {
     expect(manager).toContain("crate::session_title::kickoff_auto_title(")
   })
 
-  it("keeps generated titles tied to the Shanghai conversation creation date", () => {
+  it("keeps the creation date out of generated titles", () => {
     const titles = source("src-tauri/src/session_title.rs")
-    expect(titles).toContain("let created_at = summary.created_at;")
+    expect(titles).not.toContain("let created_at = summary.created_at;")
     expect(titles).not.toContain("let created_at = summary.updated_at;")
-    expect(titles).toContain("with_timezone(&Shanghai)")
-    expect(titles).toContain('format("%m%d")')
-    expect(titles).toContain("只生成主题，不要日期或类型")
-    expect(titles).toContain("无法判断主题时不要猜，原样输出当前标题")
+    expect(titles).not.toContain("with_timezone(&Shanghai)")
+    expect(titles).not.toContain('format("%m%d")')
+    expect(titles).toContain("只输出标题正文")
+    expect(titles).toContain("内容无法理解时输出「未命名」")
   })
 
   it("keeps built-in ACP discovery and CLI preflight integration", () => {

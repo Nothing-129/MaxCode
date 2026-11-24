@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest"
 import { source } from "./contract-source"
 
 describe("MaxCode contract: structured title recovery", () => {
-  it("generates date/topic titles and accepts legacy categories on read", () => {
+  it("generates topic-only titles and accepts legacy categories on read", () => {
     const titles = source("src-tauri/src/session_title.rs")
     const tests = source("src-tauri/src/session_title_tests.rs")
-    expect(titles).toContain("只生成主题，不要日期或类型")
+    expect(titles).toContain("只输出标题正文")
     expect(titles).not.toContain("TITLE_CATEGORY_GUIDANCE")
     expect(tests).toContain("fn date_topic_and_fallback_apply_to_every_locale")
     expect(tests).toContain(
@@ -40,7 +40,7 @@ describe("MaxCode contract: structured title recovery", () => {
   it("keeps executable Rust regressions for retries, locks and original context", () => {
     const tests = source("src-tauri/src/session_title_tests.rs")
     for (const name of [
-      "structured_title_normalizes_separators_and_created_date",
+      "legacy_title_strips_date_and_category",
       "invalid_responses_retry_but_authentication_does_not",
       "greeting_kickoff_calls_http_for_each_supported_agent",
       "recovery_uses_original_context_and_preserves_locked_titles",
@@ -48,9 +48,7 @@ describe("MaxCode contract: structured title recovery", () => {
       "manual_refresh_image_only_message_sends_reply_context",
       "structured_fallback_covers_empty_text_images_and_model_failures",
     ]) {
-      expect(tests).toContain(
-        `async fn ${name}`.replace("async fn structured", "fn structured")
-      )
+      expect(tests).toContain(`fn ${name}`)
     }
     expect(tests).toContain(
       "fn image_only_title_uses_first_reply_without_crossing_user_turns"

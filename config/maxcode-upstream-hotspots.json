@@ -5,7 +5,7 @@
       "id": "sidebar.experimental-conversation-inbox",
       "category": "product",
       "origins": ["worktree-2026-11-24"],
-      "description": "The experimental view shares the standard sidebar header and conversation update-time filter and has a flat title and transcript search, project filters showing one badge or two overlapping badges, a compose palette, compact snoozed and settled shelves, and local snooze schedules. Projectless sessions display a filled chat bubble in the same SVG frame as project initials and the Chat label. Full-size unread rows emphasize the title and show a green circled check with Done when not in progress. Runtime requests, including delegated approval and input, and terminal failures can wake snoozed threads early. Runtime status takes priority over the individually dismissible wake badge and unread completion. Manual wake clears the snooze. Inactive conversations can show their unsent draft. Inline snooze and settle controls use the row background. The search field is transparent until hovered. Project filtering is toolbar-only. Context actions and snooze choices have leading icons. The context menu supports shared completion, scoped todo linking, session details and confirmed deletion.",
+      "description": "The experimental view shares the standard sidebar header and conversation update-time filter and has a flat title and transcript search, project filters showing one badge or two overlapping badges, a compose palette, compact snoozed and settled shelves, and local snooze schedules. The compose picker lists only open root projects, and its number shortcuts follow their displayed order. Project and chat badges share a 16px square and a 6px project label gap. Han initials use one centered 11px character; Latin initials use up to two 9px letters. Project badge backgrounds and letters use the displayed folder's custom color in rows, search and the filter, with name-based colors as the default. Projectless sessions display a filled chat bubble in the same SVG frame as project initials and the Chat label. Full-size unread rows outside the completed shelf emphasize the title and show a green circled check with Done when not in progress. Runtime requests, including delegated approval and input, and terminal failures can wake snoozed threads early. Connection setup alone does not move a conversation to the running shelf. An executing turn takes priority over a second connection preparing. The completed shelf below running opens by default and groups unread completed turns until viewed. The running shelf opens with every matching conversation visible and hides all its rows when collapsed. The settled shelf starts collapsed and remembers manual toggles. Mobile keeps the settled shelf visible with a zero count when no sessions match. Running duration ticks each second and displays seconds, whole minutes, or hours plus remaining minutes. Runtime status takes priority over the individually dismissible wake badge and unread completion. Manual wake clears the snooze. Inactive conversations can show their unsent draft. Inline snooze and settle controls use the row background and appear on hover or while their menu is open. Tab skips these actions and focusing the row preserves its status label. The list, search results and shelves use the shared sidebar overlay scrollbar. The search field is transparent until hovered. Project filtering is toolbar-only. Context actions and snooze choices have leading icons. The context menu supports shared completion, scoped todo linking, session details and confirmed deletion.",
       "paths": [
         "src/components/conversations/conversation-lab.tsx",
         "src/components/conversations/conversation-lab-projects.tsx",
@@ -777,7 +777,7 @@
       "origins": [
         "worktree-2026-11-05"
       ],
-      "description": "Adopting a single-line prompt suggestion preserves composer height. Suggestion adoption fits the 32px action row with a compact 4px bottom inset without increasing bottom spacing; motion CSS must not override that floor. Compact and tall editable floors include the action row and padding.",
+      "description": "Adopting a single-line prompt suggestion preserves composer height. The inline suggestion action leaves the 32px toolbar and its 4px bottom inset intact; motion CSS must not override that floor. Compact and tall editable floors include the action row and padding.",
       "paths": [
         "src/app/interaction-motion.css",
         "src/components/chat/message-input.tsx",
@@ -813,7 +813,7 @@
         "worktree-2026-11-02",
         "worktree-2026-11-20"
       ],
-      "description": "Desktop and touch composers offer a separate 44px adoption arrow before send only for an empty, available composer between turns. Touch and phone composers show predicted text without the Tab suffix. Wrapped suggestions contribute their full height to the shared editor scroll area. Placeholder taps only focus; adopting fills and focuses without submitting or overwriting a live draft. Desktop predictions end with an inline Tab keycap that stays outside the editable document.",
+      "description": "Empty composers offer adoption inline after the prediction: a clickable desktop Tab keycap using the standard muted foreground or a localized adoption button on touch. Touch and phone composers show predicted text without the Tab suffix. Wrapped suggestions contribute their full height to the shared editor scroll area. Placeholder taps only focus; adopting fills and focuses without submitting or overwriting a live draft. Desktop predictions end with an inline Tab keycap that stays outside the editable document.",
       "paths": [
         "src/components/chat/message-input.tsx",
         "src/components/chat/composer/rich-composer.tsx",
@@ -861,7 +861,7 @@
       "origins": [
         "worktree-2026-11-02"
       ],
-      "description": "Show todo group creation dates as local MMDD in the same muted fixed-width column as conversation dates, including linked-only and completed todos. Match conversation title color, weight, line height and date/topic spacing; structured titles show only the topic without duplicating their embedded date or type. Include created_at in local/team heading lookups and tolerate older hosts without it.",
+      "description": "Show todo group creation dates as local MMDD in a muted fixed-width column, including linked-only and completed todos. Match conversation title color, weight, line height and date/topic spacing; structured titles show only the topic without duplicating their embedded date or type. Include created_at in local/team heading lookups and tolerate older hosts without it.",
       "paths": [
         "src/components/conversations/sidebar-todo-group-header.tsx",
         "src/components/conversations/sidebar-conversation-list.tsx",
@@ -967,15 +967,18 @@
       "id": "chat.centered-header",
       "category": "product",
       "origins": [
-        "worktree-2026-10-30"
+        "worktree-2026-10-30",
+        "worktree-2026-11-24"
       ],
-      "description": "Center a single conversation title without date prefix or linked todo subtitle. Omit new conversation from the conversation header overflow menu. Keep sidebar/new chat and menu/aux toggle inside the conversation area with native no-drag controls. The sidebar toggle lives immediately before search inside the expanded desktop sidebar and reappears in main navigation only when collapsed. Settings stays beside search; locate-active-conversation is available only in the sidebar overflow menu on desktop and mobile; aux panel has no empty header strip. The right overlay only receives input on visible buttons; no invisible drag filler may cover the conversation actions menu.",
+      "description": "Show a left-aligned project badge, project alias or name, slash and conversation title on desktop for project conversations. Clicking the project or the title opens a draft in the displayed conversation's folder. Workspace chats without a project and mobile conversations keep a centered title. Omit the standalone desktop compose button and omit new conversation from the active conversation overflow menu. Keep the sidebar and menu/aux toggles inside the conversation area with native no-drag controls. The sidebar toggle lives immediately before search inside the expanded desktop sidebar and reappears in main navigation only when collapsed. Settings stays beside search; locate-active-conversation is available only in the sidebar overflow menu on desktop and mobile; aux panel has no empty header strip. The right overlay only receives input on visible buttons; no invisible drag filler may cover the conversation actions menu.",
       "paths": [
         "src/components/layout/left-edge-chrome.tsx",
         "src/components/layout/right-edge-chrome.tsx",
         "src/components/layout/desktop-chrome-icon.tsx",
         "src/components/layout/sidebar.tsx",
         "src/components/conversations/conversation-detail-header.tsx",
+        "src/components/conversations/conversation-detail-panel.tsx",
+        "src/components/conversations/lab-project-badge.tsx",
         "src/components/todos/conversation-todo-source-badges.tsx",
         "src/app/workspace/layout.tsx",
         "src/lib/window-chrome.ts",
@@ -984,6 +987,7 @@
       ],
       "contracts": [
         "src/maxcode-contracts/conversation-header-layout.contract.test.ts",
+        "src/maxcode-contracts/conversation-header-project.contract.test.tsx",
         "src/maxcode-contracts/sidebar-tools.contract.test.tsx"
       ]
     },
@@ -2411,13 +2415,16 @@
     {
       "id": "conversation.date-topic-titles",
       "category": "product",
-      "description": "Models generate only the topic in every locale. Stored automatic titles still carry MMDD from the Shanghai creation time for existing metadata consumers. Show only the topic in session details, the conversation header and tooltip, search results and other plain title displays. Both rename dialogs edit and save only the topic. Legacy stored titles remain readable and locked names remain protected.",
+      "description": "Each localized prompt requests a short title in the interface language, including for greetings and short questions. New titles store the topic alone. API summaries and the experimental sidebar strip historical prefixes. Show only the topic in session details, the conversation header and tooltip, search results and other plain title displays. Both rename dialogs edit and save only the topic. Legacy stored titles remain readable and locked names remain protected.",
       "origins": [
         "worktree-2026-11-03",
         "worktree-2026-11-19"
       ],
       "paths": [
         "src/lib/conversation-title.ts",
+        "src-tauri/src/models/conversation.rs",
+        "src/components/conversations/conversation-lab-row.tsx",
+        "src/components/conversations/conversation-lab.tsx",
         "src/components/conversations/sidebar-conversation-card.tsx",
         "src/components/conversations/conversation-detail-header.tsx",
         "src/components/conversations/session-details-content.tsx",
@@ -2432,7 +2439,7 @@
     {
       "id": "sidebar.mobile-title-topic-only",
       "category": "product",
-      "description": "Show the topic of structured titles on all screen sizes. Omit the title date under folder and Chat headers, including both types of group in Recent, while keeping the relative-time label. Other sidebar rows may show a separate date column. The conversation header shows the topic only, including in the tooltip. Preserve stored titles, unstructured titles and empty-title fallbacks.",
+      "description": "Show the topic of structured titles on all screen sizes. Omit date and category prefixes throughout the sidebar while keeping relative-time labels. The conversation header shows the topic only, including in the tooltip. Preserve stored titles, unstructured titles and empty-title fallbacks.",
       "origins": [
         "worktree-2026-10-22",
         "worktree-2026-11-19",
@@ -5971,7 +5978,7 @@
     {
       "id": "conversations.structured-title-recovery",
       "category": "product",
-      "description": "Dedicated titles normalize MMDD｜topic (accepting legacy type fields), use Shanghai creation-date MMDD｜未命名 when no automatic title exists, retain existing titles while the model runs or if it returns no usable title, keep automatic fallback unlocked for recovery, reject invalid/truncated responses, recover from the first transcript turn with cooldown, use the first exchange assistant text for image-only prompts without crossing later user turns or sending image payloads, preserve locked names, omit category generation, normalize legacy category titles and 未知 fallbacks to date/topic, treat understandable short messages as valid title topics, verify greeting kickoff sends HTTP for every supported agent, and log HTTP attempts, responses, outcomes and skip reasons without credentials or message content.",
+      "description": "Dedicated titles store the topic alone (accepting historical date and type fields), use 未命名 when no automatic title exists, retain existing titles while the model runs or if it returns no usable title, keep automatic fallback unlocked for recovery, reject invalid/truncated responses, recover from the first transcript turn with cooldown, use the first exchange assistant text for image-only prompts without crossing later user turns or sending image payloads, preserve locked names, omit category generation, normalize legacy category titles and 未知 fallbacks to topic only, treat understandable short messages as valid title topics, verify greeting kickoff sends HTTP for every supported agent, and log HTTP attempts, responses, outcomes and skip reasons without credentials or message content.",
       "origins": [
         "worktree-2026-09-07"
       ],
@@ -6345,7 +6352,7 @@
     {
       "id": "agents.acp-compatibility-and-titles",
       "category": "runtime",
-      "description": "Built-in/custom ACP agents keep discovery and preflight behavior, configurable locale-aware HTTP-generated titles for Codex, Grok, Pi, DeepSeek Harness, Claude Code, and ZCode without launching a second agent CLI, creation-date-based structured sidebar titles, multiline first-prompt seed replacement, typed K/V request parameters, local sensitive-data redaction for generated and fallback titles, Grok history plans, and redundant image-read filtering.",
+      "description": "Built-in/custom ACP agents keep discovery and preflight behavior, configurable locale-aware HTTP-generated titles for Codex, Grok, Pi, DeepSeek Harness, Claude Code, and ZCode without launching a second agent CLI, topic-only sidebar titles, multiline first-prompt seed replacement, typed K/V request parameters, local sensitive-data redaction for generated and fallback titles, Grok history plans, and redundant image-read filtering.",
       "origins": [
         "108154e4",
         "53144985",
@@ -6381,7 +6388,7 @@
     {
       "id": "automation.structured-conversation-titles",
       "category": "product",
-      "description": "Automation runs use locked Shanghai-date-prefixed sidebar titles in the form MMDD｜自动｜automation name, preserving run identity against prompt-derived parser backfills.",
+      "description": "Automation runs use the automation name alone as their locked title, preserving run identity against prompt-derived parser backfills.",
       "origins": [
         "worktree-2026-09-04"
       ],
@@ -7330,10 +7337,12 @@
         "worktree-2026-11-17",
         "worktree-2026-11-24"
       ],
-      "description": "The new conversation, automation, task, todo, Forge, skills settings and conversation filter single-folder selectors share one searchable menu and use compact single-line names, a trailing selection checkmark; paths remain available as hints and search tokens. In a new conversation pin Chat mode first, place the only divider below Chat mode and keep the icon-free search field and scrollable folder list together below the divider, focus search on open, show empty search results and disambiguating paths for duplicate display names; filtering never commits selection. Use regular-weight project names, modest row corners, transparent active and selected backgrounds and a restrained local shadow. Align the popup start edge to the measured composer input border instead of the inset chip. The chat action is a compact single row with its folderless explanation in the hover title. Match its glyph to folder rows in visual height, leading alignment and foreground color. Pointer hover temporarily adds a pale background, independent of the persistent current-folder checkmark; an unhovered active row stays transparent. Hide the folder scroller rail while retaining wheel, touchpad and keyboard scrolling.",
+      "description": "New conversation, automation, task, todo, Forge, skills settings, conversation filters, the experimental inbox and canvas folder regions share one compact searchable folder menu. Pin available Chat mode, Chat and All folders or projects actions above a single divider, followed by the icon-free search field and scrollable list. Focus search on open. Paths stay searchable and appear for duplicate names. Filtering never commits selection. Experimental project filtering preserves Shift multi-selection and folder colors, and compose number shortcuts follow the open project list. Use regular-weight project names, modest row corners, transparent active and selected backgrounds and a restrained local shadow. Align the popup start edge to the measured composer input border instead of the inset chip. The chat action is a compact single row with its folderless explanation in the hover title. Match its glyph to folder rows in visual height, leading alignment and foreground color. Pointer hover temporarily adds a pale background, independent of the persistent current-folder checkmark; an unhovered active row stays transparent. Hide the folder scroller rail while retaining wheel, touchpad and keyboard scrolling.",
       "paths": [
         "src/components/chat/conversation-context-bar.tsx",
         "src/components/shared/folder-select.tsx",
+        "src/components/conversations/conversation-lab-projects.tsx",
+        "src/components/canvas/add-node-menu.tsx",
         "src/components/ui/command.tsx",
         "src/components/settings/skills-settings.tsx",
         "src/components/automations/automation-editor.tsx",
@@ -7343,6 +7352,7 @@
       "contracts": [
         "src/maxcode-contracts/compact-project-picker.contract.test.tsx",
         "src/maxcode-contracts/folder-picker-structure.contract.test.tsx",
+        "src/maxcode-contracts/conversation-lab.contract.test.tsx",
         "src/maxcode-contracts/skills-folder-picker.contract.test.tsx",
         "src/maxcode-contracts/composer-folder-alignment.contract.test.ts"
       ]

@@ -60,22 +60,21 @@ function showCard(
 }
 
 describe("mobile conversation list layout", () => {
-  it("places date, folder and time below a single-line title while retaining status and selection", () => {
+  it("places folder and time below a single-line title while retaining status and selection", () => {
     const { container, select } = showCard(true)
     const title = screen.getByText("手机端底部菜单栏布局优化与调整方案")
     expect(title).toHaveClass("truncate")
     const metadata = container.querySelector<HTMLElement>(
       "[data-mobile-conversation-meta]"
     )!
-    expect(within(metadata).getByText("1110")).toBeInTheDocument()
+    expect(within(metadata).queryByText("1110")).toBeNull()
     expect(within(metadata).getByText("maxcode")).toBeInTheDocument()
     expect(within(metadata).getByText("3h")).toBeInTheDocument()
-    expect(metadata).toHaveClass("grid", "grid-cols-[4ch_minmax(0,1fr)_auto]")
-    expect(metadata.children).toHaveLength(3)
-    expect(metadata.children[0]).toHaveTextContent("1110")
-    expect(metadata.children[1]).toHaveTextContent("maxcode")
-    expect(metadata.children[2]).toHaveTextContent("3h")
-    expect(metadata.children[2]).toHaveClass("text-right")
+    expect(metadata).toHaveClass("grid", "grid-cols-[minmax(0,1fr)_auto]")
+    expect(metadata.children).toHaveLength(2)
+    expect(metadata.children[0]).toHaveTextContent("maxcode")
+    expect(metadata.children[1]).toHaveTextContent("3h")
+    expect(metadata.children[1]).toHaveClass("text-right")
     expect(metadata.querySelector("svg")).toBeNull()
     expect(within(metadata).getByText("maxcode")).toHaveAttribute(
       "title",
@@ -98,19 +97,17 @@ describe("mobile conversation list layout", () => {
     expect(metadata).toHaveTextContent("maxcode")
     expect(metadata).toHaveTextContent("3h")
     expect(metadata).not.toHaveTextContent("1110")
-    expect(metadata.children).toHaveLength(3)
-    expect(metadata.children[0]).toBeEmptyDOMElement()
-    expect(metadata.children[1]).toHaveTextContent("maxcode")
-    expect(metadata.children[2]).toHaveTextContent("3h")
+    expect(metadata.children).toHaveLength(2)
+    expect(metadata.children[0]).toHaveTextContent("maxcode")
+    expect(metadata.children[1]).toHaveTextContent("3h")
   })
 
   it("keeps the folder column empty when a folder is unavailable", () => {
     const { container } = showCard(true, conversation.title, "")
     const metadata = container.querySelector("[data-mobile-conversation-meta]")!
-    expect(metadata.children).toHaveLength(3)
-    expect(metadata.children[0]).toHaveTextContent("1110")
-    expect(metadata.children[1]).toBeEmptyDOMElement()
-    expect(metadata.children[2]).toHaveTextContent("3h")
+    expect(metadata.children).toHaveLength(2)
+    expect(metadata.children[0]).toBeEmptyDOMElement()
+    expect(metadata.children[1]).toHaveTextContent("3h")
   })
 
   it("retains the compact single-line desktop layout", () => {
@@ -118,7 +115,7 @@ describe("mobile conversation list layout", () => {
     expect(
       container.querySelector("[data-mobile-conversation-meta]")
     ).toBeNull()
-    expect(screen.getByText("1110")).toHaveClass("w-[4ch]")
+    expect(screen.queryByText("1110")).toBeNull()
     expect(screen.getByText("手机端底部菜单栏布局优化与调整方案")).toHaveClass(
       "truncate"
     )

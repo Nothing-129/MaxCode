@@ -6,11 +6,9 @@ import enMessages from "@/i18n/messages/en.json"
 
 const spies = vi.hoisted(() => ({
   isSidebarOpen: true,
-  activeFolder: null as { id: number; path: string } | null,
+  routeId: "conversations",
   toggleSidebar: vi.fn(),
-  openConversations: vi.fn(),
-  openNewConversationTab: vi.fn(),
-  openChatModeTab: vi.fn(),
+  setRoute: vi.fn(),
 }))
 vi.mock("@/contexts/sidebar-context", () => ({
   useSidebarContext: () => ({
@@ -18,10 +16,6 @@ vi.mock("@/contexts/sidebar-context", () => ({
     toggle: spies.toggleSidebar,
   }),
 }))
-vi.mock("@/contexts/active-folder-context", () => ({
-  useActiveFolder: () => ({ activeFolder: spies.activeFolder }),
-}))
-vi.mock("@/contexts/tab-context", () => ({ useTabActions: () => spies }))
 vi.mock("@/contexts/workbench-route-context", () => ({
   useWorkbenchRoute: () => spies,
 }))
@@ -49,30 +43,21 @@ describe("LeftEdgeChrome", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     spies.isSidebarOpen = true
-    spies.activeFolder = null
+    spies.routeId = "conversations"
   })
-  it("opens a chat from the persistent compose button without an active project", () => {
+  it("leaves the header's left edge clear when the sidebar is open", () => {
     renderChrome()
-    fireEvent.click(screen.getByRole("button", { name: "New Conversation" }))
-    expect(spies.openConversations).toHaveBeenCalledOnce()
-    expect(spies.openChatModeTab).toHaveBeenCalledOnce()
-    expect(spies.openNewConversationTab).not.toHaveBeenCalled()
+    expect(screen.queryByRole("button")).toBeNull()
   })
-  it("opens a new conversation in the active project", () => {
-    spies.activeFolder = { id: 7, path: "/project" }
+  it("retains the task board return action in linked conversations", () => {
+    spies.routeId = "taskConversation"
     renderChrome()
-    fireEvent.click(screen.getByRole("button", { name: "New Conversation" }))
-    expect(spies.openConversations).toHaveBeenCalledOnce()
-    expect(spies.openNewConversationTab).toHaveBeenCalledWith(7, "/project")
-    expect(spies.openChatModeTab).not.toHaveBeenCalled()
-  })
-  it("keeps only compose when the sidebar is open", () => {
-    renderChrome()
-    expect(screen.getAllByRole("button")).toHaveLength(1)
-    expect(screen.queryByRole("button", { name: "Search" })).toBeNull()
-    expect(
-      screen.queryByRole("button", { name: "Open remote workspace" })
-    ).toBeNull()
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: enMessages.Folder.sidebar.navigation.todoBoard,
+      })
+    )
+    expect(spies.setRoute).toHaveBeenCalledWith("tasks")
   })
   it("shows a sidebar toggle and its shortcut when the sidebar is collapsed", () => {
     spies.isSidebarOpen = false
@@ -81,6 +66,6 @@ describe("LeftEdgeChrome", () => {
     expect(toggle).toHaveAttribute("title", "Show Sidebar (Ctrl+B)")
     fireEvent.click(toggle)
     expect(spies.toggleSidebar).toHaveBeenCalledOnce()
-    expect(screen.getAllByRole("button")).toHaveLength(2)
+    expect(screen.getAllByRole("button")).toEqual([toggle])
   })
 })

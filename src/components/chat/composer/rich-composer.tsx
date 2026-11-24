@@ -16,7 +16,6 @@ import { type Editor, type JSONContent } from "@tiptap/core"
 import { AllSelection, Selection } from "@tiptap/pm/state"
 import { useComposerHeightMotion } from "@/hooks/use-composer-height-motion"
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react"
-import { ArrowRightToLine } from "lucide-react"
 import { exitSuggestion } from "@tiptap/suggestion"
 
 import type { HistoryDirection } from "@/lib/composer-history"
@@ -254,7 +253,7 @@ export interface RichComposerProps {
    * editor rebuild.
    */
   promptSuggestion?: string | null
-  showSuggestionTabHint?: boolean
+  suggestionAction?: ReactNode
 }
 
 /**
@@ -296,7 +295,7 @@ export const RichComposer = forwardRef<RichComposerHandle, RichComposerProps>(
       onDropFiles,
       onPlainPaste,
       promptSuggestion,
-      showSuggestionTabHint,
+      suggestionAction,
     },
     ref
   ) {
@@ -799,15 +798,7 @@ export const RichComposer = forwardRef<RichComposerHandle, RichComposerProps>(
               {suggestionPreview && (
                 <div className="codeg-composer-suggestion-preview">
                   {suggestionPreview}
-                  {showSuggestionTabHint && (
-                    <kbd
-                      dir="ltr"
-                      className="ms-2 inline-flex items-center gap-1 whitespace-nowrap rounded border border-border border-b-2 px-1.5 align-middle font-sans text-xs leading-4 text-muted-foreground"
-                    >
-                      <ArrowRightToLine aria-hidden="true" className="size-3" />
-                      Tab
-                    </kbd>
-                  )}
+                  {suggestionAction}
                 </div>
               )}
               <EditorContent editor={editor} />

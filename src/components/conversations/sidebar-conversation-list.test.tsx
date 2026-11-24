@@ -1330,7 +1330,7 @@ describe("SidebarConversationList — Recent section", () => {
   })
 
   it.each([false, true])(
-    "omits the date inside folders (grouped Recent: %s)",
+    "omits title dates in sidebar conversations (grouped Recent: %s)",
     (grouped) => {
       const timestamp = new Date(2026, 10, 19, 12).toISOString()
       useAppWorkspaceStore.setState({
@@ -1364,7 +1364,7 @@ describe("SidebarConversationList — Recent section", () => {
       expect(folderRow).not.toHaveTextContent("1119")
       if (grouped) {
         const chatRow = screen.getByText("普通聊天").closest("[data-conv-key]")
-        expect(chatRow).toHaveTextContent("1119")
+        expect(chatRow).not.toHaveTextContent("1119")
       }
     }
   )
@@ -2276,28 +2276,25 @@ describe("SidebarConversationList — new conversation navigation", () => {
     })
   })
 
-  it.each([0, 1])(
-    "notifies sidebar navigation when new-chat section button %s opens a chat",
-    (index) => {
-      const onNavigate = vi.fn()
-      const { getAllByRole } = render(
-        <NextIntlClientProvider locale="en" messages={enMessages}>
-          <SidebarConversationList
-            showRecent
-            showCompleted
-            sortMode="created"
-            onNavigate={onNavigate}
-          />
-        </NextIntlClientProvider>
-      )
+  it("notifies sidebar navigation when the chats section opens a new chat", () => {
+    const onNavigate = vi.fn()
+    const { getByRole } = render(
+      <NextIntlClientProvider locale="en" messages={enMessages}>
+        <SidebarConversationList
+          showRecent
+          showCompleted
+          sortMode="created"
+          onNavigate={onNavigate}
+        />
+      </NextIntlClientProvider>
+    )
 
-      fireEvent.click(getAllByRole("button", { name: "New chat" })[index])
+    fireEvent.click(getByRole("button", { name: "New chat" }))
 
-      expect(onNavigate).toHaveBeenCalledOnce()
-      expect(stableTabFns.openChatModeTab).toHaveBeenCalledOnce()
-      expect(stableTabFns.openNewConversationTab).not.toHaveBeenCalled()
-    }
-  )
+    expect(onNavigate).toHaveBeenCalledOnce()
+    expect(stableTabFns.openChatModeTab).toHaveBeenCalledOnce()
+    expect(stableTabFns.openNewConversationTab).not.toHaveBeenCalled()
+  })
 })
 
 // View/parser tests use an in-memory storage adapter; host synchronization is

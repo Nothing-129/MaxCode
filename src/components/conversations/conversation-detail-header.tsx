@@ -59,6 +59,8 @@ import {
   conversationTitleTopic,
   formatConversationTitle,
 } from "@/lib/conversation-title"
+import { formatFolderLabelWithAlias } from "@/lib/folder-display"
+import { LabProjectBadge } from "./lab-project-badge"
 import { ConversationTitleLabel } from "./conversation-title-label"
 import { ConversationTitleTransition } from "./conversation-title-transition"
 import { OPEN_CONVERSATION_SHARE_EVENT } from "@/lib/conversation-share-events"
@@ -67,7 +69,11 @@ import { useAppWorkspaceStore } from "@/stores/app-workspace-store"
 import { useConversationUnreadStore } from "@/stores/conversation-unread-store"
 import { useTabActions, useTabStore } from "@/contexts/tab-context"
 import { getRuntimeSession } from "@/stores/conversation-runtime-store"
-import type { ConversationShareOptions, ConversationStatus } from "@/lib/types"
+import type {
+  ConversationShareOptions,
+  ConversationStatus,
+  FolderDetail,
+} from "@/lib/types"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -95,7 +101,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { copyTextToClipboard } from "@/lib/utils"
+import { cn, copyTextToClipboard } from "@/lib/utils"
 import { getServerBaseUrl } from "@/lib/transport"
 import {
   resolveActiveSessionDetails,
@@ -115,6 +121,7 @@ interface ConversationDetailHeaderProps {
   runtimeConversationId: number | null
   folderId: number
   folderPath: string | undefined
+  project?: Pick<FolderDetail, "name" | "alias" | "color">
   title: string
   status: ConversationStatus | undefined
 }
@@ -150,6 +157,7 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
   runtimeConversationId,
   folderId,
   folderPath,
+  project,
   title,
   status,
 }: ConversationDetailHeaderProps) {
@@ -257,6 +265,8 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
   const titleLocked = storedTitleLocked ?? childTitleLocked
   const headerTitle =
     (!titleLocked && linkTitleHost(displayTitle)) || displayTitle
+  const projectName =
+    folderPath && project ? formatFolderLabelWithAlias(project) : null
 
   const handleTogglePin = useCallback(() => {
     if (conversationId == null) return
@@ -708,12 +718,44 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
     // desktop reference uses a compact title and quiet sharing action, sharing
     // one row with window controls. With a workspace background image on, the whole top
     // of the column reveals the canvas.
-    <div className="relative flex h-14 min-w-0 shrink-0 items-center gap-1 md:h-12 md:gap-2 md:pl-[var(--conversation-header-left,0.75rem)] md:pr-[var(--conversation-header-right,0.75rem)]">
+    <div className="relative flex h-14 min-w-0 shrink-0 items-center gap-1 md:h-12 md:gap-2 md:pl-[var(--conversation-header-left,0.75rem)] md:pr-[max(5.5rem,var(--conversation-header-right,0.75rem))]">
       <MobileHeaderActionsSlot active={activeTabId === tabId}>
         {conversationMenuItems}
       </MobileHeaderActionsSlot>
-      {/* 标题文字占据剩余宽度，超出时截断。 */}
-      <div className="absolute inset-x-2 inset-y-0 flex min-w-0 flex-col items-center justify-center md:inset-x-28">
+      <div
+        className={cn(
+          "absolute inset-x-2 inset-y-0 flex min-w-0 flex-col items-center justify-center",
+          projectName
+            ? "md:static md:flex-1 md:flex-row md:justify-start md:gap-3"
+            : "md:inset-x-28"
+        )}
+      >
+        {projectName && (
+          <>
+            <button
+              type="button"
+              className="hidden min-h-7 min-w-0 max-w-[45%] cursor-pointer items-center gap-1.5 rounded-sm text-[15px] font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring md:inline-flex"
+              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+              aria-label={`${projectName} · ${t("newConversation")}`}
+              title={`${projectName} · ${t("newConversation")}`}
+              onClick={() => {
+                if (folderPath) openNewConversationTab(folderId, folderPath)
+              }}
+            >
+              <LabProjectBadge
+                name={projectName}
+                folderColor={project?.color}
+              />
+              <span className="truncate">{projectName}</span>
+            </button>
+            <span
+              aria-hidden="true"
+              className="hidden shrink-0 text-muted-foreground md:inline"
+            >
+              /
+            </span>
+          </>
+        )}
         <span
           data-conversation-title=""
           data-selection-active={selectionActive}
@@ -747,7 +789,6 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
             titleLocked={titleLocked}
           >
             <ConversationTitleLabel
-              showDate={false}
               title={headerTitle}
               fallback={t("untitledConversation")}
             />
@@ -757,7 +798,11 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className={`absolute -right-16 top-1/2 -translate-y-1/2 hidden items-center justify-center md:flex ${desktopChromeButtonClassName}`}
+              className={cn(
+                "absolute top-1/2 hidden -translate-y-1/2 items-center justify-center md:flex",
+                projectName ? "right-12" : "-right-16",
+                desktopChromeButtonClassName
+              )}
               aria-label={tConv("moreActions")}
               title={tConv("moreActions")}
             >

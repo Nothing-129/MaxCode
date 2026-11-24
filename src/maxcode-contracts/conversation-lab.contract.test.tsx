@@ -15,6 +15,10 @@ import {
   loadLabMarks,
   snoozePresets,
 } from "@/lib/conversation-lab"
+import {
+  labConnectionSignal,
+  preferLabSignal,
+} from "@/lib/conversation-lab-status"
 import type { DbConversationSummary, FolderDetail } from "@/lib/types"
 import { describe, expect, it, vi } from "vitest"
 import { DATE_FILTER_STORAGE_KEY } from "@/lib/sidebar-navigation"
@@ -24,10 +28,10 @@ import {
 } from "@/contexts/sidebar-navigation-context"
 import { source } from "./contract-source"
 
-function ConversationLab() {
+function ConversationLab({ mobile = false }: { mobile?: boolean }) {
   return (
     <ConversationLabProvider>
-      <LabView />
+      <LabView mobile={mobile} />
     </ConversationLabProvider>
   )
 }
@@ -69,6 +73,32 @@ it("wakes snoozed conversations into their live status and isolates reused ids",
   localStorage.removeItem(labKey(c))
 })
 
+it("keeps connection setup in place until a turn starts", () => {
+  const c = { status: "completed" } as DbConversationSummary
+  const preparing = labConnectionSignal({
+    status: "connecting",
+  } as ConnectionState)!
+  const working = labConnectionSignal({
+    status: "prompting",
+  } as ConnectionState)!
+  const group = (signal?: typeof preparing) => labGroup(c, undefined, 0, signal)
+  expect([group(), group(preparing), group(), group(working)]).toEqual([
+    "main",
+    "main",
+    "main",
+    "running",
+  ])
+  expect(
+    labGroup({ ...c, status: "in_progress" }, undefined, 0, preparing)
+  ).toBe("main")
+  for (const signal of [
+    preferLabSignal(working, preparing),
+    preferLabSignal(preparing, working),
+  ]) {
+    expect(group(signal)).toBe("running")
+  }
+})
+
 const live = vi.hoisted(() => {
   const connections = new Map<string, ConnectionState>()
   const listeners = new Map<string, () => void>()
@@ -81,7 +111,7 @@ const live = vi.hoisted(() => {
       return () => listeners.delete(key)
     },
   }
-  return { connections, listeners, store }
+  return { connections, listeners, store, selected: null as number | null }
 })
 vi.mock("@/contexts/acp-connections-context", () => ({
   useConnectionStore: () => live.store,
@@ -94,8 +124,14 @@ vi.mock("@/contexts/delegation-context", () => ({
   }),
 }))
 vi.mock("@/contexts/tab-context", () => ({
-  useTabActions: () => ({ openTab: () => true }),
-  useTabStore: () => null,
+  useTabActions: () => ({
+    openTab: () => true,
+    openNewConversationTab: (folderId: number, path: string) =>
+      tabStore
+        .getState()
+        .openNewConversationTab(folderId, path, { rememberContext: false }),
+  }),
+  useTabStore: () => live.selected,
 }))
 vi.mock("@/contexts/workbench-route-context", () => ({
   useWorkbenchRoute: () => ({ openConversations: () => {} }),
@@ -103,17 +139,24 @@ vi.mock("@/contexts/workbench-route-context", () => ({
 
 it("renders review and ordinary chats directly above running chats", () => {
   const previous = useAppWorkspaceStore.getState()
-  const conversations = ["completed", "pending_review", "in_progress"].map(
-    (status, id) => ({
-      id,
-      status,
-      title: "Thread " + id,
-      kind: "regular",
-      agent_type: "codex",
-      created_at: "2026-11-01",
-      updated_at: "2026-11-0" + (id + 1),
-    })
-  ) as DbConversationSummary[]
+  const conversations = [
+    "completed",
+    "pending_review",
+    "in_progress",
+    "in_progress",
+  ].map((status, id) => ({
+    id: id || 4,
+    status,
+    title: ["1124｜Thread 0", "1124｜自动｜Thread 1", "Thread 2", "Thread 3"][
+      id
+    ],
+    kind: "regular",
+    agent_type: "codex",
+    created_at: "2026-11-01",
+    updated_at: "2026-11-0" + (id + 1),
+  })) as DbConversationSummary[]
+  localStorage.setItem("maxcode:lab-shelf:running", "0")
+  live.selected = 2
   useAppWorkspaceStore.setState({ conversations, conversationsLoading: false })
   try {
     const { container } = render(
@@ -123,20 +166,41 @@ it("renders review and ordinary chats directly above running chats", () => {
     )
     expect(
       Array.from(container.querySelectorAll("summary"), (s) => s.textContent)
-    ).toEqual([en.Folder.sidebar.lab.running + "1"])
+    ).toEqual([en.Folder.sidebar.lab.running + "2"])
     expect(screen.getByText("Thread 1").closest("details")).toBeNull()
     const unread = useConversationUnreadStore.getState()
     try {
       act(() =>
-        useConversationUnreadStore.setState({ unreadIds: new Set([1]) })
+        useConversationUnreadStore.setState({ unreadIds: new Set([4, 1, 2]) })
       )
+      const completed = screen.getByText(en.Folder.statusLabels.completed, {
+        selector: "summary",
+      })
+      expect(completed).toHaveTextContent(
+        en.Folder.statusLabels.completed + "2"
+      )
+      expect(Array.from(container.querySelectorAll("summary"))).toEqual([
+        screen.getByText(en.Folder.sidebar.lab.running, {
+          selector: "summary",
+        }),
+        completed,
+      ])
+      expect(completed.parentElement).toHaveAttribute("open")
+      expect(screen.getByText("Thread 1").closest("details")).toBe(
+        completed.parentElement
+      )
+      fireEvent.click(completed)
+      expect(screen.queryByText("Thread 1")).toBeNull()
+      fireEvent.click(completed)
+      expect(screen.getByText("Thread 1")).not.toHaveClass("font-semibold")
+      expect(screen.getByText("Thread 0")).not.toHaveClass("font-semibold")
+      act(() => useConversationUnreadStore.getState().setViewed([4, 1]))
       expect(
-        screen.getByText(en.Folder.sidebar.lab.done).querySelector("svg")
-      ).toBeTruthy()
-      expect(
-        screen.getByText("Thread 1").classList.contains("font-semibold")
-      ).toBe(true)
-      act(() => useConversationUnreadStore.getState().setViewed([1]))
+        screen.queryByText(en.Folder.statusLabels.completed, {
+          selector: "summary",
+        })
+      ).toBeNull()
+      expect(screen.getByText("Thread 1").closest("details")).toBeNull()
       expect(screen.queryByText(en.Folder.sidebar.lab.done)).toBeNull()
       expect(
         screen.getByText("Thread 1").classList.contains("font-semibold")
@@ -144,11 +208,21 @@ it("renders review and ordinary chats directly above running chats", () => {
     } finally {
       act(() => useConversationUnreadStore.setState(unread))
     }
+    expect(container.querySelector("details")).toHaveAttribute("open")
+    expect(screen.getByText("Thread 2")).toBeVisible()
+    expect(screen.getByText("Thread 3")).toBeVisible()
+    fireEvent.click(
+      screen.getByText(en.Folder.sidebar.lab.running, { selector: "summary" })
+    )
+    expect(screen.queryByText("Thread 3")).toBeNull()
     expect(screen.queryByText("Thread 2")).toBeNull()
-    fireEvent.click(screen.getByText(en.Folder.sidebar.lab.running))
+    fireEvent.click(
+      screen.getByText(en.Folder.sidebar.lab.running, { selector: "summary" })
+    )
     expect(screen.getAllByText(/^Thread /).map((e) => e.textContent)).toEqual([
       "Thread 1",
       "Thread 0",
+      "Thread 3",
       "Thread 2",
     ])
     const searchField = screen.getByRole("searchbox").closest("label")
@@ -159,10 +233,50 @@ it("renders review and ordinary chats directly above running chats", () => {
     fireEvent.change(screen.getByRole("searchbox"), {
       target: { value: "Thread" },
     })
-    expect(screen.getAllByRole("option")).toHaveLength(3)
+    expect(screen.getAllByRole("option")).toHaveLength(4)
+    expect(container).not.toHaveTextContent(/1124｜|自动｜/)
     expect(container.querySelector("summary")).toBeNull()
     fireEvent.keyDown(screen.getByRole("searchbox"), { key: "Escape" })
     expect(container.querySelector("summary")).not.toBeNull()
+  } finally {
+    live.selected = null
+    localStorage.removeItem("maxcode:lab-shelf:running")
+    useAppWorkspaceStore.setState(previous)
+  }
+})
+
+it("opens running and shows the empty settled shelf on mobile", () => {
+  const previous = useAppWorkspaceStore.getState()
+  const c = {
+    id: 42,
+    title: "Running on mobile",
+    status: "in_progress",
+    kind: "regular",
+    agent_type: "codex",
+    created_at: "2026-11-01",
+    updated_at: "2026-11-01",
+  } as DbConversationSummary
+  localStorage.setItem("maxcode:lab-shelf:running", "0")
+  useAppWorkspaceStore.setState({
+    conversations: [c],
+    conversationsLoading: false,
+  })
+  try {
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <ConversationLab mobile />
+      </NextIntlClientProvider>
+    )
+    const running = screen.getByText(en.Folder.sidebar.lab.running, {
+      selector: "summary",
+    })
+    expect(running.closest("details")).toHaveAttribute("open")
+    expect(screen.getByText(c.title!)).toBeVisible()
+    const finished = screen.getByText(en.Folder.sidebar.lab.finished, {
+      selector: "summary",
+    })
+    expect(finished).toHaveTextContent(en.Folder.sidebar.lab.finished + "0")
+    expect(finished.closest("details")).not.toHaveAttribute("open")
   } finally {
     localStorage.removeItem("maxcode:lab-shelf:running")
     useAppWorkspaceStore.setState(previous)
@@ -193,9 +307,83 @@ it("offers the compose picker without an add-project toolbar button", async () =
   fireEvent.click(
     screen.getByRole("button", { name: en.Folder.sidebar.lab.compose })
   )
-  expect(await screen.findByRole("option", { name: /^Chat/ })).toBeTruthy()
-  fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" })
+  const chat = await screen.findByRole("button", { name: /^Chat mode/ })
+  const search = screen.getByRole("combobox")
+  expect(
+    chat.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy()
+  expect(search.parentElement?.querySelector("svg")).toBeNull()
+  expect(search).toHaveFocus()
+  fireEvent.keyDown(search, { key: "Escape" })
   expect(screen.queryByRole("button", { name: "Add project" })).toBeNull()
+})
+
+it("only offers open root projects for new conversations and their number shortcuts", async () => {
+  const previous = useAppWorkspaceStore.getState()
+  const previousTabs = tabStore.getState()
+  const openProject = {
+    id: 95,
+    name: "Open project",
+    path: "/open-project",
+    git_branch: null,
+    default_agent_type: null,
+    last_opened_at: "2026-11-10",
+    sort_order: 2,
+    color: "inherit",
+    parent_id: null,
+    kind: "regular",
+    alias: null,
+    group_id: null,
+  } satisfies FolderDetail
+  const closedProject = {
+    ...openProject,
+    id: 94,
+    name: "Closed project",
+    path: "/closed-project",
+    sort_order: 1,
+  }
+  const worktree = {
+    ...openProject,
+    id: 96,
+    name: "Open worktree",
+    path: "/open-worktree",
+    parent_id: openProject.id,
+    sort_order: 3,
+  }
+  useAppWorkspaceStore.setState({
+    folders: [openProject, worktree],
+    allFolders: [closedProject, openProject, worktree],
+  })
+  try {
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <ConversationLab />
+      </NextIntlClientProvider>
+    )
+    fireEvent.click(
+      screen.getByRole("button", { name: en.Folder.sidebar.lab.compose })
+    )
+    const input = await screen.findByRole("combobox")
+    expect(screen.getAllByRole("option")).toEqual([
+      screen.getByRole("option", { name: /^Open project/ }),
+    ])
+    fireEvent.change(input, { target: { value: "/closed-project" } })
+    expect(screen.queryByRole("option")).toBeNull()
+
+    fireEvent.change(input, { target: { value: "" } })
+    fireEvent.keyDown(input, { key: "1", metaKey: true })
+    const { activeTabId, rawTabs } = tabStore.getState()
+    expect(rawTabs.find((tab) => tab.id === activeTabId)).toMatchObject({
+      folderId: openProject.id,
+      workingDir: "/open-project",
+      conversationId: null,
+    })
+  } finally {
+    act(() => {
+      useAppWorkspaceStore.setState(previous)
+      tabStore.setState(previousTabs)
+    })
+  }
 })
 
 it("shows a compact snoozed row, wakes it and lets the user undo settlement", () => {
@@ -233,12 +421,24 @@ it("shows a compact snoozed row, wakes it and lets the user undo settlement", ()
     const settle = screen.getByRole("button", { name: "Settle thread" })
     const snooze = screen.getByRole("button", { name: "Snooze thread" })
     expect(settle.parentElement?.classList.contains("bg-sidebar")).toBe(false)
+    expect(settle.parentElement).not.toHaveClass(
+      "group-has-[:focus-visible]/row:opacity-100"
+    )
+    expect(settle.parentElement).not.toHaveClass(
+      "group-focus-within/row:opacity-100"
+    )
     for (const action of [snooze, settle]) {
+      expect(action).toHaveAttribute("tabindex", "-1")
       expect(action.classList.contains("hover:bg-transparent")).toBe(true)
     }
     fireEvent.click(settle)
     expect(localStorage.getItem(labKey(c))).toMatch(/^finished:\d+$/)
-    fireEvent.click(screen.getByText(en.Folder.sidebar.lab.finished))
+    const finished = screen.getByText(en.Folder.sidebar.lab.finished, {
+      selector: "summary",
+    })
+    expect(finished.closest("details")).not.toHaveAttribute("open")
+    fireEvent.click(finished)
+    expect(localStorage.getItem("maxcode:lab-shelf:finished")).toBe("1")
     fireEvent.click(screen.getByRole("button", { name: "Un-settle thread" }))
     expect(localStorage.getItem(labKey(c))).toBeNull()
   } finally {
@@ -323,6 +523,11 @@ it("filters projects by name and keeps Shift selections in the open picker", asy
     )
     fireEvent.click(screen.getByRole("button", { name: "Filter by project" }))
     const input = await screen.findByRole("combobox")
+    const all = screen.getByRole("button", { name: "All projects" })
+    expect(
+      all.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(input.parentElement?.querySelector("svg")).toBeNull()
     fireEvent.change(input, { target: { value: "Alp" } })
     expect(screen.queryByRole("option", { name: "Bravo" })).toBeNull()
     const option = screen.getByRole("option", { name: "Alpha" })
@@ -353,11 +558,106 @@ it("filters projects by name and keeps Shift selections in the open picker", asy
   }
 })
 
-it("renders the T3 project initials and stable color for mixed-language names", () => {
+it("updates the project badge tint in the list, filter, and search after the folder color changes", async () => {
+  const previous = useAppWorkspaceStore.getState()
+  const folder = {
+    id: 93,
+    name: "Project",
+    path: "/project",
+    git_branch: null,
+    default_agent_type: null,
+    last_opened_at: "2026-11-10",
+    sort_order: 0,
+    color: "inherit",
+    parent_id: null,
+    kind: "regular",
+    alias: null,
+    group_id: null,
+  } satisfies FolderDetail
+  const conversation = {
+    id: 93,
+    folder_id: folder.id,
+    agent_type: "codex",
+    title: "Project session",
+    status: "completed",
+    kind: "regular",
+    updated_at: "2026-11-10",
+    created_at: "2026-11-10",
+  } as DbConversationSummary
+  const getFolder = vi.spyOn(api, "getFolder")
+  useAppWorkspaceStore.setState({
+    allFolders: [folder],
+    conversations: [conversation],
+    conversationsLoading: false,
+  })
+  try {
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <ConversationLab />
+      </NextIntlClientProvider>
+    )
+    const row = screen.getByRole("button", { name: /Project session/ })
+    const autoColor = row.querySelector("svg")?.getAttribute("class")
+    fireEvent.click(screen.getByRole("button", { name: "Filter by project" }))
+    fireEvent.click(await screen.findByRole("option", { name: "Project" }))
+    const filter = screen.getByRole("button", {
+      name: "Filter by project · Project",
+    })
+
+    getFolder.mockResolvedValue({ ...folder, color: "blue" })
+    await act(() => useAppWorkspaceStore.getState().refreshFolder(folder.id))
+    const expectBlueBadge = (element: HTMLElement) => {
+      const badge = element.querySelector("svg")
+      expect(badge).toHaveClass("folder-title-tint", "bg-current/14")
+      expect(badge).toHaveStyle({
+        "--folder-title-light": "oklch(0.5 0.245 262.881)",
+        "--folder-title-dark": "oklch(0.8 0.1 259.815)",
+      })
+    }
+    expectBlueBadge(row)
+    expectBlueBadge(filter)
+
+    fireEvent.click(filter)
+    expectBlueBadge(await screen.findByRole("option", { name: /Project/ }))
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" })
+    const search = screen.getByRole("searchbox")
+    fireEvent.change(search, { target: { value: "Project session" } })
+    expectBlueBadge(screen.getByRole("option", { name: /Project session/ }))
+
+    getFolder.mockResolvedValue(folder)
+    await act(() => useAppWorkspaceStore.getState().refreshFolder(folder.id))
+    fireEvent.change(search, { target: { value: "" } })
+    expect(
+      screen
+        .getByRole("button", { name: /Project session/ })
+        .querySelector("svg")
+    ).toHaveAttribute("class", autoColor)
+  } finally {
+    getFolder.mockRestore()
+    useAppWorkspaceStore.setState(previous)
+  }
+})
+
+it.each([
+  ["律总管", "律", "11"],
+  ["AI外呼", "AI", "9"],
+  ["MaxCode", "ME", "9"],
+  ["A", "A", "9"],
+])("fits the label for %s in the shared badge", (name, initials, size) => {
+  const { container } = render(<LabProjectBadge name={name} />)
+  const label = container.querySelector("text")
+  expect(label).toHaveTextContent(initials)
+  expect(label?.textContent).toBe(initials)
+  expect(label).toHaveAttribute("font-size", size)
+  expect(label).not.toHaveAttribute("textLength")
+  expect(container.querySelector("svg")).toHaveClass("size-4")
+})
+
+it("renders the project initials and stable color for mixed-language names", () => {
   const { container, rerender } = render(
     <LabProjectBadge name="GKD-青桔定制" />
   )
-  expect(container.querySelector("text")?.textContent).toBe("G青")
+  expect(container.querySelector("text")?.textContent).toBe("GK")
   expect(
     container.querySelector("svg")?.classList.contains("text-blue-600")
   ).toBe(true)
@@ -586,5 +886,26 @@ it("returns a snoozed parent for a child approval and dismisses the wake without
     live.connections.clear()
     tabStore.setState({ rawTabs: tabs })
     useAppWorkspaceStore.setState(previous)
+  }
+})
+
+it("uses the shared sidebar scrollbar for the list, search and shelves", () => {
+  const lab = source("src/components/conversations/conversation-lab.tsx")
+  expect(lab.match(/<ScrollArea\b/g)).toHaveLength(3)
+  expect(lab).not.toMatch(/overflow-(?:y-)?auto/)
+})
+
+it("formats live run time in seconds, then minutes, then hours plus minutes", async () => {
+  const { formatLabWorkingDuration } = await import("@/lib/conversation-lab")
+  for (const [seconds, expected] of [
+    [-1, "0s"],
+    [0, "0s"],
+    [59.999, "59s"],
+    [60, "1m"],
+    [3599, "59m"],
+    [3600, "1h 0m"],
+    [7500, "2h 5m"],
+  ] as const) {
+    expect(formatLabWorkingDuration(seconds * 1000, "en")).toBe(expected)
   }
 })

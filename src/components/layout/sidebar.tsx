@@ -622,7 +622,10 @@ export function Sidebar({
       </div>
 
       {view === "lab" ? (
-        <ConversationLab onNavigate={collapseOnNavigate ? toggle : undefined} />
+        <ConversationLab
+          mobile={isMobile}
+          onNavigate={collapseOnNavigate ? toggle : undefined}
+        />
       ) : (
         <>
           {/* On touch layouts, clicking a conversation card auto-closes the sidebar

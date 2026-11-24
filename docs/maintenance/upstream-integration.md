@@ -75,7 +75,8 @@ pnpm upstream:impact -- --base <旧上游提交> --head <新上游提交>
 2. 在 `config/maxcode-upstream-hotspots.json` 增加热点，填写分类、来源提交（尚未
    提交时用 `worktree-YYYY-MM-DD`）、实现文件和契约测试。
 3. 更新 `downstream-customizations.md` 的功能表。
-4. 运行 `pnpm upstream:guard` 验证清单及全部下游契约。
+4. 按 [仓库测试规范](../../AGENTS.md#代码检查与测试) 选择验证范围。小功能和局部修复运行
+   `pnpm upstream:guard:validate` 和相关契约测试。CI 使用 `pnpm upstream:guard` 验证清单及全部下游契约。
 
 清单校验会拒绝不存在的实现路径、清单外的独立契约、缺少来源的功能，以及不在
 `src/maxcode-contracts/` 中的契约测试。这些规则用于防止功能只改了代码却漏登记。

@@ -8,16 +8,15 @@ const source = (path: string) =>
   readFileSync(`src/components/${path}.tsx`, "utf8")
 
 describe("conversation header layout", () => {
-  it("keeps new chat beside the sidebar and settings in sidebar tools", () => {
-    expect(source("layout/left-edge-chrome")).toContain('name="compose"')
-    expect(source("layout/left-edge-chrome")).toContain("openChatModeTab()")
+  it("omits the standalone header compose button and keeps settings in sidebar tools", () => {
+    expect(source("layout/left-edge-chrome")).not.toContain('name="compose"')
     expect(source("layout/sidebar")).toContain("openSettingsWindow()")
     expect(source("layout/right-edge-chrome")).not.toContain('name="terminal"')
     expect(source("layout/right-edge-chrome")).not.toContain(
       "openSettingsWindow"
     )
   })
-  it("centers a single title without a todo subtitle", () => {
+  it("keeps compact titles without a todo subtitle", () => {
     expect(source("conversations/conversation-detail-header")).toContain(
       "flex-col items-center justify-center"
     )
@@ -46,19 +45,13 @@ it("anchors navigation inside the conversation main panel", () => {
   expect(source("layout/aux-panel")).toContain('!showFolderTabs && "hidden"')
 })
 
-it("omits the date in header titles while preserving sidebar dates", () => {
+it("omits the date in header titles", () => {
   const props = { title: "1030｜其他｜未命名", fallback: "新对话" }
   const header = renderToStaticMarkup(
-    createElement(ConversationTitleLabel, { ...props, showDate: false })
+    createElement(ConversationTitleLabel, props)
   )
   expect(header).toContain("未命名")
   expect(header).not.toContain("1030")
-  expect(
-    renderToStaticMarkup(createElement(ConversationTitleLabel, props))
-  ).toContain("1030")
-  expect(source("conversations/conversation-detail-header")).toContain(
-    "showDate={false}"
-  )
 })
 
 it("lets pointer input pass through unused right chrome to the conversation menu", () => {
@@ -69,14 +62,11 @@ it("lets pointer input pass through unused right chrome to the conversation menu
   expect(chrome).not.toContain("rightChromeClusterWidth")
 })
 it("omits new conversation from the conversation header tools", () => {
-  expect(source("conversations/conversation-detail-header")).not.toContain(
-    't("newConversation")'
+  const header = source("conversations/conversation-detail-header")
+  const menu = header.slice(
+    header.indexOf("const conversationMenuItems"),
+    header.indexOf("const header =")
   )
-  const buttons =
-    source("conversations/conversation-detail-header").match(
-      /<Button\b[\s\S]*?<\/Button>/g
-    ) ?? []
-  for (const button of buttons) {
-    expect(button).not.toContain("openNewConversationTab")
-  }
+  expect(menu).not.toContain('t("newConversation")')
+  expect(menu).not.toContain("openNewConversationTab")
 })

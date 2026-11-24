@@ -271,12 +271,10 @@ fn would_downgrade_auto_title(current: &conversation::Model, title: &str) -> boo
         return false;
     }
 
-    let old_structured = normalize_structured_title(old, current.created_at);
-    let new_structured = normalize_structured_title(title, current.created_at);
+    let old_structured = normalize_structured_title(old);
+    let new_structured = normalize_structured_title(title);
     let is_placeholder = |raw: &str, structured: Option<&str>| {
-        let topic = structured
-            .and_then(|value| value.split_once('｜'))
-            .map_or(raw, |(_, topic)| topic);
+        let topic = structured.unwrap_or(raw);
         is_placeholder_title(topic)
     };
     (old_structured.is_some() && new_structured.is_none())
@@ -1284,7 +1282,9 @@ async fn fill_child_counts(
         crate::db::entities::automation_run::Entity::find()
             .inner_join(crate::db::entities::automation::Entity)
             .filter(crate::db::entities::automation_run::Column::ConversationId.is_in(ids))
-            .filter(Expr::cust("json_extract(automation.config, '$.hide_from_conversation_list') = 1"))
+            .filter(Expr::cust(
+                "json_extract(automation.config, '$.hide_from_conversation_list') = 1",
+            ))
             .select_only()
             .column(crate::db::entities::automation_run::Column::ConversationId)
             .into_tuple::<Option<i32>>()

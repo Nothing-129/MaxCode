@@ -54,10 +54,11 @@ describe("date/topic titles without categories", () => {
     "1102｜设计｜委托批次与数据权限",
     "1102 | 设计 | 委托批次与数据权限",
     "1102｜委托批次与数据权限",
+    "1124｜自动｜委托批次与数据权限",
   ])("normalizes %s for display and editing", (title) => {
     expect(formatConversationTitle(title)).toBe("委托批次与数据权限")
     render(<ConversationTitleLabel title={title} fallback="未命名" />)
-    expect(screen.getByText("1102")).toHaveClass("tabular-nums")
+    expect(screen.queryByText(/1102/)).toBeNull()
     expect(screen.getByText("委托批次与数据权限")).toHaveClass("truncate")
     expect(screen.queryByText(/设计/)).toBeNull()
   })
@@ -86,7 +87,7 @@ describe("date/topic titles without categories", () => {
     expect(conversationTitleTopic(title)).toBe(expected)
   })
 
-  it("keeps creation dates out of model instructions and assembles them locally", () => {
+  it("keeps creation dates out of model instructions and storage", () => {
     const backend = source("src-tauri/src/session_title.rs")
     const prompt = backend.slice(
       backend.indexOf("pub fn title_prompt("),
@@ -94,10 +95,11 @@ describe("date/topic titles without categories", () => {
     )
     expect(prompt).not.toContain("created_at")
     expect(prompt).not.toContain("MMDD")
-    expect(prompt).toContain("只生成主题，不要日期或类型")
-    expect(backend).toContain("title_from_model(&title, created_at)")
+    expect(prompt).not.toMatch(/日期|类型|category|without a date/)
+    expect(prompt).toContain("只输出标题正文")
+    expect(backend).toContain("title_from_model(&title)")
     expect(source("src-tauri/src/session_title_tests.rs")).toContain(
-      "async fn model_generates_only_topic_and_creation_date_is_added_locally"
+      "async fn model_generates_only_topic"
     )
   })
 

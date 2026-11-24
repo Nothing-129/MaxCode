@@ -41,7 +41,6 @@ describe("MaxCode contract: desktop title bar icons", () => {
     )
     expect(left).toContain('DesktopChromeIcon name="sidebar"')
     expect(left).toContain("onClick={toggle}")
-    expect(left).toContain("openChatModeTab()")
     expect(right).toContain("onClick={toggleAuxPanel}")
     expect(source("src/components/layout/sidebar.tsx")).toContain(
       "openSettingsWindow()"

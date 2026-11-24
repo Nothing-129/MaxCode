@@ -16,8 +16,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
-use chrono_tz::Asia::Shanghai;
+use chrono::Utc;
 use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel, Set};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::Mutex;
@@ -711,12 +710,9 @@ impl AutomationEngine {
             .map_err(|e| e.to_string())?;
 
         // Create the conversation row, then adopt it in send_prompt (Branch A).
-        // Automation runs use a deterministic structured title instead of the
-        // prompt-based model title: `MMDD｜自动｜automation name`. The date is
-        // the launch date in Asia/Shanghai, matching regular structured titles.
-        // Keep it locked so the per-turn parser backfill cannot replace that
+        // Use the automation name. Keep it locked so the per-turn parser backfill cannot replace that
         // run identity with the automation's fixed prompt (issue #495).
-        let title = automation_conversation_title(&auto.name, Utc::now());
+        let title = automation_conversation_title(&auto.name);
         let disconnect_on_finish = borrowed.as_deref() != Some(conn_id.as_str());
         let created = if let Some(conv) = &reuse {
             Ok(conv.id)
@@ -1356,12 +1352,8 @@ fn first_chars(s: &str, n: usize) -> String {
     s.chars().take(n).collect()
 }
 
-fn automation_conversation_title(name: &str, created_at: DateTime<Utc>) -> String {
-    let date = created_at
-        .with_timezone(&Shanghai)
-        .format("%m%d")
-        .to_string();
-    first_chars(&format!("{date}｜自动｜{}", name.trim()), 80)
+fn automation_conversation_title(name: &str) -> String {
+    first_chars(name.trim(), 80)
 }
 
 /// The separator `path` writes its own segments with, so a derived sibling
@@ -1526,24 +1518,17 @@ mod tests {
     }
 
     #[test]
-    fn automation_titles_use_shanghai_launch_date_and_name() {
-        let created_at = DateTime::parse_from_rfc3339("2026-09-03T16:30:00Z")
-            .expect("valid timestamp")
-            .with_timezone(&Utc);
+    fn automation_titles_use_only_the_name() {
         assert_eq!(
-            automation_conversation_title("  今天未完成核查  ", created_at),
-            "0904｜自动｜今天未完成核查"
+            automation_conversation_title("  今天未完成核查  "),
+            "今天未完成核查"
         );
     }
 
     #[test]
     fn automation_titles_stay_within_sidebar_limit() {
-        let created_at = DateTime::parse_from_rfc3339("2026-09-04T09:00:00Z")
-            .expect("valid timestamp")
-            .with_timezone(&Utc);
-        let title = automation_conversation_title(&"任".repeat(100), created_at);
+        let title = automation_conversation_title(&"任".repeat(100));
         assert_eq!(title.chars().count(), 80);
-        assert!(title.starts_with("0904｜自动｜"));
     }
 
     // The std file lock treats independent `open()`s as separate holders even

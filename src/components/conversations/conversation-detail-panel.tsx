@@ -3118,6 +3118,7 @@ export function ConversationDetailPanel() {
               runtimeConversationId={selTab.runtimeConversationId ?? null}
               folderId={selTab.folderId}
               folderPath={selTabFolder?.path}
+              project={selTabFolder?.kind === "chat" ? undefined : selTabFolder}
               title={selTab.title}
               status={selTab.status as ConversationStatus | undefined}
             />
@@ -3190,6 +3191,9 @@ export function ConversationDetailPanel() {
             runtimeConversationId={activeTab.runtimeConversationId ?? null}
             folderId={activeTab.folderId}
             folderPath={activeTabFolder?.path}
+            project={
+              activeTabFolder?.kind === "chat" ? undefined : activeTabFolder
+            }
             title={activeTab.title}
             status={activeTab.status as ConversationStatus | undefined}
           />
