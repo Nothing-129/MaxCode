@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react"
+import { NextIntlClientProvider } from "next-intl"
 import { createRef, useState } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -15,6 +16,7 @@ import {
 } from "@/components/chat/composer/rich-composer"
 import { useComposerChromeFocus } from "@/components/chat/composer/use-composer-chrome-focus"
 import { ImagePreviewDialog } from "@/components/ui/image-preview-dialog"
+import messages from "@/i18n/messages/en.json"
 
 const draft = "one\ntwo\nthree\nfour"
 
@@ -41,7 +43,11 @@ describe("MaxCode: image preview must not move the multiline composer caret", ()
           </div>
         )
       }
-      render(<Harness />)
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <Harness />
+        </NextIntlClientProvider>
+      )
       await waitFor(() => expect(ref.current?.getEditor()).toBeTruthy())
       const editor = ref.current!.getEditor()!
       const end = editor.state.doc.content.size - 1

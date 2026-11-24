@@ -66,6 +66,7 @@ import {
   buildConversationDraftStorageKey,
   loadMessageInputDraftV2,
 } from "@/lib/message-input-draft"
+import { formatRelative } from "./sidebar-conversation-grouping"
 import { labTool } from "./conversation-lab-projects"
 
 const rowAction = cn(labTool, "hover:bg-transparent")
@@ -73,7 +74,6 @@ const rowAction = cn(labTool, "hover:bg-transparent")
 const badgeStyles = {
   approval: [ShieldQuestionMark, "text-amber-700 dark:text-amber-400"],
   input: [MessageCircleQuestionMark, "text-indigo-600 dark:text-indigo-300"],
-  preparing: [CircleDashed, "text-sky-600 dark:text-sky-400"],
   working: [CircleDashed, "text-sky-600 dark:text-sky-400"],
   goal: [CircleDashed, "text-sky-600 dark:text-sky-400"],
   waiting: [CircleDotDashed, "text-muted-foreground"],
@@ -152,17 +152,21 @@ export function LabRow({
   const toggleSettlement = () =>
     change(finished ? undefined : { settledAt: Date.now() })
   const title = formatConversationTitle(c.title) || t("untitledConversation")
-  const updated = Date.parse(c.updated_at)
-  const elapsed = compactLabTime(
-    snoozed
-      ? (labSnoozeUntil(mark) ?? now) - now
-      : now - (labSettledAt(mark) ?? updated),
-    locale,
-    snoozed
-  )
+  const elapsed = snoozed
+    ? compactLabTime((labSnoozeUntil(mark) ?? now) - now, locale, true)
+    : finished
+      ? compactLabTime(
+          now -
+            (c.lab_settled_at ||
+              labSettledAt(mark) ||
+              Date.parse(c.updated_at)),
+          locale
+        )
+      : formatRelative(c.updated_at, now)
   const ActionIcon = snoozed ? AlarmClock : finished ? Undo2 : CircleCheck
   const liveKind =
-    signal?.kind === "failed" && signal.runFailure && failureSeen
+    signal?.kind === "preparing" ||
+    (signal?.kind === "failed" && signal.runFailure && failureSeen)
       ? undefined
       : (signal?.kind ?? (c.status === "in_progress" ? "working" : undefined))
   const showWoke = !compact && !liveKind && labHasWoken(mark, now)

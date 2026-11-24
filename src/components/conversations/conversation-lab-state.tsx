@@ -6,11 +6,15 @@ import {
   useState,
   type ReactNode,
 } from "react"
+import { toast } from "sonner"
+import { toErrorMessage } from "@/lib/app-error"
+import { updateLabSettlement } from "@/lib/api"
 import { createStore, useStore } from "zustand"
 import { useLabSignals } from "./use-lab-signals"
 import { shouldWakeLabSnooze } from "@/lib/conversation-lab-status"
 import {
   labKey,
+  labSettledAt,
   labHasWoken,
   labSnoozeUntil,
   loadLabMarks,
@@ -53,8 +57,28 @@ function createLabMarksStore() {
   }>()((set, get) => ({
     marks: loadLabMarks(),
     seenFailures: loadSeenFailures(),
-    change(c: DbConversationSummary, mark?: LabMark, previousEdge?: string) {
+    async change(
+      c: DbConversationSummary,
+      mark?: LabMark,
+      previousEdge?: string
+    ) {
       const key = labKey(c)
+      const settledAt = labSettledAt(mark)
+      const previous = get().marks.get(key)
+      if (
+        settledAt ||
+        c.lab_settled_at ||
+        previous === "finished" ||
+        labSettledAt(previous)
+      ) {
+        try {
+          await updateLabSettlement(c.id, settledAt ?? 0)
+        } catch (error) {
+          toast.error(toErrorMessage(error))
+          return
+        }
+        if (settledAt) mark = undefined
+      }
       if (typeof mark === "number")
         mark = { until: mark, since: Date.now(), previousEdge }
       try {
@@ -92,6 +116,38 @@ function useLabController() {
   const signals = useLabSignals(conversations)
   const viewed = useConversationUnreadStore((s) => s.viewedIds)
   useEffect(() => {
+    let active = true
+    async function migrate() {
+      for (const c of conversations) {
+        const key = labKey(c)
+        const mark = store.getState().marks.get(key)
+        if (!active) return
+        if (mark !== "finished" && labSettledAt(mark) === undefined) continue
+        try {
+          if (c.lab_settled_at == null)
+            await updateLabSettlement(
+              c.id,
+              labSettledAt(mark) ?? (Date.parse(c.updated_at) || 1),
+              true
+            )
+          if (store.getState().marks.get(key) !== mark) continue
+          localStorage.removeItem(key)
+          const remaining = new Map(store.getState().marks)
+          remaining.delete(key)
+          store.setState({ marks: remaining })
+        } catch {
+          // Preserve the legacy entry for the next connection or focus.
+        }
+      }
+    }
+    void migrate()
+    window.addEventListener("focus", migrate)
+    return () => {
+      active = false
+      window.removeEventListener("focus", migrate)
+    }
+  }, [conversations, store])
+  useEffect(() => {
     const sync = (e: StorageEvent) => {
       if (!e.key || e.key.startsWith("maxcode:conversation-lab:"))
         store.setState({ marks: loadLabMarks() })
@@ -105,6 +161,8 @@ function useLabController() {
     const now = Date.now()
     let nextViewedWake = Infinity
     for (const c of conversations) {
+      // A local snooze timer must never undo a settlement from another device.
+      if (c.lab_settled_at) continue
       const key = labKey(c)
       const signal = signals.get(c.id)
       const mark = marks.get(key)

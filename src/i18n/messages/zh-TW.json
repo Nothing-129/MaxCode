@@ -1873,6 +1873,11 @@
       "importFailed": "匯入失敗：{message}"
     }
   },
+  "ImagePreview": {
+    "zoomIn": "放大",
+    "zoomOut": "縮小",
+    "fit": "圖片適應螢幕"
+  },
   "Folder": {
     "workspaceStatus": {
       "degradedTitle": "即時更新不可用",

@@ -38,6 +38,7 @@ async fn delegation_columns_round_trip() {
         updated_at: Set(now),
         deleted_at: Set(None),
         pinned_at: Set(None),
+        lab_settled_at: Set(None),
         origin_cwd: Set(None),
     };
     let inserted = active.insert(&db.conn).await.expect("insert");

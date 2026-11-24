@@ -22,7 +22,6 @@ import { isImeCompositionKey } from "@/lib/ime-composition"
 import { Button } from "@/components/ui/button"
 import { GenerationActionIcon } from "./composer/generation-action-icon"
 import { AcceptPromptSuggestion } from "./composer/accept-prompt-suggestion"
-import { useIsMobile } from "@/hooks/use-mobile"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   ArrowUp,
@@ -123,10 +122,7 @@ import {
   shouldSearchModelOptions,
 } from "@/lib/model-config-groups"
 import { useAgentSkills } from "@/hooks/use-agent-skills"
-import {
-  isPrimaryPointerCoarse,
-  useIsCoarsePointer,
-} from "@/hooks/use-is-coarse-pointer"
+import { isPrimaryPointerCoarse } from "@/hooks/use-is-coarse-pointer"
 import { useScrollbarSafeDismiss } from "@/hooks/use-scrollbar-safe-dismiss"
 import { useAgentVocabulary } from "@/hooks/use-agent-vocabulary"
 import {
@@ -463,9 +459,6 @@ export function MessageInput({
   const { shortcuts } = useShortcutSettings()
   const effectiveDraftStorageKey = draftStorageKey ?? null
   const resolvedPlaceholder = placeholder ?? t("askAnything")
-  const isMobile = useIsMobile()
-  const isCoarsePointer = useIsCoarsePointer()
-  const useTouchSuggestion = isMobile || isCoarsePointer
   // The predicted follow-up prompt, only where sending it could follow: never
   // mid-turn (Enter then queues or steers), never into a queued message being
   // edited, never into a composer that cannot send.
@@ -473,11 +466,7 @@ export function MessageInput({
     !isPrompting && !disabled && !isEditingQueueItem
       ? promptSuggestion?.trim() || null
       : null
-  const shownPlaceholder = offeredSuggestion
-    ? useTouchSuggestion
-      ? offeredSuggestion
-      : t("promptSuggestion", { suggestion: offeredSuggestion })
-    : resolvedPlaceholder
+  const shownPlaceholder = offeredSuggestion ?? resolvedPlaceholder
   const editorRef = useRef<RichComposerHandle>(null)
   // Prompt-history navigation. `historyRef` is seeded from `getSentHistory`
   // lazily, the first time the user steps into history, so a session that never
@@ -2390,7 +2379,6 @@ export function MessageInput({
                       editorRef={editorRef}
                       suggestion={offeredSuggestion}
                       label={t("acceptPromptSuggestion")}
-                      touch={useTouchSuggestion}
                     />
                   )
                 }

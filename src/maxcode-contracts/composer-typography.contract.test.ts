@@ -13,6 +13,16 @@ describe("MaxCode composer typography", () => {
     )
   })
 
+  it("uses the same theme color for the follow-up suggestion and Tab label", () => {
+    const css = source("src/app/globals.css")
+    expect(css).toMatch(
+      /\.codeg-composer \.codeg-composer-suggestion-preview\s*\{\s*color: var\(--muted-foreground\);/
+    )
+    expect(
+      source("src/components/chat/composer/accept-prompt-suggestion.tsx")
+    ).toMatch(/<kbd[\s\S]*?text-muted-foreground/)
+  })
+
   it("matches the reference's medium 14px text instead of thin regular text", () => {
     const css = source("src/app/globals.css")
     const editor = css.match(

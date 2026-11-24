@@ -1873,6 +1873,11 @@
       "importFailed": "Import fehlgeschlagen: {message}"
     }
   },
+  "ImagePreview": {
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "fit": "Bild an Bildschirm anpassen"
+  },
   "Folder": {
     "workspaceStatus": {
       "degradedTitle": "Live-Aktualisierungen nicht verfügbar",

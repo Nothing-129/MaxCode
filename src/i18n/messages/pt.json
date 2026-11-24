@@ -1873,6 +1873,11 @@
       "importFailed": "Falha ao importar: {message}"
     }
   },
+  "ImagePreview": {
+    "zoomIn": "Ampliar",
+    "zoomOut": "Reduzir",
+    "fit": "Ajustar imagem à tela"
+  },
   "Folder": {
     "workspaceStatus": {
       "degradedTitle": "Atualizações em tempo real indisponíveis",

@@ -121,6 +121,7 @@ async fn create_inner(
         updated_at: Set(now),
         deleted_at: Set(None),
         pinned_at: Set(None),
+        lab_settled_at: Set(None),
         origin_cwd: Set(None),
     };
     Ok(model.insert(conn).await?)
@@ -651,6 +652,28 @@ pub async fn update_pin(
     Ok(())
 }
 
+pub async fn update_lab_settlement(
+    conn: &DatabaseConnection,
+    conversation_id: i32,
+    settled_at: i64,
+    legacy: bool,
+) -> Result<(), DbError> {
+    if settled_at < 0 || (legacy && settled_at == 0) {
+        return Err(DbError::Validation("Invalid settlement timestamp".into()));
+    }
+    let mut update = conversation::Entity::update_many()
+        .col_expr(conversation::Column::LabSettledAt, Expr::value(settled_at))
+        .filter(conversation::Column::Id.eq(conversation_id));
+    if legacy {
+        update = update.filter(conversation::Column::LabSettledAt.is_null());
+    }
+    let result = update.exec(conn).await?;
+    if result.rows_affected == 0 {
+        get_by_id(conn, conversation_id).await?;
+    }
+    Ok(())
+}
+
 /// Bind an agent session id (`external_id`) to a conversation row WITHOUT ever
 /// orphaning the session it was previously bound to.
 ///
@@ -1062,6 +1085,7 @@ impl CarriedOverRow {
             // Pinning is a view preference attached to the row the user pinned,
             // not to the history.
             pinned_at: Set(None),
+            lab_settled_at: Set(None),
             origin_cwd: Set(self.origin_cwd),
         }
     }
@@ -1239,6 +1263,7 @@ fn conv_to_summary(r: conversation::Model) -> DbConversationSummary {
         created_at: r.created_at,
         updated_at: r.updated_at,
         pinned_at: r.pinned_at,
+        lab_settled_at: r.lab_settled_at,
         parent_id: r.parent_id,
         parent_tool_use_id: r.parent_tool_use_id,
         delegation_call_id: r.delegation_call_id,
@@ -1776,6 +1801,29 @@ mod tests {
             "a deleted conversation is not something an open can resurrect a \
              column on"
         );
+    }
+
+    #[tokio::test]
+    async fn lab_settlement_import_respects_explicit_undo() {
+        let db = fresh_in_memory_db().await;
+        let folder = seed_folder(&db, "/tmp/codeg-settlement").await;
+        let conv = create(&db.conn, folder, AgentType::Codex, None, None)
+            .await
+            .unwrap();
+        for (timestamp, legacy, expected) in [
+            (10, true, 10),
+            (20, true, 10),
+            (0, false, 0),
+            (30, true, 0),
+            (40, false, 40),
+        ] {
+            update_lab_settlement(&db.conn, conv.id, timestamp, legacy)
+                .await
+                .unwrap();
+            let row = get_by_id(&db.conn, conv.id).await.unwrap();
+            assert_eq!(row.lab_settled_at, Some(expected));
+            assert_eq!(row.updated_at, conv.updated_at);
+        }
     }
 
     #[tokio::test]

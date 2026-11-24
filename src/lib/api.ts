@@ -3365,6 +3365,18 @@ export async function updateConversationTitle(
   })
 }
 
+export function updateLabSettlement(
+  conversationId: number,
+  settledAt: number,
+  legacy = false
+): Promise<void> {
+  return getTransport().call("update_lab_settlement", {
+    conversationId,
+    settledAt,
+    legacy,
+  })
+}
+
 export async function updateConversationPinned(
   conversationId: number,
   pinned: boolean

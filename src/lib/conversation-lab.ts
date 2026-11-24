@@ -47,7 +47,12 @@ export function labGroup(
   signal?: LabSignal,
   unread = false
 ): LabGroup {
-  if (mark === "finished" || labSettledAt(mark) !== undefined) return "finished"
+  if (
+    c.lab_settled_at != null
+      ? c.lab_settled_at > 0
+      : mark === "finished" || labSettledAt(mark) !== undefined
+  )
+    return "finished"
   if ((labSnoozeUntil(mark) ?? 0) > now) return "snoozed"
   if (c.pinned_at) return "pinned"
   if (signal) {

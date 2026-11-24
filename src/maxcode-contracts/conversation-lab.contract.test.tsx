@@ -1,3 +1,4 @@
+import { LabRow } from "@/components/conversations/conversation-lab-row"
 import { LabProjectBadge } from "@/components/conversations/lab-project-badge"
 import type { ConnectionState } from "@/contexts/acp-connections-context"
 import { useTabStore as tabStore } from "@/stores/tab-store"
@@ -73,6 +74,37 @@ it("wakes snoozed conversations into their live status and isolates reused ids",
   localStorage.removeItem(labKey(c))
 })
 
+it("uses the server settlement on a device without local marks", () => {
+  const c = { lab_settled_at: 1234 } as DbConversationSummary
+  expect(labGroup(c, undefined, 2000)).toBe("finished")
+  expect(labGroup({ ...c, lab_settled_at: 0 }, "finished", 2000)).toBe("main")
+})
+
+it("imports a desktop settlement and keeps the local copy until acknowledged", async () => {
+  const previous = useAppWorkspaceStore.getState()
+  const c = { id: 731, created_at: "2026-11-01" } as DbConversationSummary
+  let acknowledge!: () => void
+  const save = vi.spyOn(api, "updateLabSettlement").mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        acknowledge = resolve
+      })
+  )
+  localStorage.setItem(labKey(c), "finished:1234")
+  useAppWorkspaceStore.setState({ conversations: [c] })
+  try {
+    render(<ConversationLabProvider>{null}</ConversationLabProvider>)
+    expect(save).toHaveBeenCalledWith(c.id, 1234, true)
+    expect(localStorage.getItem(labKey(c))).toBe("finished:1234")
+    await act(async () => acknowledge())
+    expect(localStorage.getItem(labKey(c))).toBeNull()
+  } finally {
+    save.mockRestore()
+    localStorage.removeItem(labKey(c))
+    useAppWorkspaceStore.setState(previous)
+  }
+})
+
 it("keeps connection setup in place until a turn starts", () => {
   const c = { status: "completed" } as DbConversationSummary
   const preparing = labConnectionSignal({
@@ -136,6 +168,47 @@ vi.mock("@/contexts/tab-context", () => ({
 vi.mock("@/contexts/workbench-route-context", () => ({
   useWorkbenchRoute: () => ({ openConversations: () => {} }),
 }))
+
+it.each([
+  ["2026-11-24T10:01:30Z", "now"],
+  ["2026-11-24T10:00:00Z", "2m"],
+  ["2026-10-24T10:02:00Z", "1mo"],
+])("uses standard sidebar time for %s while connecting", (updatedAt, label) => {
+  const row = {
+    c: {
+      id: 9001,
+      title: "Existing conversation",
+      agent_type: "codex",
+      status: "completed",
+      updated_at: updatedAt,
+    } as DbConversationSummary,
+    project: "Chat",
+    hasProject: false,
+    group: "main" as const,
+    now: Date.parse("2026-11-24T10:02:00Z"),
+    selected: false,
+    open: vi.fn(),
+    change: vi.fn(),
+    failureSeen: false,
+    complete: vi.fn(),
+    details: vi.fn(),
+    remove: vi.fn(),
+  }
+  const { rerender } = render(
+    <NextIntlClientProvider locale="en" messages={en}>
+      <LabRow {...row} signal={{ kind: "preparing" }} />
+    </NextIntlClientProvider>
+  )
+  expect(screen.queryByText(en.Folder.sidebar.lab.preparing)).toBeNull()
+  expect(screen.getByText(label)).toBeVisible()
+
+  rerender(
+    <NextIntlClientProvider locale="en" messages={en}>
+      <LabRow {...row} signal={{ kind: "working" }} />
+    </NextIntlClientProvider>
+  )
+  expect(screen.getByText(en.Folder.sidebar.lab.working)).toBeVisible()
+})
 
 it("renders review and ordinary chats directly above running chats", () => {
   const previous = useAppWorkspaceStore.getState()
@@ -225,6 +298,21 @@ it("renders review and ordinary chats directly above running chats", () => {
       "Thread 3",
       "Thread 2",
     ])
+    expect(container.querySelector("[data-lab-pinned-divider]")).toBeNull()
+    act(() =>
+      useAppWorkspaceStore.getState().updateConversationLocal(4, {
+        pinned_at: "2026-11-24T10:00:00Z",
+      })
+    )
+    const divider = container.querySelector("[data-lab-pinned-divider]")
+    expect(divider?.previousElementSibling).toHaveTextContent("Thread 0")
+    expect(divider?.nextElementSibling).toHaveTextContent("Thread 1")
+    act(() =>
+      useAppWorkspaceStore.getState().updateConversationLocal(4, {
+        pinned_at: null,
+      })
+    )
+    expect(container.querySelector("[data-lab-pinned-divider]")).toBeNull()
     const searchField = screen.getByRole("searchbox").closest("label")
     expect(searchField).toHaveClass(
       "bg-transparent",
@@ -277,7 +365,16 @@ it("opens running and shows the empty settled shelf on mobile", () => {
     })
     expect(finished).toHaveTextContent(en.Folder.sidebar.lab.finished + "0")
     expect(finished.closest("details")).not.toHaveAttribute("open")
+    act(() => {
+      useAppWorkspaceStore
+        .getState()
+        .applyConversationUpsert({ ...c, lab_settled_at: Date.now() })
+    })
+    expect(finished).toHaveTextContent(en.Folder.sidebar.lab.finished + "1")
+    fireEvent.click(finished)
+    expect(screen.getByText(c.title!)).toBeVisible()
   } finally {
+    localStorage.removeItem("maxcode:lab-shelf:finished")
     localStorage.removeItem("maxcode:lab-shelf:running")
     useAppWorkspaceStore.setState(previous)
   }
@@ -398,6 +495,14 @@ it("shows a compact snoozed row, wakes it and lets the user undo settlement", ()
     created_at: "2026-01-01",
     updated_at: "2026-01-01",
   } as DbConversationSummary
+  const save = vi
+    .spyOn(api, "updateLabSettlement")
+    .mockImplementation(async (id, at) => {
+      expect(id).toBe(c.id)
+      useAppWorkspaceStore
+        .getState()
+        .applyConversationUpsert({ ...c, lab_settled_at: at })
+    })
   localStorage.setItem(labKey(c), String(Date.now() + 3600000))
   useAppWorkspaceStore.setState({
     conversations: [c],
@@ -432,7 +537,7 @@ it("shows a compact snoozed row, wakes it and lets the user undo settlement", ()
       expect(action.classList.contains("hover:bg-transparent")).toBe(true)
     }
     fireEvent.click(settle)
-    expect(localStorage.getItem(labKey(c))).toMatch(/^finished:\d+$/)
+    expect(save).toHaveBeenCalledWith(c.id, expect.any(Number))
     const finished = screen.getByText(en.Folder.sidebar.lab.finished, {
       selector: "summary",
     })
@@ -441,7 +546,9 @@ it("shows a compact snoozed row, wakes it and lets the user undo settlement", ()
     expect(localStorage.getItem("maxcode:lab-shelf:finished")).toBe("1")
     fireEvent.click(screen.getByRole("button", { name: "Un-settle thread" }))
     expect(localStorage.getItem(labKey(c))).toBeNull()
+    expect(save).toHaveBeenLastCalledWith(c.id, 0)
   } finally {
+    save.mockRestore()
     localStorage.removeItem(labKey(c))
     localStorage.removeItem("maxcode:lab-shelf:snoozed")
     localStorage.removeItem("maxcode:lab-shelf:finished")
@@ -653,6 +760,14 @@ it.each([
   expect(container.querySelector("svg")).toHaveClass("size-4")
 })
 
+it("uses the logo blue for the MaxCode project badge", () => {
+  const { container } = render(<LabProjectBadge name="MaxCode" />)
+  const badge = container.querySelector("svg")
+  expect(badge).toHaveClass("bg-[#285ee1]", "dark:bg-[#82a4ff]")
+  expect(badge).not.toHaveClass("bg-current/14")
+  expect(badge).toHaveTextContent("ME")
+})
+
 it("renders the project initials and stable color for mixed-language names", () => {
   const { container, rerender } = render(
     <LabProjectBadge name="GKD-青桔定制" />
@@ -661,11 +776,11 @@ it("renders the project initials and stable color for mixed-language names", () 
   expect(
     container.querySelector("svg")?.classList.contains("text-blue-600")
   ).toBe(true)
-  const frame = container.querySelector("svg")
   rerender(<LabProjectBadge name={null} />)
-  expect(container.querySelector("svg")).toBe(frame)
-  expect(frame?.getAttribute("viewBox")).toBe("0 0 16 16")
-  expect(frame?.querySelector('path[fill="currentColor"]')).toBeTruthy()
+  const bubble = container.querySelector("svg.lucide-message-square")
+  expect(bubble).toHaveAttribute("fill", "none")
+  expect(bubble).toHaveAttribute("stroke-width", "1.75")
+  expect(bubble).toHaveClass("size-4")
   expect(container.querySelector("text")).toBeNull()
 })
 

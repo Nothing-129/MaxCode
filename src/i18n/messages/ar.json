@@ -1873,6 +1873,11 @@
       "importFailed": "فشل الاستيراد: {message}"
     }
   },
+  "ImagePreview": {
+    "zoomIn": "تكبير",
+    "zoomOut": "تصغير",
+    "fit": "ملاءمة الصورة مع الشاشة"
+  },
   "Folder": {
     "workspaceStatus": {
       "degradedTitle": "التحديثات الفورية غير متاحة",

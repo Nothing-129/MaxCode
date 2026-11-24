@@ -482,6 +482,29 @@ pub async fn update_conversation_title(
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LabSettlementParams {
+    conversation_id: i32,
+    settled_at: i64,
+    legacy: bool,
+}
+
+pub async fn update_lab_settlement(
+    Extension(state): Extension<Arc<AppState>>,
+    Json(params): Json<LabSettlementParams>,
+) -> Result<Json<()>, AppCommandError> {
+    conv_commands::update_lab_settlement_core(
+        &state.db.conn,
+        &state.emitter,
+        params.conversation_id,
+        params.settled_at,
+        params.legacy,
+    )
+    .await?;
+    Ok(Json(()))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateConversationPinnedParams {
     pub conversation_id: i32,
     pub pinned: bool,

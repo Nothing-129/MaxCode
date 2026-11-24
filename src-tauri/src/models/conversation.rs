@@ -62,6 +62,7 @@ pub struct DbConversationSummary {
     /// folder group. Serialized as `null` when absent so the frontend's
     /// `pinned_at: string | null` always sees the field.
     pub pinned_at: Option<DateTime<Utc>>,
+    pub lab_settled_at: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]

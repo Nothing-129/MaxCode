@@ -2570,6 +2570,18 @@ pub async fn sync_conversation_title_to_channels_core(
     }
 }
 
+pub async fn update_lab_settlement_core(
+    conn: &sea_orm::DatabaseConnection,
+    emitter: &EventEmitter,
+    conversation_id: i32,
+    settled_at: i64,
+    legacy: bool,
+) -> Result<(), AppCommandError> {
+    conversation_service::update_lab_settlement(conn, conversation_id, settled_at, legacy).await?;
+    emit_conversation_upsert(emitter, conn, conversation_id).await;
+    Ok(())
+}
+
 pub async fn update_conversation_pinned_core(
     conn: &sea_orm::DatabaseConnection,
     conversation_id: i32,
@@ -2777,6 +2789,7 @@ mod tests {
             created_at: now,
             updated_at: now,
             pinned_at: None,
+            lab_settled_at: None,
             parent_id: Some(1),
             parent_tool_use_id: Some(parent_tool_use_id.into()),
             delegation_call_id: Some("call-1".into()),
@@ -6893,6 +6906,7 @@ mod tests {
                 created_at: at(-100),
                 updated_at: at(0),
                 pinned_at: None,
+                lab_settled_at: None,
                 parent_id: None,
                 parent_tool_use_id: None,
                 delegation_call_id: None,

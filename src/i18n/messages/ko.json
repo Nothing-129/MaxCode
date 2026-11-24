@@ -1873,6 +1873,11 @@
       "importFailed": "가져오기 실패: {message}"
     }
   },
+  "ImagePreview": {
+    "zoomIn": "확대",
+    "zoomOut": "축소",
+    "fit": "이미지를 화면에 맞추기"
+  },
   "Folder": {
     "workspaceStatus": {
       "degradedTitle": "실시간 업데이트를 사용할 수 없음",

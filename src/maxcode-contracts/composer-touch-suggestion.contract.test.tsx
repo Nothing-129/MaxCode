@@ -35,7 +35,7 @@ describe("desktop and touch composer suggestion adoption", () => {
     const button = screen.getByRole("button", { name: "采纳建议" })
     expect(button).toHaveAttribute("type", "button")
     expect(setText).not.toHaveBeenCalled()
-    expect(button).toHaveClass("text-muted-foreground")
+    expect(button.querySelector("kbd")).toHaveClass("text-muted-foreground")
     expect(button).toHaveTextContent("Tab")
     fireEvent.click(button)
     expect(setText).toHaveBeenCalledWith("允许，继续查")
@@ -75,19 +75,22 @@ describe("desktop and touch composer suggestion adoption", () => {
     expect(editorRef.current?.getText()).toBe("我的草稿")
   })
 
-  it("offers a labeled inline action on touch screens", () => {
-    const editorRef = createRef<RichComposerHandle>()
-    render(
-      <AcceptPromptSuggestion
-        touch
-        editorRef={editorRef}
-        suggestion="继续"
-        label="采纳建议"
-      />
-    )
+  it("uses the T3 outline key and literal label on all devices", () => {
+    mount()
     const button = screen.getByRole("button", { name: "采纳建议" })
-    expect(button).toHaveTextContent("采纳建议")
-    expect(button).toHaveClass("text-muted-foreground")
-    expect(button).not.toHaveTextContent("Tab")
+    expect(button).toHaveClass("ml-2", "align-[1px]")
+    const key = button.querySelector("kbd")
+    expect(key?.textContent?.trim()).toBe("⇥ Tab")
+    expect(key).not.toHaveClass("border-b-2")
+    expect(key?.firstElementChild).toHaveClass("top-[0.5px]")
+    expect(key).toHaveClass(
+      "h-5",
+      "min-w-5",
+      "font-medium",
+      "text-xs",
+      "px-1.5",
+      "border",
+      "border-foreground/10"
+    )
   })
 })

@@ -519,6 +519,7 @@ async fn import_one(
         updated_at: Set(updated_at),
         deleted_at: Set(None),
         pinned_at: Set(None),
+        lab_settled_at: Set(None),
         origin_cwd: Set(None),
     };
     conv.insert(conn).await?;
@@ -1002,6 +1003,7 @@ mod tests {
             updated_at: Set(now),
             deleted_at: Set(Some(now)),
             pinned_at: Set(None),
+            lab_settled_at: Set(None),
             origin_cwd: Set(None),
         }
         .insert(&db.conn)
@@ -1301,6 +1303,7 @@ mod tests {
             updated_at: Set(now),
             deleted_at: Set(None),
             pinned_at: Set(None),
+            lab_settled_at: Set(None),
             origin_cwd: Set(None),
         }
         .insert(&db.conn)

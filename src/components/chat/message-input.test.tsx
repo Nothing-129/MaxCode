@@ -2266,12 +2266,6 @@ describe("tab-activation auto-focus", () => {
 describe("MessageInput predicted follow-up prompt", () => {
   afterEach(() => cleanup())
 
-  const offered = (suggestion: string) =>
-    enMessages.Folder.chat.messageInput.promptSuggestion.replace(
-      "{suggestion}",
-      suggestion
-    )
-
   async function mounted(
     props: Partial<React.ComponentProps<typeof MessageInput>>
   ) {
@@ -2303,9 +2297,7 @@ describe("MessageInput predicted follow-up prompt", () => {
   it("shows the suggestion as the placeholder between turns and fills it in on Tab", async () => {
     const { container } = await mounted({ promptSuggestion: "Run the tests" })
     expect(
-      container.querySelector(
-        `[data-placeholder="${offered("Run the tests")}"]`
-      )
+      container.querySelector('[data-placeholder="Run the tests"]')
     ).not.toBeNull()
     // The textbox keeps its own name; the suggestion is only the hint.
     expect(container.querySelector('[role="textbox"]')).toHaveAttribute(
@@ -2342,9 +2334,7 @@ describe("MessageInput predicted follow-up prompt", () => {
         ...props,
       })
       expect(
-        container.querySelector(
-          `[data-placeholder="${offered("Run the tests")}"]`
-        )
+        container.querySelector('[data-placeholder="Run the tests"]')
       ).toBeNull()
       const dom = composerHandle.current!.getEditor()!.view.dom as HTMLElement
       act(() => {

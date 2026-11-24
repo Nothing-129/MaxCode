@@ -23,7 +23,7 @@ describe("reviewed November agent runtime integration", () => {
   it("keeps Codex predictions on the shared composer adoption path", () => {
     const input = source("src/components/chat/message-input.tsx")
     expect(input).toContain("<AcceptPromptSuggestion")
-    expect(input).toContain("useTouchSuggestion")
+    expect(input).toContain("offeredSuggestion ?? resolvedPlaceholder")
     expect(source("src-tauri/src/acp/connection.rs")).toContain(
       "apply_codex_prompt_suggestion_policy(agent_type, &mut merged_env, prompt_suggestions)"
     )

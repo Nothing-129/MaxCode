@@ -308,7 +308,9 @@ export function ConversationLab({
     const markedAt = (r: Row) => {
       const mark = marks.get(labKey(r.c))
       return (
-        labSettledAt(mark) ?? labSnoozeUntil(mark) ?? Date.parse(r.c.updated_at)
+        (r.c.lab_settled_at || labSettledAt(mark)) ??
+        labSnoozeUntil(mark) ??
+        Date.parse(r.c.updated_at)
       )
     }
     g.pinned.sort(
@@ -368,7 +370,8 @@ export function ConversationLab({
   }
   function open(c: DbConversationSummary) {
     const opened = afterOpen(openTab(c.folder_id, c.id, c.agent_type, false))
-    if (opened && labHasWoken(marks.get(labKey(c)), now)) change(c)
+    if (opened && !c.lab_settled_at && labHasWoken(marks.get(labKey(c)), now))
+      change(c)
     return opened
   }
   function search(value: string) {
@@ -673,6 +676,13 @@ export function ConversationLab({
                 </div>
               )}
               {renderRows("pinned")}
+              {groups.pinned.length > 0 && !drag && (
+                <hr
+                  aria-hidden="true"
+                  data-lab-pinned-divider=""
+                  className="mx-2 my-1.5 border-sidebar-border/60"
+                />
+              )}
               {drag && (
                 <div
                   className="border-t px-2 py-1 text-xs text-muted-foreground"

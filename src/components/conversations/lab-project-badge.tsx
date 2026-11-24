@@ -1,3 +1,4 @@
+import { MessageSquare } from "lucide-react"
 import {
   folderTitleTintVars,
   normalizeFolderThemeColor,
@@ -24,7 +25,7 @@ const colors = [
   "text-rose-600 dark:text-rose-400",
 ]
 
-const tile = "shrink-0 rounded-[25%] bg-current/14"
+const tile = "size-4 shrink-0 rounded-[25%]"
 
 function projectIdentity(name: string) {
   const normalized = name.normalize("NFKC").trim()
@@ -68,39 +69,43 @@ export function LabProjectBadge({
   name: string | null
   folderColor?: string
 }) {
-  const project = name === null ? null : projectIdentity(name)
-  const tint = project
-    ? folderTitleTintVars(normalizeFolderThemeColor(folderColor))
-    : undefined
-  const color = tint
-    ? "folder-title-tint"
-    : (project?.color ?? "text-slate-600 dark:text-slate-400")
+  if (name === null) {
+    return (
+      <MessageSquare
+        aria-hidden="true"
+        className="size-4 shrink-0 text-muted-foreground"
+        strokeWidth={1.75}
+      />
+    )
+  }
+
+  const project = projectIdentity(name)
+  const isMaxCode = name.trim().toLowerCase() === "maxcode"
+  const tint = isMaxCode
+    ? undefined
+    : folderTitleTintVars(normalizeFolderThemeColor(folderColor))
+  const palette = isMaxCode
+    ? "bg-[#285ee1] text-white dark:bg-[#82a4ff] dark:text-slate-900"
+    : `bg-current/14 ${tint ? "folder-title-tint" : project.color}`
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 16 16"
-      className={`${tile} size-4 ${color}`}
+      className={`${tile} ${palette}`}
       style={tint}
     >
-      {project ? (
-        <text
-          x="8"
-          y="8"
-          dominantBaseline="central"
-          textAnchor="middle"
-          fill="currentColor"
-          fontSize={project.singleHan ? 11 : 9}
-          fontWeight="700"
-          className={project.singleHan ? "font-sans" : "font-mono"}
-        >
-          {project.initials}
-        </text>
-      ) : (
-        <path
-          fill="currentColor"
-          d="M4 4h8a2 2 0 0 1 2 2v2.5a2 2 0 0 1-2 2H7l-3.5 2v-2A2 2 0 0 1 2 8.5V6a2 2 0 0 1 2-2Z"
-        />
-      )}
+      <text
+        x="8"
+        y="8"
+        dominantBaseline="central"
+        textAnchor="middle"
+        fill="currentColor"
+        fontSize={project.singleHan ? 11 : 9}
+        fontWeight="700"
+        className={project.singleHan ? "font-sans" : "font-mono"}
+      >
+        {project.initials}
+      </text>
     </svg>
   )
 }

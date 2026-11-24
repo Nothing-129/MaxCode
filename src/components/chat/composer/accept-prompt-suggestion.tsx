@@ -1,7 +1,6 @@
 "use client"
 
 import type { RefObject } from "react"
-import { ArrowRightToLine } from "lucide-react"
 import type { RichComposerHandle } from "./rich-composer"
 
 /** A separate touch target: tapping the placeholder must only focus the editor. */
@@ -9,19 +8,16 @@ export function AcceptPromptSuggestion({
   editorRef,
   suggestion,
   label,
-  touch = false,
 }: {
   editorRef: RefObject<RichComposerHandle | null>
   suggestion: string
-  touch?: boolean
   label: string
 }) {
   return (
     <button
       type="button"
-      className="pointer-events-auto relative z-10 ms-2 inline-flex cursor-pointer items-center whitespace-nowrap rounded border border-border border-b-2 px-1.5 align-middle font-sans text-xs leading-4 text-muted-foreground hover:bg-interaction-hover focus-visible:outline-2 focus-visible:outline-ring"
+      className="pointer-events-auto relative z-10 ml-2 inline-flex cursor-pointer align-[1px] focus-visible:outline-2 focus-visible:outline-ring"
       aria-label={label}
-      title={label}
       onClick={() => {
         const editor = editorRef.current
         // Recheck the live document so a late click cannot overwrite a draft.
@@ -30,14 +26,12 @@ export function AcceptPromptSuggestion({
         editor.focus()
       }}
     >
-      {touch ? (
-        label
-      ) : (
-        <kbd dir="ltr" className="inline-flex items-center gap-1 font-sans">
-          <ArrowRightToLine aria-hidden="true" className="size-3" />
-          Tab
-        </kbd>
-      )}
+      <kbd
+        dir="ltr"
+        className="pointer-events-none inline-flex h-5 min-w-5 select-none items-center justify-center gap-1 rounded border border-foreground/10 px-1.5 font-sans text-xs font-medium text-muted-foreground"
+      >
+        <span className="relative top-[0.5px]">⇥ Tab</span>
+      </kbd>
     </button>
   )
 }

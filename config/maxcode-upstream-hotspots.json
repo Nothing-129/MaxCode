@@ -5,14 +5,18 @@
       "id": "sidebar.experimental-conversation-inbox",
       "category": "product",
       "origins": ["worktree-2026-11-24"],
-      "description": "The experimental view shares the standard sidebar header and conversation update-time filter and has a flat title and transcript search, project filters showing one badge or two overlapping badges, a compose palette, compact snoozed and settled shelves, and local snooze schedules. The compose picker lists only open root projects, and its number shortcuts follow their displayed order. Project and chat badges share a 16px square and a 6px project label gap. Han initials use one centered 11px character; Latin initials use up to two 9px letters. Project badge backgrounds and letters use the displayed folder's custom color in rows, search and the filter, with name-based colors as the default. Projectless sessions display a filled chat bubble in the same SVG frame as project initials and the Chat label. Full-size unread rows outside the completed shelf emphasize the title and show a green circled check with Done when not in progress. Runtime requests, including delegated approval and input, and terminal failures can wake snoozed threads early. Connection setup alone does not move a conversation to the running shelf. An executing turn takes priority over a second connection preparing. The completed shelf below running opens by default and groups unread completed turns until viewed. The running shelf opens with every matching conversation visible and hides all its rows when collapsed. The settled shelf starts collapsed and remembers manual toggles. Mobile keeps the settled shelf visible with a zero count when no sessions match. Running duration ticks each second and displays seconds, whole minutes, or hours plus remaining minutes. Runtime status takes priority over the individually dismissible wake badge and unread completion. Manual wake clears the snooze. Inactive conversations can show their unsent draft. Inline snooze and settle controls use the row background and appear on hover or while their menu is open. Tab skips these actions and focusing the row preserves its status label. The list, search results and shelves use the shared sidebar overlay scrollbar. The search field is transparent until hovered. Project filtering is toolbar-only. Context actions and snooze choices have leading icons. The context menu supports shared completion, scoped todo linking, session details and confirmed deletion.",
+      "description": "The experimental view shares the standard sidebar header and conversation update-time filter and has a flat title and transcript search, project filters showing one badge or two overlapping badges, a compose palette, compact snoozed and settled shelves, and local snooze schedules. The compose picker lists only open root projects, and its number shortcuts follow their displayed order. Project and chat badges share a 16px square and a 6px project label gap. Han initials use one centered 11px character; Latin initials use up to two 9px letters. Project badge backgrounds and letters use the displayed folder's custom color in rows, search and the filter, with name-based colors as the default. The MaxCode project uses the logo blue as its badge background. A subtle inset divider and vertical spacing mark the end of the pinned rows. Projectless sessions display a single outline chat bubble in a 16px slot without a tile background and the Chat label. Full-size unread rows outside the completed shelf emphasize the title and show a green circled check with Done when not in progress. Runtime requests, including delegated approval and input, and terminal failures can wake snoozed threads early. Ordinary timestamp labels reuse the standard sidebar relative-time formatter with the last update time. Connection setup preserves the existing conversation row time or reminder and keeps the conversation out of the running shelf. An executing turn takes priority over a second connection preparing. The completed shelf below running opens by default and groups unread completed turns until viewed. The running shelf opens with every matching conversation visible and hides all its rows when collapsed. Settlement and undo sync across clients, and legacy local settlements import only into untouched rows. The settled shelf starts collapsed and remembers manual toggles. Mobile keeps the settled shelf visible with a zero count when no sessions match. Running duration ticks each second and displays seconds, whole minutes, or hours plus remaining minutes. Runtime status takes priority over the individually dismissible wake badge and unread completion. Manual wake clears the snooze. Inactive conversations can show their unsent draft. Inline snooze and settle controls use the row background and appear on hover or while their menu is open. Tab skips these actions and focusing the row preserves its status label. The list, search results and shelves use the shared sidebar overlay scrollbar. The search field is transparent until hovered. Project filtering is toolbar-only. Context actions and snooze choices have leading icons. The context menu supports shared completion, scoped todo linking, session details and confirmed deletion.",
       "paths": [
         "src/components/conversations/conversation-lab.tsx",
         "src/components/conversations/conversation-lab-projects.tsx",
         "src/components/conversations/conversation-lab-row.tsx",
+        "src/components/conversations/sidebar-conversation-grouping.ts",
         "src/components/conversations/conversation-delete-dialog.tsx",
         "src/components/conversations/lab-project-badge.tsx",
         "src/components/conversations/conversation-lab-snooze.tsx",
+        "src-tauri/src/db/migration/m20261124_000001_conversation_lab_settlement.rs",
+        "src-tauri/src/db/service/conversation_service.rs",
+        "src-tauri/src/models/conversation.rs",
         "src-tauri/src/commands/conversations.rs",
         "src-tauri/src/web/handlers/conversations.rs",
         "src-tauri/src/web/router.rs",
@@ -813,7 +817,7 @@
         "worktree-2026-11-02",
         "worktree-2026-11-20"
       ],
-      "description": "Empty composers offer adoption inline after the prediction: a clickable desktop Tab keycap using the standard muted foreground or a localized adoption button on touch. Touch and phone composers show predicted text without the Tab suffix. Wrapped suggestions contribute their full height to the shared editor scroll area. Placeholder taps only focus; adopting fills and focuses without submitting or overwriting a live draft. Desktop predictions end with an inline Tab keycap that stays outside the editable document.",
+      "description": "Empty composers offer adoption inline after the prediction: the T3 Code outline keycap with literal ⇥ Tab text on desktop and touch, with a uniform 1px outline at 10% foreground opacity and vertically balanced arrow and label. Wrapped suggestions contribute their full height to the shared editor scroll area. Placeholder taps only focus; adopting fills and focuses without submitting or overwriting a live draft. Desktop predictions end with an inline Tab keycap that stays outside the editable document.",
       "paths": [
         "src/components/chat/message-input.tsx",
         "src/components/chat/composer/rich-composer.tsx",
@@ -5241,6 +5245,19 @@
       ]
     },
     {
+      "id": "chat.image-preview-zoom",
+      "category": "product",
+      "description": "The shared image preview opens fitted to the screen, supports pinch and wheel zoom plus visible zoom and fit controls, and lets users pan oversized images without dismissing the preview.",
+      "origins": ["worktree-2026-11-24"],
+      "paths": [
+        "src/components/ui/image-preview-dialog.tsx",
+        "src/i18n/messages/"
+      ],
+      "contracts": [
+        "src/maxcode-contracts/image-preview-zoom.contract.test.tsx"
+      ]
+    },
+    {
       "id": "composer.preview-selection",
       "category": "product",
       "description": "Portaled image previews and menus must never be treated as composer chrome clicks: mouse, touch, pen and legacy mouse interactions preserve the multiline draft caret so continued typing and newlines stay at the intended position.",
@@ -6703,7 +6720,7 @@
     {
       "id": "chat.composer-typography",
       "category": "product",
-      "description": "Welcome and conversation composers use screenshot-verified 14px medium (500) text with 21px lines at default interface zoom, independent of transcript font size. Regular (400) is visibly too thin. The reference desktop font fallback order is preserved instead of forcing PingFang SC, with sampled #1a1c1e light text and theme foreground in dark mode. Placeholder text uses muted foreground at 65% opacity.",
+      "description": "Welcome and conversation composers use screenshot-verified 14px medium (500) text with 21px lines at default interface zoom, independent of transcript font size. Regular (400) is visibly too thin. The reference desktop font fallback order is preserved instead of forcing PingFang SC, with sampled #1a1c1e light text and theme foreground in dark mode. Ordinary placeholder text uses muted foreground at 65% opacity. Follow-up suggestions use the same theme color as the Tab label.",
       "origins": [
         "worktree-2026-09-09"
       ],

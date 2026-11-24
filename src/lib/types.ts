@@ -537,6 +537,7 @@ export interface DbConversationSummary {
   /** When the user pinned this conversation (ISO string), or null if not pinned.
    *  Drives the sidebar's "Pinned" section (sorted by this descending); a pinned
    *  conversation is shown there instead of in its folder group. */
+  lab_settled_at?: number | null
   pinned_at: string | null
   parent_id?: number | null
   parent_tool_use_id?: string | null

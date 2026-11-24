@@ -242,6 +242,10 @@ pub fn build_router(
             post(handlers::conversations::update_conversation_title),
         )
         .route(
+            "/update_lab_settlement",
+            post(handlers::conversations::update_lab_settlement),
+        )
+        .route(
             "/update_conversation_pinned",
             post(handlers::conversations::update_conversation_pinned),
         )

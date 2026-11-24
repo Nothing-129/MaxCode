@@ -1873,6 +1873,11 @@
       "importFailed": "インポートに失敗しました: {message}"
     }
   },
+  "ImagePreview": {
+    "zoomIn": "拡大",
+    "zoomOut": "縮小",
+    "fit": "画像を画面に合わせる"
+  },
   "Folder": {
     "workspaceStatus": {
       "degradedTitle": "リアルタイム更新は利用できません",
