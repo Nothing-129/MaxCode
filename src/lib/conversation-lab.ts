@@ -6,6 +6,7 @@ export const labGroups = [
   "pinned",
   "main",
   "running",
+  "completed",
   "snoozed",
   "finished",
 ] as const
@@ -59,7 +60,8 @@ export function labGroup(
   c: DbConversationSummary,
   mark: LabMark | undefined,
   now: number,
-  signal?: LabSignal
+  signal?: LabSignal,
+  unread = false
 ): LabGroup {
   if (
     isConversationSettled(c) ||
@@ -77,6 +79,12 @@ export function labGroup(
       : "main"
   }
   if (isRunningConversationStatus(c.status)) return "running"
+  if (
+    unread &&
+    !labHasWoken(mark, now) &&
+    (c.status === "pending_review" || c.status === "completed")
+  )
+    return "completed"
   return "main"
 }
 

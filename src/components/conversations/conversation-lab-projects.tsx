@@ -29,7 +29,6 @@ export function LabProjectTools({
   const t = useTranslations("Folder.conversationContextBar")
   const chatLabel = useTranslations("Folder.sidebar")("sectionChats")
   const empty = useTranslations("Folder.search")("noResults")
-  const mac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform)
   const [filter, setFilter] = useState(false)
   const shift = useRef(false)
   const [composeOpen, setComposeOpen] = useState(false)
@@ -153,11 +152,7 @@ export function LabProjectTools({
           </button>
         </PopoverTrigger>
         <FolderMenuContent
-          folders={composeProjects.map((folder, index) => ({
-            ...folder,
-            shortcut:
-              index < 9 ? (mac ? "⌘" : "Ctrl+") + (index + 1) : undefined,
-          }))}
+          folders={composeProjects}
           value={null}
           labelSearch={t("searchFolder")}
           labelEmpty={t("noFolders")}
@@ -170,7 +165,6 @@ export function LabProjectTools({
               label: t("chatModeLabel"),
               description: t("chatModeDescription"),
               chat: true,
-              shortcut: mac ? "⌥⌘N" : "Ctrl+Alt+N",
               onSelect: () => compose(),
             },
           ]}
@@ -178,15 +172,6 @@ export function LabProjectTools({
             if (isImeCompositionKey(e)) {
               e.stopPropagation()
               return
-            }
-            if (!(e.metaKey || e.ctrlKey)) return
-            const folder = /^[1-9]$/.test(e.key)
-              ? composeProjects[Number(e.key) - 1]
-              : undefined
-            if (folder || (e.altKey && e.code === "KeyN")) {
-              e.preventDefault()
-              e.stopPropagation()
-              compose(folder)
             }
           }}
         />

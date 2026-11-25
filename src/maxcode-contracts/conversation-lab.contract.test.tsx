@@ -220,7 +220,7 @@ it.each([
   expect(screen.getByText(en.Folder.sidebar.lab.working)).toBeVisible()
 })
 
-it("renders review and ordinary chats directly above running chats", () => {
+it("keeps finished unread chats in their own completed shelf until viewed", () => {
   const previous = useAppWorkspaceStore.getState()
   const conversations = [
     "pending_review",
@@ -259,16 +259,24 @@ it("renders review and ordinary chats directly above running chats", () => {
       const running = screen.getByText(en.Folder.sidebar.lab.running, {
         selector: "summary",
       })
+      const completed = screen.getByText(en.Folder.statusLabels.completed, {
+        selector: "summary",
+      })
       expect(Array.from(container.querySelectorAll("summary"))).toEqual([
         running,
+        completed,
       ])
+      expect(completed).toHaveClass("font-semibold")
+      expect(completed.parentElement).toHaveAttribute("open")
       expect(running).toHaveClass(
         "bg-sidebar-accent/60",
         "font-semibold",
         "text-sidebar-foreground"
       )
       expect(running.parentElement).toHaveClass("mb-2")
-      expect(screen.getByText("Thread 1").closest("details")).toBeNull()
+      expect(screen.getByText("Thread 1").closest("details")).toBe(
+        completed.parentElement
+      )
       expect(screen.getByText("Thread 1")).toHaveClass("font-normal")
       expect(
         screen
@@ -427,7 +435,7 @@ it("offers the compose picker without an add-project toolbar button", async () =
   expect(screen.queryByRole("button", { name: "Add project" })).toBeNull()
 })
 
-it("only offers open root projects for new conversations and their number shortcuts", async () => {
+it("offers open root projects without shortcut hints or shortcut creation", async () => {
   const previous = useAppWorkspaceStore.getState()
   const previousTabs = tabStore.getState()
   const openProject = {
@@ -480,7 +488,19 @@ it("only offers open root projects for new conversations and their number shortc
     expect(screen.queryByRole("option")).toBeNull()
 
     fireEvent.change(input, { target: { value: "" } })
+    const tabsBefore = tabStore.getState().rawTabs
+    expect(screen.queryByText(/^(⌘|Ctrl\+|⌥⌘)/)).toBeNull()
     fireEvent.keyDown(input, { key: "1", metaKey: true })
+    fireEvent.keyDown(input, { key: "1", ctrlKey: true })
+    fireEvent.keyDown(input, {
+      key: "n",
+      code: "KeyN",
+      metaKey: true,
+      altKey: true,
+    })
+    expect(tabStore.getState().rawTabs).toBe(tabsBefore)
+    expect(input).toBeVisible()
+    fireEvent.click(screen.getByRole("option", { name: /^Open project/ }))
     const { activeTabId, rawTabs } = tabStore.getState()
     expect(rawTabs.find((tab) => tab.id === activeTabId)).toMatchObject({
       folderId: openProject.id,
@@ -759,11 +779,7 @@ it.each(["律总管", "AI外呼", "MaxCode", "A", "GKD-青桔定制"])(
       <LabProjectBadge name={name} folderColor="blue" />
     )
     const icon = container.querySelector("svg")
-    expect(icon).toHaveClass(
-      "lucide-folder",
-      "size-3.5",
-      "text-muted-foreground"
-    )
+    expect(icon).toHaveClass("lucide-folder", "size-3", "text-muted-foreground")
     expect(icon).toHaveAttribute("fill", "none")
     expect(icon).toHaveAttribute("aria-hidden", "true")
     expect(icon).not.toHaveAttribute("style")
@@ -771,7 +787,7 @@ it.each(["律总管", "AI外呼", "MaxCode", "A", "GKD-青桔定制"])(
     rerender(<LabProjectBadge name={null} />)
     expect(container.querySelector("svg")).toHaveClass(
       "lucide-message-square",
-      "size-3.5"
+      "size-3"
     )
   }
 )

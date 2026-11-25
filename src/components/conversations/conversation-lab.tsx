@@ -9,6 +9,7 @@ import { useSidebarScrollMotion } from "@/hooks/use-sidebar-scroll-motion"
 import { AgentIcon } from "@/components/agent-icon"
 import { useTabActions, useTabStore } from "@/contexts/tab-context"
 import { useWorkbenchRoute } from "@/contexts/workbench-route-context"
+import { useConversationUnreadStore } from "@/stores/conversation-unread-store"
 import { useAppWorkspaceStore } from "@/stores/app-workspace-store"
 import {
   excludeChatFolders,
@@ -53,7 +54,7 @@ interface Row {
   projectId: string
   projectColor?: string
 }
-const shelves = ["running", "snoozed", "finished"] as const
+const shelves = ["running", "completed", "snoozed", "finished"] as const
 
 function LabScrollArea({
   children,
@@ -128,7 +129,8 @@ function LabShelf({
 }) {
   const l = useTranslations("Folder.sidebar.lab")
   const key = "maxcode:lab-shelf:" + group
-  const isActivityShelf = group === "running"
+  const completedLabel = useTranslations("Folder.statusLabels")("completed")
+  const isActivityShelf = group === "running" || group === "completed"
   const [open, setOpen] = useState(() => {
     if (isActivityShelf) return true
     try {
@@ -160,7 +162,7 @@ function LabShelf({
           }}
         >
           <ChevronDown className="size-3 -rotate-90 group-open/section:rotate-0" />
-          {l(group)}
+          {group === "completed" ? completedLabel : l(group)}
           <span className="ms-auto tabular-nums">{count}</span>
         </summary>
         {open && children(true)}
@@ -185,6 +187,7 @@ export function ConversationLab({
   const folders = useAppWorkspaceStore((s) => s.allFolders)
   const openFolders = useAppWorkspaceStore((s) => s.folders)
   const conversations = useAppWorkspaceStore((s) => s.conversations)
+  const unreadIds = useConversationUnreadStore((s) => s.unreadIds)
   const loading = useAppWorkspaceStore((s) => s.conversationsLoading)
   const error = useAppWorkspaceStore((s) => s.conversationsError)
   const refresh = useAppWorkspaceStore((s) => s.refreshConversations)
@@ -290,12 +293,19 @@ export function ConversationLab({
       pinned: [],
       main: [],
       running: [],
+      completed: [],
       snoozed: [],
       finished: [],
     }
     for (const row of rows)
       g[
-        labGroup(row.c, marks.get(labKey(row.c)), now, signals.get(row.c.id))
+        labGroup(
+          row.c,
+          marks.get(labKey(row.c)),
+          now,
+          signals.get(row.c.id),
+          unreadIds.has(row.c.id)
+        )
       ].push(row)
     const markedAt = (r: Row) => {
       const mark = marks.get(labKey(r.c))
@@ -311,7 +321,7 @@ export function ConversationLab({
     g.finished.sort((a, b) => markedAt(b) - markedAt(a))
     g.snoozed.sort((a, b) => markedAt(a) - markedAt(b))
     return g
-  }, [rows, marks, now, signals])
+  }, [rows, marks, now, signals, unreadIds])
   const visibleShelves = shelves.filter(
     (group) => groups[group].length > 0 || (group === "finished" && mobile)
   )

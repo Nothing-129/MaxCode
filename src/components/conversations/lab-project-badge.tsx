@@ -10,8 +10,8 @@ export function LabProjectBadge({
   return (
     <Icon
       aria-hidden="true"
-      className="size-3.5 shrink-0 text-muted-foreground"
-      strokeWidth={1.75}
+      className="size-3 shrink-0 text-muted-foreground"
+      strokeWidth={1.5}
     />
   )
 }
