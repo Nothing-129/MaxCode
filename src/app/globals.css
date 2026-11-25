@@ -2602,7 +2602,7 @@ div.monaco-diff-editor.side-by-side .editor.modified {
 }
 
 .codeg-composer .codeg-composer-suggestion-preview {
-  color: var(--muted-foreground);
+  color: color-mix(in srgb, var(--muted-foreground) 65%, transparent);
   pointer-events: none;
   user-select: none;
 }

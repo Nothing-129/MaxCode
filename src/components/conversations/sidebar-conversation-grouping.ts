@@ -1,3 +1,4 @@
+import { isConversationSettled } from "@/lib/conversation-lab"
 import type {
   DbConversationSummary,
   FolderDetail,
@@ -230,8 +231,8 @@ export function groupByFolderWithReuse(
  * Same reference-stability motivation as {@link groupByFolderWithReuse}: a
  * single status event replaces exactly one summary object, so this would
  * otherwise build a fresh array each tick and defeat the Pinned section's memo.
- * Built from the FULL `conversations` list (never the completed-filtered one): a
- * pinned conversation stays in the Pinned section even when "Show completed" is
+ * Built from the FULL `conversations` list (never the settlement-filtered one): a
+ * pinned conversation stays in the Pinned section even when "Show settled conversations" is
  * off — pinning is an explicit "keep this handy" override of that filter.
  *
  * `prev` is the array returned by the last call (the caller threads it via a
@@ -255,7 +256,7 @@ export function selectPinnedWithReuse(
  * reference reuse (same motivation as {@link selectPinnedWithReuse}).
  *
  * Excludes pinned conversations (they surface in the Pinned section, an explicit
- * override) and — unless `showCompleted` — completed ones, matching how
+ * override) and — unless `showCompleted` — settled ones, matching how
  * `folderConversations` is filtered for the folders section.
  *
  * `prev` is the array returned last call (threaded via a ref by the caller).
@@ -269,7 +270,7 @@ export function selectChatConversationsWithReuse(
   for (const conv of conversations) {
     if (conv.pinned_at != null) continue
     if (conv.kind !== "chat") continue
-    if (!showCompleted && conv.status === "completed") continue
+    if (!showCompleted && isConversationSettled(conv)) continue
     next.push(conv)
   }
   next.sort(compareByUpdatedAtDesc)
@@ -286,7 +287,7 @@ export function selectChatConversationsWithReuse(
  * - Pinned conversations are excluded. They already have a dedicated top
  *   section, and a Recent copy would be a second row for the same conversation
  *   two sections apart.
- * - Completed ones follow `showCompleted`, like every other section.
+ * - Settled ones follow `showCompleted`, like every other section.
  * - A folder conversation is included only when its folder is OPEN
  *   (`openFolderIds`). `list_all_conversations` returns rows for every
  *   non-deleted folder — open or not — and the Folders section silently drops
@@ -313,7 +314,7 @@ export function selectRecentConversationsWithReuse(
   const next: DbConversationSummary[] = []
   for (const conv of conversations) {
     if (conv.pinned_at != null) continue
-    if (!showCompleted && conv.status === "completed") continue
+    if (!showCompleted && isConversationSettled(conv)) continue
     const isChat = conv.kind === "chat"
     if (!isChat && !openFolderIds.has(conv.folder_id)) continue
     // The user's "just chats" / "just folder sessions" narrowing. Same split

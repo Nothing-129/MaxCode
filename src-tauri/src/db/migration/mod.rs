@@ -57,6 +57,7 @@ mod m20261016_000003_todo_completed_at;
 mod m20261018_000001_todo_codex_session;
 mod m20261026_000001_todo_verification;
 mod m20261124_000001_conversation_lab_settlement;
+mod m20261125_000001_migrate_completed_conversations_to_settlement;
 pub struct Migrator;
 
 #[async_trait::async_trait]
@@ -120,6 +121,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261018_000001_todo_codex_session::Migration),
             Box::new(m20261026_000001_todo_verification::Migration),
             Box::new(m20261124_000001_conversation_lab_settlement::Migration),
+            Box::new(m20261125_000001_migrate_completed_conversations_to_settlement::Migration),
         ]
     }
 }

@@ -6,7 +6,6 @@ export const labGroups = [
   "pinned",
   "main",
   "running",
-  "completed",
   "snoozed",
   "finished",
 ] as const
@@ -40,17 +39,32 @@ export function labKey(c: DbConversationSummary) {
   return prefix + c.id + ":" + c.created_at
 }
 
+export function isConversationSettled(
+  c: Pick<DbConversationSummary, "status" | "lab_settled_at">
+) {
+  return c.lab_settled_at === undefined
+    ? c.status === "completed"
+    : (c.lab_settled_at ?? 0) > 0
+}
+
+export function conversationDisplayStatus(
+  c: Pick<DbConversationSummary, "status" | "lab_settled_at" | "parent_id">
+) {
+  if (c.parent_id != null) return c.status
+  if (isConversationSettled(c)) return "completed"
+  return c.status === "completed" ? "pending_review" : c.status
+}
+
 export function labGroup(
   c: DbConversationSummary,
   mark: LabMark | undefined,
   now: number,
-  signal?: LabSignal,
-  unread = false
+  signal?: LabSignal
 ): LabGroup {
   if (
-    c.lab_settled_at != null
-      ? c.lab_settled_at > 0
-      : mark === "finished" || labSettledAt(mark) !== undefined
+    isConversationSettled(c) ||
+    (c.lab_settled_at == null &&
+      (mark === "finished" || labSettledAt(mark) !== undefined))
   )
     return "finished"
   if ((labSnoozeUntil(mark) ?? 0) > now) return "snoozed"
@@ -63,12 +77,6 @@ export function labGroup(
       : "main"
   }
   if (isRunningConversationStatus(c.status)) return "running"
-  if (
-    unread &&
-    !labHasWoken(mark, now) &&
-    (c.status === "pending_review" || c.status === "completed")
-  )
-    return "completed"
   return "main"
 }
 
@@ -112,11 +120,12 @@ const hour = 3_600_000
 
 export function snoozePresets(now: number) {
   const dayAt = (days: number, hours: number) => {
-    const date = new Date(now)
-    date.setDate(date.getDate() + days)
-    return date.setHours(hours, 0, 0, 0)
+    // Beijing time is UTC+08:00; use UTC setters to ignore the device timezone.
+    const date = new Date(now + 8 * hour)
+    date.setUTCDate(date.getUTCDate() + days)
+    return date.setUTCHours(hours, 0, 0, 0) - 8 * hour
   }
-  const monday = (8 - new Date(now).getDay()) % 7 || 7
+  const monday = (8 - new Date(now + 8 * hour).getUTCDay()) % 7 || 7
   const choices = [
     { key: "oneHour", at: now + hour },
     { key: "threeHours", at: now + 3 * hour },
@@ -135,11 +144,17 @@ export function snoozePresets(now: number) {
     })
 }
 
-function formatLabUnit(amount: number, unit: string, locale: string) {
+function formatLabUnit(
+  amount: number,
+  unit: string,
+  locale: string,
+  minimumIntegerDigits = 1
+) {
   return new Intl.NumberFormat(locale, {
     style: "unit",
     unit,
     unitDisplay: "narrow",
+    minimumIntegerDigits,
   }).format(amount)
 }
 
@@ -148,13 +163,12 @@ export function formatLabWorkingDuration(delta: number, locale: string) {
     ? Math.max(0, Math.floor(delta / 1000))
     : 0
   if (seconds < 60) return formatLabUnit(seconds, "second", locale)
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return formatLabUnit(minutes, "minute", locale)
-  return (
-    formatLabUnit(Math.floor(minutes / 60), "hour", locale) +
-    " " +
-    formatLabUnit(minutes % 60, "minute", locale)
-  )
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor(seconds / 60) % 60
+  const minutesAndSeconds = `${formatLabUnit(minutes, "minute", locale)} ${formatLabUnit(seconds % 60, "second", locale, 2)}`
+  return hours
+    ? `${formatLabUnit(hours, "hour", locale)} ${minutesAndSeconds}`
+    : minutesAndSeconds
 }
 
 export function compactLabTime(

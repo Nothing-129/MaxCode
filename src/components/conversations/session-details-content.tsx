@@ -1,5 +1,9 @@
 "use client"
 
+import {
+  conversationDisplayStatus,
+  isConversationSettled,
+} from "@/lib/conversation-lab"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Check, Copy, Loader2 } from "lucide-react"
 import { useLocale, useTranslations } from "next-intl"
@@ -63,11 +67,14 @@ function isKnownStatus(value: string): value is ConversationStatus {
 function SessionIdentityChips({
   agentType,
   status,
+  settled,
 }: {
   agentType: AgentType
   status?: string | null
+  settled: boolean
 }) {
   const tStatus = useTranslations("Folder.statusLabels")
+  const settledLabel = useTranslations("Folder.sidebar.lab")("finished")
   return (
     <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-xs text-muted-foreground">
       <span className="inline-flex items-center gap-1.5">
@@ -85,7 +92,11 @@ function SessionIdentityChips({
             status={isKnownStatus(status) ? status : null}
             size="sm"
           />
-          {isKnownStatus(status) ? tStatus(status) : status}
+          {settled
+            ? settledLabel
+            : isKnownStatus(status)
+              ? tStatus(status)
+              : status}
         </span>
       )}
     </div>
@@ -359,7 +370,8 @@ export function SessionDetailsContent({
         </p>
         <SessionIdentityChips
           agentType={summary.agent_type}
-          status={showStatus ? summary.status : undefined}
+          status={showStatus ? conversationDisplayStatus(summary) : undefined}
+          settled={summary.parent_id == null && isConversationSettled(summary)}
         />
       </div>
 

@@ -68,6 +68,7 @@ import {
 } from "@/lib/message-input-draft"
 import { formatRelative } from "./sidebar-conversation-grouping"
 import { labTool } from "./conversation-lab-projects"
+import { ConversationUnreadDot } from "./conversation-unread-dot"
 
 const rowAction = cn(labTool, "hover:bg-transparent")
 
@@ -79,7 +80,6 @@ const badgeStyles = {
   waiting: [CircleDotDashed, "text-muted-foreground"],
   failed: [CircleAlert, "text-destructive"],
   limited: [CircleAlert, "text-amber-700 dark:text-amber-400"],
-  done: [CircleCheck, "text-emerald-600 dark:text-emerald-400"],
   woken: [AlarmClock, "text-orange-700 dark:text-orange-400"],
 } as const
 
@@ -106,7 +106,6 @@ export function LabRow({
   change,
   signal,
   failureSeen,
-  complete,
   linkTodo,
   details,
   remove,
@@ -123,13 +122,13 @@ export function LabRow({
   change: (mark?: LabMark) => void
   signal?: LabSignal
   failureSeen: boolean
-  complete: () => void
   linkTodo?: () => void
   details: () => void
   remove: () => void
 }) {
   const l = useTranslations("Folder.sidebar.lab")
   const t = useTranslations("Folder.conversationCard")
+  const tSidebar = useTranslations("Folder.sidebar")
   const tTodos = useTranslations("Todos")
   const tDetails = useTranslations("Folder.sessionDetails")
   const locale = useLocale()
@@ -177,7 +176,8 @@ export function LabRow({
   const hasDraft =
     !selected &&
     !!loadMessageInputDraftV2(buildConversationDraftStorageKey(c.id))
-  const status = liveKind ?? (showWoke ? "woken" : unread ? "done" : undefined)
+  const status = liveKind ?? (showWoke ? "woken" : undefined)
+  const isWorking = status === "working" || status === "goal"
   const BadgeIcon = status ? badgeStyles[status][0] : undefined
   const start = signal?.startedAt ?? started
   const projectIcon = (
@@ -263,24 +263,23 @@ export function LabRow({
                         >
                           <BadgeIcon aria-hidden="true" className="size-3.5" />
                           {l(status)}
-                          {(status === "working" || status === "goal") &&
+                          {isWorking &&
                             start != null &&
                             Number.isFinite(start) && (
                               <WorkingDuration start={start} />
                             )}
                         </span>
+                      ) : unread ? (
+                        <ConversationUnreadDot
+                          label={tSidebar("unreadBadge")}
+                        />
                       ) : (
                         elapsed
                       )}
                     </span>
                   </span>
                   <span className="mt-0.5 flex items-center gap-1.5">
-                    <span
-                      className={cn(
-                        "min-w-0 flex-1 truncate text-sm",
-                        unread && group !== "completed" && "font-semibold"
-                      )}
-                    >
+                    <span className="min-w-0 flex-1 truncate text-sm font-normal">
                       {title}
                     </span>
                     <AgentIcon
@@ -343,12 +342,6 @@ export function LabRow({
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          {c.status !== "completed" && (
-            <ContextMenuItem onSelect={complete}>
-              <CircleCheck />
-              {t("markCompleted")}
-            </ContextMenuItem>
-          )}
           {linkTodo && (
             <ContextMenuItem onSelect={linkTodo}>
               <Link2 />

@@ -132,13 +132,43 @@ pub async fn update_status(
     conversation_id: i32,
     status: conversation::ConversationStatus,
 ) -> Result<(), DbError> {
+    write_status(conn, conversation_id, status, false).await
+}
+
+pub async fn update_manual_status(
+    conn: &DatabaseConnection,
+    conversation_id: i32,
+    status: conversation::ConversationStatus,
+) -> Result<(), DbError> {
+    write_status(conn, conversation_id, status, true).await
+}
+
+async fn write_status(
+    conn: &DatabaseConnection,
+    conversation_id: i32,
+    status: conversation::ConversationStatus,
+    manual: bool,
+) -> Result<(), DbError> {
     let conv = conversation::Entity::find_by_id(conversation_id)
         .one(conn)
         .await?
         .ok_or_else(|| DbError::Migration(format!("Conversation not found: {conversation_id}")))?;
+    let now = Utc::now();
+    let legacy_completion = manual
+        && status == conversation::ConversationStatus::Completed
+        && conv.lab_settled_at.unwrap_or(0) == 0
+        && conv.parent_id.is_none()
+        && conv.deleted_at.is_none()
+        && matches!(
+            conv.kind,
+            ConversationKind::Regular | ConversationKind::Chat
+        );
     let mut active: conversation::ActiveModel = conv.into();
     active.status = Set(status);
-    active.updated_at = Set(Utc::now());
+    active.updated_at = Set(now);
+    if legacy_completion {
+        active.lab_settled_at = Set(Some(now.timestamp_millis()));
+    }
     active.update(conn).await?;
     Ok(())
 }
@@ -1471,9 +1501,11 @@ pub async fn list_all(
         }
     }
 
-    if let Some(ref st) = status {
-        if let Ok(status_enum) = serde_json::from_value::<conversation::ConversationStatus>(
-            serde_json::Value::String(st.clone()),
+    if let Some(st) = status {
+        if st == "settled" {
+            query = query.filter(conversation::Column::LabSettledAt.gt(0));
+        } else if let Ok(status_enum) = serde_json::from_value::<conversation::ConversationStatus>(
+            serde_json::Value::String(st),
         ) {
             query = query.filter(conversation::Column::Status.eq(status_enum));
         }
@@ -1824,6 +1856,52 @@ mod tests {
             assert_eq!(row.lab_settled_at, Some(expected));
             assert_eq!(row.updated_at, conv.updated_at);
         }
+    }
+
+    #[tokio::test]
+    async fn legacy_manual_completion_uses_lab_settlement_but_runtime_completion_does_not() {
+        let db = fresh_in_memory_db().await;
+        let folder = seed_folder(&db, "/tmp/codeg-unified-settlement").await;
+        let (manual, _) = seed_parent_with_child(&db.conn, folder).await;
+        let runtime = create(&db.conn, folder, AgentType::Codex, None, None)
+            .await
+            .unwrap();
+        update_status(
+            &db.conn,
+            runtime.id,
+            conversation::ConversationStatus::Completed,
+        )
+        .await
+        .unwrap();
+        update_manual_status(
+            &db.conn,
+            manual,
+            conversation::ConversationStatus::Completed,
+        )
+        .await
+        .unwrap();
+        let settled = list_all(
+            &db.conn,
+            None,
+            None,
+            None,
+            None,
+            Some("settled".into()),
+            false,
+        )
+        .await
+        .unwrap();
+        assert_eq!(settled.len(), 1);
+        assert_eq!(settled[0].id, manual);
+        assert_eq!(settled[0].status, "completed");
+        assert!(settled[0].lab_settled_at.unwrap() > 0);
+        assert_eq!(
+            get_by_id(&db.conn, runtime.id)
+                .await
+                .unwrap()
+                .lab_settled_at,
+            None
+        );
     }
 
     #[tokio::test]

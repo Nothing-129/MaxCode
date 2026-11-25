@@ -1,5 +1,6 @@
 "use client"
 
+import { conversationDisplayStatus } from "@/lib/conversation-lab"
 import {
   Fragment,
   useCallback,
@@ -83,7 +84,6 @@ import {
 } from "@/components/shared/folder-select"
 import { FolderAliasLabel } from "@/components/conversations/folder-alias-label"
 import { useAppWorkspaceStore } from "@/stores/app-workspace-store"
-import { useConversationUnreadStore } from "@/stores/conversation-unread-store"
 import { useTabActions } from "@/contexts/tab-context"
 import {
   deleteConversation,
@@ -520,6 +520,7 @@ export function ConversationManageDialog({
   const t = useTranslations("Folder.sidebar.manageConversations")
   const tCommon = useTranslations("Folder.common")
   const tStatus = useTranslations("Folder.statusLabels")
+  const settledLabel = useTranslations("Folder.sidebar.lab")("finished")
   const showStatus = useConversationStatusDisplay()
   const allowStatusActions = useConversationStatusActions()
 
@@ -647,12 +648,27 @@ export function ConversationManageDialog({
           folder_ids: queryFolderIds,
           search: search.trim() || null,
           agent_type: agentFilter === "all" ? null : agentFilter,
-          status: !showStatus || statusFilter === "all" ? null : statusFilter,
+          status:
+            !showStatus ||
+            statusFilter === "all" ||
+            statusFilter === "pending_review"
+              ? null
+              : statusFilter === "completed"
+                ? "settled"
+                : statusFilter,
         })
         if (cancelled) return
-        const sorted = [...data].sort(
-          (a, b) => parseTimestamp(b.created_at) - parseTimestamp(a.created_at)
-        )
+        const sorted = data
+          .filter(
+            (conv) =>
+              !showStatus ||
+              statusFilter === "all" ||
+              conversationDisplayStatus(conv) === statusFilter
+          )
+          .sort(
+            (a, b) =>
+              parseTimestamp(b.created_at) - parseTimestamp(a.created_at)
+          )
         setRows(sorted)
         setError(null)
       } catch (e) {
@@ -799,9 +815,6 @@ export function ConversationManageDialog({
       try {
         for (const conv of selectedConversations) {
           updateConversationLocal(conv.id, { status })
-          if (status === "completed") {
-            useConversationUnreadStore.getState().markRead(conv.id)
-          }
         }
         await Promise.all(
           selectedConversations.map((conv) =>
@@ -932,7 +945,7 @@ export function ConversationManageDialog({
                       <SelectItem key={s} value={s}>
                         <span className="flex items-center gap-2">
                           <StatusGlyph status={s} />
-                          {tStatus(s)}
+                          {s === "completed" ? settledLabel : tStatus(s)}
                         </span>
                       </SelectItem>
                     ))}
@@ -985,6 +998,7 @@ export function ConversationManageDialog({
                 ) : (
                   visibleRows.map((conv) => {
                     const checked = selected.has(conv.id)
+                    const displayStatus = conversationDisplayStatus(conv)
                     const folder = folderById.get(conv.folder_id)
                     return (
                       <div
@@ -1071,13 +1085,15 @@ export function ConversationManageDialog({
                         </span>
                         {showStatus ? (
                           <ConversationStatusDot
-                            status={conv.status as ConversationStatus}
+                            status={displayStatus as ConversationStatus}
                             title={
-                              STATUS_ORDER.includes(
-                                conv.status as ConversationStatus
-                              )
-                                ? tStatus(conv.status as ConversationStatus)
-                                : conv.status
+                              displayStatus === "completed"
+                                ? settledLabel
+                                : STATUS_ORDER.includes(
+                                      displayStatus as ConversationStatus
+                                    )
+                                  ? tStatus(displayStatus as ConversationStatus)
+                                  : displayStatus
                             }
                           />
                         ) : null}
@@ -1109,7 +1125,7 @@ export function ConversationManageDialog({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {STATUS_ORDER.map((s) => (
+                    {STATUS_ORDER.filter((s) => s !== "completed").map((s) => (
                       <DropdownMenuItem
                         key={s}
                         onSelect={() => handleBulkStatus(s)}

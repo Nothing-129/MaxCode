@@ -13,6 +13,7 @@ import { createStore, useStore } from "zustand"
 import { useLabSignals } from "./use-lab-signals"
 import { shouldWakeLabSnooze } from "@/lib/conversation-lab-status"
 import {
+  isConversationSettled,
   labKey,
   labSettledAt,
   labHasWoken,
@@ -67,7 +68,7 @@ function createLabMarksStore() {
       const previous = get().marks.get(key)
       if (
         settledAt ||
-        c.lab_settled_at ||
+        isConversationSettled(c) ||
         previous === "finished" ||
         labSettledAt(previous)
       ) {
@@ -162,7 +163,7 @@ function useLabController() {
     let nextViewedWake = Infinity
     for (const c of conversations) {
       // A local snooze timer must never undo a settlement from another device.
-      if (c.lab_settled_at) continue
+      if (isConversationSettled(c)) continue
       const key = labKey(c)
       const signal = signals.get(c.id)
       const mark = marks.get(key)

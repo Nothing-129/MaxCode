@@ -119,7 +119,6 @@ import {
 import {
   type AgentType,
   type ContentBlock,
-  type ConversationStatus,
   type EventEnvelope,
   type MessageTurn,
   type PlanApprovalAnswer,
@@ -3120,7 +3119,6 @@ export function ConversationDetailPanel() {
               folderPath={selTabFolder?.path}
               project={selTabFolder?.kind === "chat" ? undefined : selTabFolder}
               title={selTab.title}
-              status={selTab.status as ConversationStatus | undefined}
             />
           </div>
         )}
@@ -3195,7 +3193,6 @@ export function ConversationDetailPanel() {
               activeTabFolder?.kind === "chat" ? undefined : activeTabFolder
             }
             title={activeTab.title}
-            status={activeTab.status as ConversationStatus | undefined}
           />
         )}
         <ContextMenu>

@@ -74,6 +74,17 @@ it("wakes snoozed conversations into their live status and isolates reused ids",
   localStorage.removeItem(labKey(c))
 })
 
+it("treats legacy completed sessions as settled until explicitly reopened", () => {
+  const legacy = { status: "completed" } as DbConversationSummary
+  expect(labGroup(legacy, undefined, 2000)).toBe("finished")
+  expect(labGroup({ ...legacy, lab_settled_at: 0 }, undefined, 2000)).toBe(
+    "main"
+  )
+  expect(labGroup({ ...legacy, lab_settled_at: null }, undefined, 2000)).toBe(
+    "main"
+  )
+})
+
 it("uses the server settlement on a device without local marks", () => {
   const c = { lab_settled_at: 1234 } as DbConversationSummary
   expect(labGroup(c, undefined, 2000)).toBe("finished")
@@ -106,7 +117,7 @@ it("imports a desktop settlement and keeps the local copy until acknowledged", a
 })
 
 it("keeps connection setup in place until a turn starts", () => {
-  const c = { status: "completed" } as DbConversationSummary
+  const c = { status: "pending_review" } as DbConversationSummary
   const preparing = labConnectionSignal({
     status: "connecting",
   } as ConnectionState)!
@@ -179,7 +190,7 @@ it.each([
       id: 9001,
       title: "Existing conversation",
       agent_type: "codex",
-      status: "completed",
+      status: "pending_review",
       updated_at: updatedAt,
     } as DbConversationSummary,
     project: "Chat",
@@ -190,7 +201,6 @@ it.each([
     open: vi.fn(),
     change: vi.fn(),
     failureSeen: false,
-    complete: vi.fn(),
     details: vi.fn(),
     remove: vi.fn(),
   }
@@ -213,7 +223,7 @@ it.each([
 it("renders review and ordinary chats directly above running chats", () => {
   const previous = useAppWorkspaceStore.getState()
   const conversations = [
-    "completed",
+    "pending_review",
     "pending_review",
     "in_progress",
     "in_progress",
@@ -246,27 +256,27 @@ it("renders review and ordinary chats directly above running chats", () => {
       act(() =>
         useConversationUnreadStore.setState({ unreadIds: new Set([4, 1, 2]) })
       )
-      const completed = screen.getByText(en.Folder.statusLabels.completed, {
+      const running = screen.getByText(en.Folder.sidebar.lab.running, {
         selector: "summary",
       })
-      expect(completed).toHaveTextContent(
-        en.Folder.statusLabels.completed + "2"
-      )
       expect(Array.from(container.querySelectorAll("summary"))).toEqual([
-        screen.getByText(en.Folder.sidebar.lab.running, {
-          selector: "summary",
-        }),
-        completed,
+        running,
       ])
-      expect(completed.parentElement).toHaveAttribute("open")
-      expect(screen.getByText("Thread 1").closest("details")).toBe(
-        completed.parentElement
+      expect(running).toHaveClass(
+        "bg-sidebar-accent/60",
+        "font-semibold",
+        "text-sidebar-foreground"
       )
-      fireEvent.click(completed)
-      expect(screen.queryByText("Thread 1")).toBeNull()
-      fireEvent.click(completed)
-      expect(screen.getByText("Thread 1")).not.toHaveClass("font-semibold")
-      expect(screen.getByText("Thread 0")).not.toHaveClass("font-semibold")
+      expect(running.parentElement).toHaveClass("mb-2")
+      expect(screen.getByText("Thread 1").closest("details")).toBeNull()
+      expect(screen.getByText("Thread 1")).toHaveClass("font-normal")
+      expect(
+        screen
+          .getByText("Thread 1")
+          .closest("button")
+          ?.querySelector("[data-unread-dot]")
+      ).toBeTruthy()
+      expect(screen.getByText("Thread 2")).not.toHaveClass("font-semibold")
       act(() => useConversationUnreadStore.getState().setViewed([4, 1]))
       expect(
         screen.queryByText(en.Folder.statusLabels.completed, {
@@ -274,7 +284,7 @@ it("renders review and ordinary chats directly above running chats", () => {
         })
       ).toBeNull()
       expect(screen.getByText("Thread 1").closest("details")).toBeNull()
-      expect(screen.queryByText(en.Folder.sidebar.lab.done)).toBeNull()
+      expect(container.querySelector("[data-unread-dot]")).toBeNull()
       expect(
         screen.getByText("Thread 1").classList.contains("font-semibold")
       ).toBe(false)
@@ -381,7 +391,7 @@ it("opens running and shows the empty settled shelf on mobile", () => {
 })
 
 it("offers only future snooze presets, in time order, once per minute", () => {
-  const now = new Date(2026, 10, 22, 16, 0)
+  const now = new Date("2026-11-22T16:00:00+08:00")
   const choices = snoozePresets(now.getTime())
   expect(choices.map((p) => p.key)).toEqual([
     "oneHour",
@@ -389,9 +399,11 @@ it("offers only future snooze presets, in time order, once per minute", () => {
     "threeHours",
     "tomorrow",
   ])
-  expect(new Date(choices[3].at).getHours()).toBe(9)
+  expect(new Date(choices[3].at).toISOString()).toBe("2026-11-23T01:00:00.000Z")
   expect(
-    snoozePresets(new Date(2026, 10, 23, 19).getTime()).map((p) => p.key)
+    snoozePresets(new Date("2026-11-23T19:00:00+08:00").getTime()).map(
+      (p) => p.key
+    )
   ).toEqual(["oneHour", "threeHours", "tomorrow", "nextWeek"])
 })
 
@@ -490,7 +502,7 @@ it("shows a compact snoozed row, wakes it and lets the user undo settlement", ()
     title: "Demo",
     folder_id: 1,
     kind: "regular",
-    status: "completed",
+    status: "pending_review",
     agent_type: "codex",
     created_at: "2026-01-01",
     updated_at: "2026-01-01",
@@ -564,7 +576,7 @@ it("shows a wake badge when the snooze timer expires and after reopening the lab
     title: "Wake later",
     folder_id: 1,
     kind: "regular",
-    status: "completed",
+    status: "pending_review",
     agent_type: "codex",
     created_at: "2026-01-01",
     updated_at: "2026-01-01",
@@ -616,7 +628,7 @@ it("filters projects by name and keeps Shift selections in the open picker", asy
     folder_id: f.id,
     agent_type: "codex",
     title: f.name + " chat",
-    status: "completed",
+    status: "pending_review",
     kind: "regular",
     updated_at: "2026-11-10",
     created_at: "2026-11-10",
@@ -643,20 +655,17 @@ it("filters projects by name and keeps Shift selections in the open picker", asy
     expect(
       screen
         .getByRole("button", { name: "Filter by project · Alpha" })
-        .querySelector("text")?.textContent
-    ).toBe("AA")
+        .querySelector("svg.lucide-folder")
+    ).toBeTruthy()
     expect(screen.queryByText("Bravo chat")).toBeNull()
     expect(screen.getByRole("combobox")).toBe(input)
     fireEvent.change(input, { target: { value: "Bra" } })
     fireEvent.keyDown(input, { key: "Enter", shiftKey: true })
     expect(
-      Array.from(
-        screen
-          .getByRole("button", { name: "Filter by project · Alpha · Bravo" })
-          .querySelectorAll("text"),
-        (el) => el.textContent
-      )
-    ).toEqual(["AA", "BO"])
+      screen
+        .getByRole("button", { name: "Filter by project · Alpha · Bravo" })
+        .querySelectorAll("svg.lucide-folder")
+    ).toHaveLength(2)
     expect(screen.getByText("Bravo chat")).toBeTruthy()
     expect(screen.getByText("Alpha chat")).toBeTruthy()
     expect(screen.getByRole("combobox")).toBeTruthy()
@@ -665,7 +674,7 @@ it("filters projects by name and keeps Shift selections in the open picker", asy
   }
 })
 
-it("updates the project badge tint in the list, filter, and search after the folder color changes", async () => {
+it("keeps neutral folder icons in the list, filter, and search after folder color changes", async () => {
   const previous = useAppWorkspaceStore.getState()
   const folder = {
     id: 93,
@@ -686,7 +695,7 @@ it("updates the project badge tint in the list, filter, and search after the fol
     folder_id: folder.id,
     agent_type: "codex",
     title: "Project session",
-    status: "completed",
+    status: "pending_review",
     kind: "regular",
     updated_at: "2026-11-10",
     created_at: "2026-11-10",
@@ -713,23 +722,21 @@ it("updates the project badge tint in the list, filter, and search after the fol
 
     getFolder.mockResolvedValue({ ...folder, color: "blue" })
     await act(() => useAppWorkspaceStore.getState().refreshFolder(folder.id))
-    const expectBlueBadge = (element: HTMLElement) => {
+    const expectNeutralBadge = (element: HTMLElement) => {
       const badge = element.querySelector("svg")
-      expect(badge).toHaveClass("folder-title-tint", "bg-current/14")
-      expect(badge).toHaveStyle({
-        "--folder-title-light": "oklch(0.5 0.245 262.881)",
-        "--folder-title-dark": "oklch(0.8 0.1 259.815)",
-      })
+      expect(badge).toHaveClass("lucide-folder", "text-muted-foreground")
+      expect(badge).not.toHaveAttribute("style")
+      expect(badge?.querySelector("text")).toBeNull()
     }
-    expectBlueBadge(row)
-    expectBlueBadge(filter)
+    expectNeutralBadge(row)
+    expectNeutralBadge(filter)
 
     fireEvent.click(filter)
-    expectBlueBadge(await screen.findByRole("option", { name: /Project/ }))
+    expectNeutralBadge(await screen.findByRole("option", { name: /Project/ }))
     fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" })
     const search = screen.getByRole("searchbox")
     fireEvent.change(search, { target: { value: "Project session" } })
-    expectBlueBadge(screen.getByRole("option", { name: /Project session/ }))
+    expectNeutralBadge(screen.getByRole("option", { name: /Project session/ }))
 
     getFolder.mockResolvedValue(folder)
     await act(() => useAppWorkspaceStore.getState().refreshFolder(folder.id))
@@ -745,44 +752,29 @@ it("updates the project badge tint in the list, filter, and search after the fol
   }
 })
 
-it.each([
-  ["律总管", "律", "11"],
-  ["AI外呼", "AI", "9"],
-  ["MaxCode", "ME", "9"],
-  ["A", "A", "9"],
-])("fits the label for %s in the shared badge", (name, initials, size) => {
-  const { container } = render(<LabProjectBadge name={name} />)
-  const label = container.querySelector("text")
-  expect(label).toHaveTextContent(initials)
-  expect(label?.textContent).toBe(initials)
-  expect(label).toHaveAttribute("font-size", size)
-  expect(label).not.toHaveAttribute("textLength")
-  expect(container.querySelector("svg")).toHaveClass("size-4")
-})
-
-it("uses the logo blue for the MaxCode project badge", () => {
-  const { container } = render(<LabProjectBadge name="MaxCode" />)
-  const badge = container.querySelector("svg")
-  expect(badge).toHaveClass("bg-[#285ee1]", "dark:bg-[#82a4ff]")
-  expect(badge).not.toHaveClass("bg-current/14")
-  expect(badge).toHaveTextContent("ME")
-})
-
-it("renders the project initials and stable color for mixed-language names", () => {
-  const { container, rerender } = render(
-    <LabProjectBadge name="GKD-青桔定制" />
-  )
-  expect(container.querySelector("text")?.textContent).toBe("GK")
-  expect(
-    container.querySelector("svg")?.classList.contains("text-blue-600")
-  ).toBe(true)
-  rerender(<LabProjectBadge name={null} />)
-  const bubble = container.querySelector("svg.lucide-message-square")
-  expect(bubble).toHaveAttribute("fill", "none")
-  expect(bubble).toHaveAttribute("stroke-width", "1.75")
-  expect(bubble).toHaveClass("size-4")
-  expect(container.querySelector("text")).toBeNull()
-})
+it.each(["律总管", "AI外呼", "MaxCode", "A", "GKD-青桔定制"])(
+  "shows a neutral folder icon for %s, retaining chat bubbles for projectless sessions",
+  (name) => {
+    const { container, rerender } = render(
+      <LabProjectBadge name={name} folderColor="blue" />
+    )
+    const icon = container.querySelector("svg")
+    expect(icon).toHaveClass(
+      "lucide-folder",
+      "size-3.5",
+      "text-muted-foreground"
+    )
+    expect(icon).toHaveAttribute("fill", "none")
+    expect(icon).toHaveAttribute("aria-hidden", "true")
+    expect(icon).not.toHaveAttribute("style")
+    expect(container.querySelector("text")).toBeNull()
+    rerender(<LabProjectBadge name={null} />)
+    expect(container.querySelector("svg")).toHaveClass(
+      "lucide-message-square",
+      "size-3.5"
+    )
+  }
+)
 
 it("applies the shared local time range before listing and searching lab conversations", () => {
   const previous = useAppWorkspaceStore.getState()
@@ -804,7 +796,7 @@ it("applies the shared local time range before listing and searching lab convers
       kind: "chat",
       agent_type: "codex",
       title: "Thread " + time,
-      status: "completed",
+      status: "pending_review",
       created_at: "2026-11-01",
       updated_at: "2026-11-10T" + time,
     })
@@ -862,6 +854,9 @@ it("offers standard conversation actions and confirms deletion on the selected r
     fireEvent.contextMenu(screen.getByText("Menu target"))
     const items = await screen.findAllByRole("menuitem")
     expect(
+      screen.queryByRole("menuitem", { name: "Mark as completed" })
+    ).toBeNull()
+    expect(
       items.some((item) =>
         item.textContent?.includes(en.Folder.sidebar.lab.filter)
       )
@@ -869,7 +864,7 @@ it("offers standard conversation actions and confirms deletion on the selected r
     for (const item of items)
       expect(item.firstElementChild?.tagName).toBe("svg")
     for (const name of [
-      en.Folder.conversationCard.markCompleted,
+      en.Folder.sidebar.lab.finish,
       en.Todos.linkConversation,
       en.Folder.sessionDetails.menuLabel,
     ]) {
@@ -885,26 +880,6 @@ it("offers standard conversation actions and confirms deletion on the selected r
       screen.getByRole("button", { name: en.Folder.conversationCard.cancel })
     )
     expect(useAppWorkspaceStore.getState().conversations).toContain(c)
-    const status = vi
-      .spyOn(api, "updateConversationStatus")
-      .mockResolvedValue(undefined)
-    try {
-      fireEvent.contextMenu(screen.getByText("Menu target"))
-      fireEvent.click(
-        await screen.findByRole("menuitem", {
-          name: en.Folder.conversationCard.markCompleted,
-        })
-      )
-      await waitFor(() =>
-        expect(useAppWorkspaceStore.getState().conversations[0].status).toBe(
-          "completed"
-        )
-      )
-      expect(status).toHaveBeenCalledWith(c.id, "completed")
-      expect(localStorage.getItem(labKey(c))).toBeNull()
-    } finally {
-      status.mockRestore()
-    }
   } finally {
     useAppWorkspaceStore.setState(previous)
   }
@@ -954,7 +929,7 @@ it("returns a snoozed parent for a child approval and dismisses the wake without
     title: "Parent",
     kind: "regular",
     agent_type: "codex",
-    status: "completed",
+    status: "pending_review",
     created_at: "2026-11-15",
     updated_at: "2026-11-24",
   } as DbConversationSummary
@@ -1006,20 +981,99 @@ it("returns a snoozed parent for a child approval and dismisses the wake without
 
 it("uses the shared sidebar scrollbar for the list, search and shelves", () => {
   const lab = source("src/components/conversations/conversation-lab.tsx")
-  expect(lab.match(/<ScrollArea\b/g)).toHaveLength(3)
+  expect(lab).toContain("<ScrollArea")
+  expect(lab.match(/<LabScrollArea\b/g)).toHaveLength(3)
   expect(lab).not.toMatch(/overflow-(?:y-)?auto/)
 })
 
-it("formats live run time in seconds, then minutes, then hours plus minutes", async () => {
+it("shows recent sessions in update order without draggable rows", () => {
+  const previous = useAppWorkspaceStore.getState()
+  const orderKey = "maxcode:lab-row-order"
+  const previousOrder = localStorage.getItem(orderKey)
+  const [older, newer] = [1, 2].map((day) => ({
+    id: 9100 + day,
+    folder_id: 1,
+    title: day === 1 ? "Older thread" : "Newer thread",
+    kind: "regular",
+    agent_type: "codex",
+    status: "pending_review",
+    created_at: "2026-11-01",
+    updated_at: "2026-11-0" + day,
+  })) as DbConversationSummary[]
+  localStorage.setItem(orderKey, JSON.stringify([labKey(older), labKey(newer)]))
+  useAppWorkspaceStore.setState({ conversations: [older, newer] })
+  try {
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <ConversationLab />
+      </NextIntlClientProvider>
+    )
+    const first = screen.getByText("Newer thread")
+    const second = screen.getByText("Older thread")
+    expect(first.compareDocumentPosition(second)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    )
+    expect(container.querySelector("[draggable=true]")).toBeNull()
+  } finally {
+    if (previousOrder === null) localStorage.removeItem(orderKey)
+    else localStorage.setItem(orderKey, previousOrder)
+    act(() => useAppWorkspaceStore.setState(previous))
+  }
+})
+
+it("eases wheel input in every experimental scroll area", async () => {
+  const { container } = render(
+    <NextIntlClientProvider locale="en" messages={en}>
+      <ConversationLab mobile />
+    </NextIntlClientProvider>
+  )
+
+  async function checkWheel(count: number) {
+    const viewports = await waitFor(() => {
+      const elements = container.querySelectorAll<HTMLElement>(
+        "[data-overlayscrollbars-viewport]"
+      )
+      expect(elements).toHaveLength(count)
+      return elements
+    })
+    for (const viewport of viewports) {
+      Object.defineProperties(viewport, {
+        scrollHeight: { value: 1000 },
+        clientHeight: { value: 100 },
+      })
+      // OverlayScrollbars initializes before React attaches the wheel handler.
+      await waitFor(() => {
+        const wheel = new WheelEvent("wheel", {
+          bubbles: true,
+          cancelable: true,
+          deltaY: 100,
+        })
+        fireEvent(viewport, wheel)
+        expect(wheel.defaultPrevented).toBe(true)
+        expect(viewport.scrollTop).toBe(0)
+      })
+      await waitFor(() => expect(viewport.scrollTop).toBe(100))
+    }
+  }
+
+  await checkWheel(2)
+  fireEvent.change(screen.getByRole("searchbox"), {
+    target: { value: "a conversation" },
+  })
+  await checkWheel(1)
+})
+
+it("keeps displaying seconds after the run reaches a minute or an hour", async () => {
   const { formatLabWorkingDuration } = await import("@/lib/conversation-lab")
   for (const [seconds, expected] of [
     [-1, "0s"],
     [0, "0s"],
     [59.999, "59s"],
-    [60, "1m"],
-    [3599, "59m"],
-    [3600, "1h 0m"],
-    [7500, "2h 5m"],
+    [60, "1m 00s"],
+    [61, "1m 01s"],
+    [3599, "59m 59s"],
+    [3600, "1h 0m 00s"],
+    [7505, "2h 5m 05s"],
   ] as const) {
     expect(formatLabWorkingDuration(seconds * 1000, "en")).toBe(expected)
   }

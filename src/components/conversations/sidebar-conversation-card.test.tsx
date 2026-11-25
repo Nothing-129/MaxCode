@@ -20,10 +20,7 @@ import {
   resetConversationUnreadStore,
   useConversationUnreadStore,
 } from "@/stores/conversation-unread-store"
-import {
-  saveConversationStatusActions,
-  saveConversationStatusDisplay,
-} from "@/lib/conversation-status-prefs"
+import { saveConversationStatusDisplay } from "@/lib/conversation-status-prefs"
 import { __resetUiPreferencesStoreForTests } from "@/lib/ui-preferences-store"
 
 // The status prefs are backend-persisted through the UiPreferences store —
@@ -64,7 +61,6 @@ const onSelect = vi.fn()
 const onDoubleClick = vi.fn()
 const onRename = vi.fn(async () => {})
 const onDelete = vi.fn(async () => {})
-const onStatusChange = vi.fn(async () => {})
 const onTogglePin = vi.fn()
 
 function conv(id: number): DbConversationSummary {
@@ -111,7 +107,6 @@ function CardList({
           onDoubleClick={onDoubleClick}
           onRename={onRename}
           onDelete={onDelete}
-          onStatusChange={onStatusChange}
         />
       ))}
     </>
@@ -210,7 +205,6 @@ describe("SidebarConversationCard trackpad activation", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
       />
     )
     const button = first.getByText("conv-1").closest("button")
@@ -240,7 +234,6 @@ describe("SidebarConversationCard trackpad activation", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
       />
     )
     const remounted = second.getByText("conv-1").closest("button")
@@ -270,7 +263,6 @@ describe("SidebarConversationCard unread dot", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
       />
     )
     expect(queryByText("Running")).not.toBeNull()
@@ -288,7 +280,6 @@ describe("SidebarConversationCard unread dot", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
       />
     )
     expect(getByLabelText("Unread")).not.toBeNull()
@@ -306,7 +297,6 @@ describe("SidebarConversationCard unread dot", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
       />
     )
     expect(queryByLabelText("Unread")).toBeNull()
@@ -328,7 +318,6 @@ describe("SidebarConversationCard pin action", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
         onTogglePin={onTogglePin}
       />
     )
@@ -356,7 +345,6 @@ describe("SidebarConversationCard pin action", () => {
 describe("SidebarConversationCard actions menu", () => {
   beforeEach(() => {
     onTogglePin.mockClear()
-    onStatusChange.mockClear()
     onSelect.mockClear()
     localStorage.clear()
   })
@@ -370,7 +358,6 @@ describe("SidebarConversationCard actions menu", () => {
         onSelect={onSelect}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
         onTogglePin={withPin ? onTogglePin : undefined}
       />
     )
@@ -400,14 +387,12 @@ describe("SidebarConversationCard actions menu", () => {
     }
   )
 
-  it("completes a conversation without selecting it", async () => {
+  it("omits the old completion action for active conversations", async () => {
     renderCard(conv(3))
-    const user = await openActions()
-    await user.click(
-      screen.getByRole("menuitem", { name: "Mark as completed" })
-    )
-    expect(onStatusChange).toHaveBeenCalledWith(3, "completed")
-    expect(onSelect).not.toHaveBeenCalled()
+    await openActions()
+    expect(
+      screen.queryByRole("menuitem", { name: "Mark as completed" })
+    ).toBeNull()
   })
 
   it("does not offer completion or reopen for a completed conversation", async () => {
@@ -419,28 +404,20 @@ describe("SidebarConversationCard actions menu", () => {
     expect(screen.queryByRole("menuitem", { name: "Reopen" })).toBeNull()
   })
 
-  it("keeps completion available when pinning is unavailable", async () => {
+  it("keeps details available when pinning is unavailable", async () => {
     renderCard(conv(5), false)
     await openActions()
     expect(screen.queryByRole("menuitem", { name: "Pin" })).toBeNull()
     expect(
-      screen.getByRole("menuitem", { name: "Mark as completed" })
+      screen.getByRole("menuitem", {
+        name: enMessages.Folder.sessionDetails.menuLabel,
+      })
     ).toBeVisible()
   })
 
   it("omits root-only actions for delegated sub-sessions", () => {
     renderCard({ ...conv(6), parent_id: 1 })
     expect(screen.queryByRole("button", { name: "More actions" })).toBeNull()
-  })
-
-  it("keeps completion available despite old status preferences", async () => {
-    void saveConversationStatusActions(false)
-    renderCard(conv(7))
-    await openActions()
-    expect(
-      screen.getByRole("menuitem", { name: "Mark as completed" })
-    ).toBeVisible()
-    expect(screen.queryByRole("menuitem", { name: "Status" })).toBeNull()
   })
 })
 
@@ -460,7 +437,6 @@ describe("SidebarConversationCard status display", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
       />
     )
     expect(queryByTitle("Review")).toBeNull()
@@ -477,7 +453,6 @@ describe("SidebarConversationCard status display", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
       />
     )
     expect(queryByTitle("Review")).toBeNull()
@@ -533,7 +508,6 @@ describe("SidebarConversationCard add to session", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
       />
     )
   }
@@ -633,7 +607,6 @@ describe("SidebarConversationCard sub-session chevron", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
         onToggleExpand={onToggleExpand}
         hasChildren={props.hasChildren}
         expanded={props.expanded}
@@ -718,7 +691,6 @@ describe("SidebarConversationCard Recent folder chip", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
       />
     )
     const row = container.querySelector("[data-conv-key]")
@@ -739,7 +711,6 @@ describe("SidebarConversationCard Recent folder chip", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
       />
     )
     const row = container.querySelector("[data-conv-key]")
@@ -790,7 +761,6 @@ describe("SidebarConversationCard Recent folder chip", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
       />
     )
     const folder = container.querySelector("[data-recent-folder]")
@@ -815,7 +785,6 @@ describe("SidebarConversationCard Recent folder chip", () => {
         onDoubleClick={onDoubleClick}
         onRename={onRename}
         onDelete={onDelete}
-        onStatusChange={onStatusChange}
       />
     )
     const folder = container.querySelector("[data-recent-folder]")

@@ -21,7 +21,7 @@ function setup(status: "pending" | "completed" = "pending", pinned = false) {
     onSelect: vi.fn(),
     onRename: vi.fn(async () => {}),
     onDelete: vi.fn(async () => {}),
-    onStatusChange: vi.fn(async () => {}),
+
     onTogglePin: vi.fn(),
     onNewConversation: vi.fn(),
     onLinkTodo: vi.fn(),
@@ -77,9 +77,6 @@ describe("conversation title menu entry points", () => {
         fromRightClick.items.map(() => 1)
       )
       expect(fromRightClick.items.map((item) => item.label)).toEqual([
-        ...(status === "pending"
-          ? [enMessages.Folder.conversationCard.markCompleted]
-          : []),
         enMessages.Todos.linkConversation,
         enMessages.Folder.conversationCard.newConversation,
         enMessages.Folder.conversationCard.rename,

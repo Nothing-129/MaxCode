@@ -6,6 +6,7 @@ import {
   sidebarPageSize,
   type SidebarView,
 } from "@/lib/sidebar-navigation"
+import { isConversationSettled } from "@/lib/conversation-lab"
 import { useSidebarScrollMotion } from "@/hooks/use-sidebar-scroll-motion"
 import { useSidebarDisclosureMotion } from "@/hooks/use-sidebar-disclosure-motion"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -78,7 +79,6 @@ import {
   openInCode,
   openProjectBootWindow,
   updateConversationTitle,
-  updateConversationStatus,
   updateConversationPinned,
   updateFolderColor,
   updateFolderAlias,
@@ -89,7 +89,6 @@ import {
 import { revealItemInDir } from "@/lib/platform"
 import type {
   AgentType,
-  ConversationStatus,
   DbConversationSummary,
   FolderDetail,
   FolderGroupDetail,
@@ -1464,7 +1463,7 @@ export function SidebarConversationList({
         .filter(
           (conversation): conversation is DbConversationSummary =>
             conversation != null &&
-            (showCompleted || conversation.status !== "completed")
+            (showCompleted || !isConversationSettled(conversation))
         )
         .sort(compare)
       return children.length > 0 || myTodoIds.has(todo.id)
@@ -1723,7 +1722,7 @@ export function SidebarConversationList({
       (c) => c.pinned_at == null && c.kind !== "chat"
     )
     if (showCompleted) return base
-    return base.filter((c) => c.status !== "completed")
+    return base.filter((c) => !isConversationSettled(c))
   }, [conversations, showCompleted])
 
   const [todoFolderDraft, setTodoFolderDraft] = useState<
@@ -1845,7 +1844,7 @@ export function SidebarConversationList({
     return next
   }, [conversations, showCompleted])
 
-  // Pinned bucket: the FULL conversation list (ignores "Show completed" — a
+  // Pinned bucket: the FULL conversation list (ignores "Show settled conversations" — a
   // pinned conversation stays visible regardless), sorted most-recently-pinned
   // first, with reference reuse so an unrelated status event doesn't rebuild it.
   const pinnedRef = useRef<DbConversationSummary[]>([])
@@ -1960,7 +1959,7 @@ export function SidebarConversationList({
   // Running (`in_progress`) sessions per display group — what the folder header
   // badge shows. Counted off the FULL conversation list rather than `byFolder`
   // on purpose: the badge answers "is there work running in here", so neither
-  // the "Show completed" filter nor a session being pinned into the Pinned
+  // the "Show settled conversations" filter nor a session being pinned into the Pinned
   // section should be able to hide it. Deliberately NOT a `buildRows` input, so
   // a status event never rebuilds the row model — it only changes one number on
   // one memoized header.
@@ -2770,24 +2769,12 @@ export function SidebarConversationList({
     [closeConversationTab, refreshConversations]
   )
 
-  const handleStatusChange = useCallback(
-    async (id: number, status: ConversationStatus) => {
-      updateConversationLocal(id, { status })
-      if (status === "completed") {
-        useConversationUnreadStore.getState().markRead(id)
-      }
-      await updateConversationStatus(id, status)
-    },
-    [updateConversationLocal]
-  )
-
   const handleTogglePin = useCallback(
     async (id: number, nextPinned: boolean) => {
       // Optimistic: instantly move the row into / out of the Pinned section. The
       // upsert echo (emit_conversation_upsert) reconciles the exact server
       // `pinned_at`; on failure the next refresh / WS reconnect corrects it
-      // (mirrors handleStatusChange's lenient pattern). Stable callback — only
-      // `updateConversationLocal` as a dep — so the card memo keeps bailing out.
+      // without opening the conversation.
       updateConversationLocal(id, {
         pinned_at: nextPinned ? new Date().toISOString() : null,
       })
@@ -4025,7 +4012,6 @@ export function SidebarConversationList({
         onDoubleClick={handleDoubleClick}
         onRename={handleRename}
         onDelete={handleDelete}
-        onStatusChange={handleStatusChange}
         onNewConversation={handleNewConversationForFolder}
         onTogglePin={handleTogglePin}
         onLinkTodo={

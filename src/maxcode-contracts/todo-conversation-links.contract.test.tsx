@@ -155,7 +155,6 @@ const header: ComponentProps<typeof ConversationDetailHeader> = {
   folderId: 1,
   folderPath: "/project",
   title: "Conversation A",
-  status: "in_progress",
 }
 
 beforeEach(() => {
@@ -390,7 +389,6 @@ describe("existing conversation links remain local and target the captured todo 
           onSelect={vi.fn()}
           onRename={vi.fn()}
           onDelete={vi.fn()}
-          onStatusChange={vi.fn()}
           onLinkTodo={callback}
         />
       )

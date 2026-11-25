@@ -52,7 +52,6 @@ function showCard(
         onSelect={select}
         onRename={vi.fn()}
         onDelete={vi.fn()}
-        onStatusChange={vi.fn()}
       />
     </NextIntlClientProvider>
   )

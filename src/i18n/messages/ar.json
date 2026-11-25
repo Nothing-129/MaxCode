@@ -1956,7 +1956,7 @@
       "searchPlaceholder": "بحث عن محادثات...",
       "viewOptions": "خيارات العرض",
       "listOptions": "قائمة المحادثات",
-      "showCompleted": "عرض المحادثات المكتملة",
+      "showCompleted": "عرض المحادثات المنتهية",
       "showStatus": "إظهار ألوان الحالة",
       "allowStatusActions": "السماح بتغيير حالة المحادثة",
       "prefsSaveFailed": "فشل حفظ تفضيل العرض: {message}",
@@ -2113,9 +2113,6 @@
         "hours": "ساعات",
         "days": "أيام",
         "working": "قيد العمل",
-        "done": "مكتمل",
-        "activeDrag": "نشطة",
-        "pinnedDrag": "مثبتة",
         "compose": "محادثة جديدة",
         "settleShort": "إنهاء"
       },
@@ -2141,6 +2138,7 @@
         "endDate": "تاريخ الانتهاء",
         "groupByFolder": "تجميع حسب المجلد",
         "filterDate": "تصفية حسب التاريخ",
+        "rollingDaysCompact": "{days, plural, few {# أيام} other {# يومًا}}",
         "clear": "مسح",
         "clearDate": "مسح مرشح التاريخ",
         "presets": {
@@ -2148,6 +2146,7 @@
           "yesterday": "أمس",
           "last3": "آخر 3 أيام",
           "last7": "آخر 7 أيام",
+          "last15": "آخر 15 يومًا",
           "week": "هذا الأسبوع",
           "month": "هذا الشهر",
           "custom": "مخصص"
@@ -2255,7 +2254,6 @@
       "save": "حفظ",
       "pin": "تثبيت",
       "unpin": "إلغاء التثبيت",
-      "markCompleted": "وضع علامة كمكتمل",
       "reopen": "إعادة فتح",
       "expandSubsessions": "توسيع المحادثات الفرعية",
       "collapseSubsessions": "طي المحادثات الفرعية",

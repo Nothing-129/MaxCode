@@ -27,8 +27,6 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-const completeConversation = vi.fn()
-
 function mount(status = "cancelled", parentId?: number) {
   const conversation: DbConversationSummary = {
     id: 1,
@@ -59,7 +57,6 @@ function mount(status = "cancelled", parentId?: number) {
         onDoubleClick={vi.fn()}
         onRename={vi.fn()}
         onDelete={vi.fn()}
-        onStatusChange={completeConversation}
       />
     </NextIntlClientProvider>
   )
@@ -100,12 +97,13 @@ describe("MaxCode: cancelled tasks have no error badge", () => {
   })
 })
 
-it("retains menu completion without adding a title label", async () => {
+it("omits the old completion action and title label", async () => {
   const user = userEvent.setup()
   const { container } = mount("pending_review")
   await user.click(screen.getByRole("button", { name: "More actions" }))
-  await user.click(screen.getByRole("menuitem", { name: "Mark as completed" }))
-  expect(completeConversation).toHaveBeenCalledWith(1, "completed")
+  expect(
+    screen.queryByRole("menuitem", { name: "Mark as completed" })
+  ).toBeNull()
   expect(screen.getByText("Stopped task")).toBeInTheDocument()
   expect(screen.queryByText("Completed")).toBeNull()
   expect(container.querySelector(".text-amber-600")).toBeNull()

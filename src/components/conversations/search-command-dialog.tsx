@@ -1,5 +1,6 @@
 "use client"
 
+import { conversationDisplayStatus } from "@/lib/conversation-lab"
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { formatDistanceToNow } from "date-fns"
 import { enUS, zhCN, zhTW } from "date-fns/locale"
@@ -342,7 +343,9 @@ export function SearchCommandDialog({
                   >
                     {showStatus ? (
                       <ConversationStatusDot
-                        status={conv.status as ConversationStatus}
+                        status={
+                          conversationDisplayStatus(conv) as ConversationStatus
+                        }
                       />
                     ) : null}
                     <span className="flex-1 truncate">

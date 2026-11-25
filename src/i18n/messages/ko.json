@@ -1956,7 +1956,7 @@
       "searchPlaceholder": "대화 검색...",
       "viewOptions": "보기 옵션",
       "listOptions": "대화 목록",
-      "showCompleted": "완료된 대화 표시",
+      "showCompleted": "정리된 대화 표시",
       "showStatus": "상태 색상 표시",
       "allowStatusActions": "대화 상태 변경 허용",
       "prefsSaveFailed": "보기 기본 설정 저장 실패: {message}",
@@ -2113,9 +2113,6 @@
         "hours": "시간",
         "days": "일",
         "working": "작업 중",
-        "done": "완료",
-        "activeDrag": "활성",
-        "pinnedDrag": "고정됨",
         "compose": "새 스레드",
         "settleShort": "정리"
       },
@@ -2141,6 +2138,7 @@
         "endDate": "종료일",
         "groupByFolder": "폴더별로 그룹화",
         "filterDate": "날짜로 필터링",
+        "rollingDaysCompact": "{days}일",
         "clear": "지우기",
         "clearDate": "날짜 필터 지우기",
         "presets": {
@@ -2148,6 +2146,7 @@
           "yesterday": "어제",
           "last3": "최근 3일",
           "last7": "최근 7일",
+          "last15": "최근 15일",
           "week": "이번 주",
           "month": "이번 달",
           "custom": "사용자 지정"
@@ -2255,7 +2254,6 @@
       "save": "저장",
       "pin": "고정",
       "unpin": "고정 해제",
-      "markCompleted": "완료로 표시",
       "reopen": "다시 열기",
       "expandSubsessions": "하위 대화 펼치기",
       "collapseSubsessions": "하위 대화 접기",

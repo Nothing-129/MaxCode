@@ -1956,7 +1956,7 @@
       "searchPlaceholder": "Buscar conversas...",
       "viewOptions": "Opções de exibição",
       "listOptions": "Lista de conversas",
-      "showCompleted": "Mostrar conversas concluídas",
+      "showCompleted": "Mostrar conversas encerradas",
       "showStatus": "Mostrar cores de status",
       "allowStatusActions": "Permitir alterar o status da conversa",
       "prefsSaveFailed": "Falha ao salvar a preferência de exibição: {message}",
@@ -2113,9 +2113,6 @@
         "hours": "Horas",
         "days": "Dias",
         "working": "Trabalhando",
-        "done": "Concluída",
-        "activeDrag": "Ativo",
-        "pinnedDrag": "Fixadas",
         "compose": "Nova thread",
         "settleShort": "Concluir"
       },
@@ -2141,6 +2138,7 @@
         "endDate": "Data final",
         "groupByFolder": "Agrupar por pasta",
         "filterDate": "Filtrar por data",
+        "rollingDaysCompact": "{days} dias",
         "clear": "Limpar",
         "clearDate": "Limpar filtro de data",
         "presets": {
@@ -2148,6 +2146,7 @@
           "yesterday": "Ontem",
           "last3": "Últimos 3 dias",
           "last7": "Últimos 7 dias",
+          "last15": "Últimos 15 dias",
           "week": "Esta semana",
           "month": "Este mês",
           "custom": "Personalizado"
@@ -2255,7 +2254,6 @@
       "save": "Salvar",
       "pin": "Fixar",
       "unpin": "Desafixar",
-      "markCompleted": "Marcar como concluída",
       "reopen": "Reabrir",
       "expandSubsessions": "Expandir subconversas",
       "collapseSubsessions": "Recolher subconversas",

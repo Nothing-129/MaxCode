@@ -11,6 +11,7 @@ import { RecentDateFilter } from "@/components/layout/recent-date-filter"
 import { SidebarNavigationProvider } from "@/contexts/sidebar-navigation-context"
 import {
   DATE_FILTER_STORAGE_KEY,
+  DATE_PRESETS,
   loadDateFilter,
 } from "@/lib/sidebar-navigation"
 import zh from "@/i18n/messages/zh-CN.json"
@@ -25,6 +26,32 @@ afterEach(() => {
   cleanup()
   vi.useRealTimers()
 })
+
+it.each([...DATE_PRESETS, "custom"] as const)(
+  "keeps the closed date filter trigger transparent for %s",
+  (preset) => {
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <SidebarNavigationProvider>
+          <RecentDateFilter />
+        </SidebarNavigationProvider>
+      </NextIntlClientProvider>
+    )
+    const trigger = screen.getByRole("button", { name: "Filter by date" })
+    fireEvent.click(trigger)
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: en.Folder.sidebar.navigation.presets[preset],
+      })
+    )
+    expect(trigger).toHaveAttribute("aria-expanded", "true")
+    fireEvent.click(trigger)
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false")
+    expect(trigger).toHaveClass("bg-transparent")
+    expect(trigger).not.toHaveAttribute("data-filter-active", "true")
+  }
+)
 
 it("shows endpoints only for Custom and keeps the other endpoint when editing a valid range", () => {
   render(
@@ -172,10 +199,12 @@ it("uses the entire selected minute for saved ranges with legacy seconds", () =>
 })
 
 it.each([
-  [{ preset: "today" }, "今日", false],
-  [{ preset: "week" }, "本周", true],
-  [{ preset: "month" }, "本月", true],
-  [{ preset: "last7" }, "最近7天", true],
+  [{ preset: "today" }, "今日"],
+  [{ preset: "week" }, "本周"],
+  [{ preset: "month" }, "本月"],
+  [{ preset: "last3" }, "3天"],
+  [{ preset: "last7" }, "7天"],
+  [{ preset: "last15" }, "15天"],
   [
     {
       preset: "custom",
@@ -186,29 +215,23 @@ it.each([
       endTime: "14:30:00",
     },
     "11月12日–18日",
-    true,
   ],
   [
     { preset: "custom", start: "2026-11-10", end: "2026-11-10", range: false },
     "11月10日",
-    true,
   ],
-] as const)(
-  "shows the compact Chinese header for %j",
-  (filter, label, active) => {
-    localStorage.setItem(DATE_FILTER_STORAGE_KEY, JSON.stringify(filter))
-    render(
-      <NextIntlClientProvider locale="zh-CN" messages={zh}>
-        <SidebarNavigationProvider>
-          <RecentDateFilter />
-        </SidebarNavigationProvider>
-      </NextIntlClientProvider>
-    )
-    const trigger = screen.getByRole("button", { name: "按日期筛选" })
-    expect(trigger.textContent).toBe(label)
-    expect(trigger).toHaveAttribute("data-filter-active", String(active))
-  }
-)
+] as const)("shows the compact Chinese header for %j", (filter, label) => {
+  localStorage.setItem(DATE_FILTER_STORAGE_KEY, JSON.stringify(filter))
+  render(
+    <NextIntlClientProvider locale="zh-CN" messages={zh}>
+      <SidebarNavigationProvider>
+        <RecentDateFilter />
+      </SidebarNavigationProvider>
+    </NextIntlClientProvider>
+  )
+  const trigger = screen.getByRole("button", { name: "按日期筛选" })
+  expect(trigger.textContent).toBe(label)
+})
 
 it("pairs each shortcut with its resolved range and moves the checkmark on selection", () => {
   render(
@@ -227,4 +250,32 @@ it("pairs each shortcut with its resolved range and moves the checkmark on selec
   fireEvent.click(week)
   expect(today.querySelector(".lucide-check")).toBeNull()
   expect(week.querySelector(".lucide-check")).toBeTruthy()
+})
+
+it("offers the last 15 days after the last 7 days and shows a short header label", () => {
+  vi.setSystemTime(new Date(2026, 10, 25, 12))
+  const view = (
+    <NextIntlClientProvider locale="zh-CN" messages={zh}>
+      <SidebarNavigationProvider>
+        <RecentDateFilter />
+      </SidebarNavigationProvider>
+    </NextIntlClientProvider>
+  )
+  const { unmount } = render(view)
+  const trigger = screen.getByRole("button", { name: "按日期筛选" })
+  fireEvent.click(trigger)
+  const last7 = screen.getByRole("button", { name: "最近7天" })
+  const last15 = screen.getByRole("button", { name: "最近15天" })
+  expect(last7.nextElementSibling).toBe(last15)
+  expect(last15).toHaveAccessibleDescription("11月11日–25日")
+  fireEvent.click(last15)
+  expect(last15).toHaveAttribute("aria-pressed", "true")
+  fireEvent.click(trigger)
+  expect(trigger.textContent).toBe("15天")
+
+  unmount()
+  render(view)
+  expect(screen.getByRole("button", { name: "按日期筛选" }).textContent).toBe(
+    "15天"
+  )
 })

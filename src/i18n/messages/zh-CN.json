@@ -1956,7 +1956,7 @@
       "searchPlaceholder": "搜索会话...",
       "viewOptions": "显示选项",
       "listOptions": "会话列表",
-      "showCompleted": "显示已完成会话",
+      "showCompleted": "显示已收尾会话",
       "showStatus": "显示状态颜色",
       "allowStatusActions": "允许更改会话状态",
       "prefsSaveFailed": "保存视图偏好失败：{message}",
@@ -2113,9 +2113,6 @@
         "hours": "小时",
         "days": "天",
         "working": "运行中",
-        "done": "完成",
-        "activeDrag": "活跃",
-        "pinnedDrag": "已置顶",
         "compose": "新建会话",
         "settleShort": "收尾"
       },
@@ -2141,6 +2138,7 @@
         "endDate": "结束日期",
         "groupByFolder": "按文件夹分组",
         "filterDate": "按日期筛选",
+        "rollingDaysCompact": "{days}天",
         "clear": "清除",
         "clearDate": "清除日期筛选",
         "presets": {
@@ -2148,6 +2146,7 @@
           "yesterday": "昨日",
           "last3": "最近3天",
           "last7": "最近7天",
+          "last15": "最近15天",
           "week": "本周",
           "month": "本月",
           "custom": "自定义"
@@ -2255,7 +2254,6 @@
       "save": "保存",
       "pin": "置顶",
       "unpin": "取消置顶",
-      "markCompleted": "标记为已完成",
       "reopen": "重新打开",
       "expandSubsessions": "展开子会话",
       "collapseSubsessions": "折叠子会话",

@@ -14,7 +14,6 @@ import {
   SquarePen,
   Pin,
   PinOff,
-  CheckCircle2,
   Folder,
   FolderX,
   Info,
@@ -27,7 +26,7 @@ import { useTranslations } from "next-intl"
 import { useImeGuard } from "@/hooks/use-ime-guard"
 import { useTabStore } from "@/contexts/tab-context"
 import { emitAttachSessionToSession } from "@/lib/session-attachment-events"
-import type { DbConversationSummary, ConversationStatus } from "@/lib/types"
+import type { DbConversationSummary } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import {
   conversationTitleTopic,
@@ -165,7 +164,6 @@ interface SidebarConversationCardProps {
   onDoubleClick?: (id: number, agentType: string, folderId: number) => void
   onRename: (id: number, newTitle: string) => Promise<void>
   onDelete: (id: number, agentType: string, folderId: number) => Promise<void>
-  onStatusChange: (id: number, status: ConversationStatus) => Promise<void>
   onNewConversation?: (folderId: number) => void
   onTogglePin?: (id: number, nextPinned: boolean) => void
   onLinkTodo?: (id: number, title: string) => void
@@ -207,7 +205,6 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
   onRename,
   onDelete,
   onNewConversation,
-  onStatusChange,
   onTogglePin,
   onLinkTodo,
   depth = 0,
@@ -321,7 +318,6 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
   )
   const isPinned = conversation.pinned_at != null
   const isSubsession = conversation.parent_id != null
-  const showDoneAction = !isSubsession && conversation.status !== "completed"
   const showHoverActions = !isSubsession
   const stackedLayout = (isMobile && !compactMobile) || stackMetadata
   const showFolderMeta = Boolean(folderLabel) && !(isMobile && compactMobile)
@@ -724,14 +720,6 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          {showDoneAction && (
-            <ContextMenuItem
-              onSelect={() => onStatusChange(conversation.id, "completed")}
-            >
-              <CheckCircle2 className="size-4" />
-              {t("markCompleted")}
-            </ContextMenuItem>
-          )}
           {onLinkTodo && !isSubsession && (
             <ContextMenuItem
               onSelect={() =>

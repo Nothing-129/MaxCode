@@ -63,6 +63,8 @@ export function SnoozeChoices({
             {l(key)}
             <span className="ms-auto ps-3 text-xs text-muted-foreground">
               {format.dateTime(at, {
+                timeZone: "Asia/Shanghai",
+                hourCycle: "h23",
                 hour: "numeric",
                 minute: "2-digit",
                 ...(key === "nextWeek" ? { weekday: "short" } : {}),
@@ -92,15 +94,14 @@ export function CustomSnooze({
   const [unit, setUnit] = useState("hours")
   const [amount, setAmount] = useState("1")
   const [date, setDate] = useState(() => {
-    const d = new Date(Date.now() + 3600000)
-    return new Date(+d - d.getTimezoneOffset() * 60000)
+    return new Date(Date.now() + 3600000 + 8 * 3600000)
       .toISOString()
       .slice(0, 16)
   })
   const now = useNow({ updateInterval: 15000 }).getTime()
   const when = (base: number) =>
     mode === "date"
-      ? new Date(date).getTime()
+      ? new Date(`${date}+08:00`).getTime()
       : base +
         Number(amount) *
           (unit === "hours" ? 3600000 : unit === "days" ? 86400000 : 60000)

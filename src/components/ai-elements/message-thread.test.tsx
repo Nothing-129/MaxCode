@@ -7,7 +7,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 const testState = vi.hoisted(() => ({
   scrollRef: { current: null as HTMLDivElement | null },
   scrollToBottom: vi.fn(),
-  state: { isAtBottom: true, resizeDifference: 0 },
+  state: {
+    isAtBottom: true,
+    resizeDifference: 0,
+    scrollTop: 0,
+    calculatedTargetScrollTop: 600,
+  },
 }))
 
 vi.mock("use-stick-to-bottom", () => ({
@@ -66,6 +71,8 @@ beforeEach(() => {
   testState.scrollToBottom.mockReset()
   testState.state.isAtBottom = true
   testState.state.resizeDifference = 0
+  testState.state.scrollTop = 0
+  testState.state.calculatedTargetScrollTop = 600
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -112,13 +119,12 @@ describe("MessageThread viewport resize", () => {
   // scrollTop — and fires neither a scroll event nor a content resize.
   it("re-pins to the bottom when the viewport shrinks under a pinned thread", () => {
     mountThreadAt(400)
+    testState.state.scrollTop = 600
+    testState.state.calculatedTargetScrollTop = 632
 
     resizeTo(368)
 
-    expect(testState.scrollToBottom).toHaveBeenCalledWith({
-      animation: "instant",
-      preserveScrollPosition: true,
-    })
+    expect(testState.state.scrollTop).toBe(632)
   })
 
   it("smooths streaming viewport changes and stops following when the user escapes", () => {

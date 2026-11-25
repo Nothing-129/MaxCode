@@ -16,7 +16,6 @@ import { MobileHeaderProvider } from "@/components/layout/mobile-header-slot"
 const h = vi.hoisted(() => ({
   updateConversationTitle: vi.fn(async () => {}),
   deleteConversation: vi.fn(async () => {}),
-  updateConversationStatus: vi.fn(async () => {}),
   updateConversationPinned: vi.fn(async () => {}),
   createConversationShare: vi.fn(async () => ({
     version: 2,
@@ -85,7 +84,6 @@ vi.mock("@/lib/todo-compose-events", () => ({
 vi.mock("@/lib/api", () => ({
   updateConversationTitle: h.updateConversationTitle,
   deleteConversation: h.deleteConversation,
-  updateConversationStatus: h.updateConversationStatus,
   updateConversationPinned: h.updateConversationPinned,
   createConversationShare: h.createConversationShare,
   revokeConversationShare: h.revokeConversationShare,
@@ -202,7 +200,6 @@ const A: Props = {
   folderId: 1,
   folderPath: "/a",
   title: "conv-a",
-  status: "in_progress",
 }
 const B: Props = {
   ...A,
@@ -321,7 +318,6 @@ describe("ConversationDetailHeader dialog target snapshot", () => {
       "Pin",
       enMessages.Folder.sessionDetails.menuLabel,
       "Share conversation",
-      "Mark as completed",
       "Delete",
     ]) {
       const item = view.getByRole("menuitem", { name })
@@ -333,8 +329,10 @@ describe("ConversationDetailHeader dialog target snapshot", () => {
         name: enMessages.Folder.conversationCard.newConversation,
       })
     ).toBeNull()
-    await user.click(view.getByRole("menuitem", { name: "Mark as completed" }))
-    expect(h.updateConversationStatus).toHaveBeenCalledWith(1, "completed")
+    expect(
+      view.queryByRole("menuitem", { name: "Mark as completed" })
+    ).toBeNull()
+    await user.keyboard("{Escape}")
 
     h.activeTabId = "tab-b"
     view.rerender(layout())

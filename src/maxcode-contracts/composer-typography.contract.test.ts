@@ -13,10 +13,10 @@ describe("MaxCode composer typography", () => {
     )
   })
 
-  it("uses the same theme color for the follow-up suggestion and Tab label", () => {
+  it("softens follow-up suggestion text while keeping the Tab label legible", () => {
     const css = source("src/app/globals.css")
     expect(css).toMatch(
-      /\.codeg-composer \.codeg-composer-suggestion-preview\s*\{\s*color: var\(--muted-foreground\);/
+      /\.codeg-composer \.codeg-composer-suggestion-preview\s*\{\s*color: color-mix\(in srgb, var\(--muted-foreground\) 65%, transparent\);/
     )
     expect(
       source("src/components/chat/composer/accept-prompt-suggestion.tsx")

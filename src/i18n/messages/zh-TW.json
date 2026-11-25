@@ -1956,7 +1956,7 @@
       "searchPlaceholder": "搜尋對話...",
       "viewOptions": "顯示選項",
       "listOptions": "會話列表",
-      "showCompleted": "顯示已完成對話",
+      "showCompleted": "顯示已收尾對話",
       "showStatus": "顯示狀態顏色",
       "allowStatusActions": "允許變更會話狀態",
       "prefsSaveFailed": "儲存檢視偏好失敗：{message}",
@@ -2113,9 +2113,6 @@
         "hours": "小時",
         "days": "天",
         "working": "執行中",
-        "done": "完成",
-        "activeDrag": "活躍",
-        "pinnedDrag": "已置頂",
         "compose": "新增對話",
         "settleShort": "收尾"
       },
@@ -2141,6 +2138,7 @@
         "endDate": "結束日期",
         "groupByFolder": "依資料夾分組",
         "filterDate": "依日期篩選",
+        "rollingDaysCompact": "{days}天",
         "clear": "清除",
         "clearDate": "清除日期篩選",
         "presets": {
@@ -2148,6 +2146,7 @@
           "yesterday": "昨日",
           "last3": "最近3天",
           "last7": "最近7天",
+          "last15": "最近15天",
           "week": "本週",
           "month": "本月",
           "custom": "自訂"
@@ -2255,7 +2254,6 @@
       "save": "儲存",
       "pin": "置頂",
       "unpin": "取消置頂",
-      "markCompleted": "標記為已完成",
       "reopen": "重新開啟",
       "expandSubsessions": "展開子會話",
       "collapseSubsessions": "摺疊子會話",

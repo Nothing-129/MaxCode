@@ -67,7 +67,6 @@ function showCard(
         onSelect={onSelect}
         onRename={vi.fn()}
         onDelete={vi.fn()}
-        onStatusChange={vi.fn()}
         onTogglePin={onTogglePin}
       />
     </NextIntlClientProvider>

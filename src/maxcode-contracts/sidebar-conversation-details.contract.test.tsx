@@ -70,7 +70,6 @@ function renderCard() {
         onSelect={vi.fn()}
         onRename={vi.fn()}
         onDelete={vi.fn()}
-        onStatusChange={vi.fn()}
       />
     </NextIntlClientProvider>
   )

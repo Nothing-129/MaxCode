@@ -9,7 +9,13 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { ArrowDownIcon, DownloadIcon } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useCallback, useEffect, useLayoutEffect, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useState,
+} from "react"
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom"
 
 /**
@@ -109,6 +115,12 @@ const StickThroughViewportResize = ({
     }
   }, [contentRef, state, sending, streaming, scrollToBottom])
 
+  const getViewportResizeAnimation = useEffectEvent(() =>
+    sending ? SEND_SCROLL_ANIMATION : streaming ? STREAM_SCROLL_ANIMATION : null
+  )
+
+  // Keep the previous height when a send or stream starts or ends: the
+  // stats bar can change the viewport in the same render as that transition.
   useEffect(() => {
     const viewport = scrollRef.current
     if (!viewport) return
@@ -137,25 +149,20 @@ const StickThroughViewportResize = ({
         }, 1)
       })
 
-      if (!sending && !streaming) {
+      const animation = getViewportResizeAnimation()
+      if (!animation) {
         state.scrollTop = Math.max(0, state.calculatedTargetScrollTop)
         return
       }
 
-      // `preserveScrollPosition` suppresses only the redundant "we're at the
-      // bottom" state write — the guard above already established that. A
-      // growth resize lands at the target on its own, so this is then a no-op.
-      scrollToBottom({
-        animation: sending ? SEND_SCROLL_ANIMATION : STREAM_SCROLL_ANIMATION,
-        preserveScrollPosition: true,
-      })
+      void scrollToBottom({ animation, preserveScrollPosition: true })
     })
 
     observer.observe(viewport)
     return () => {
       observer.disconnect()
     }
-  }, [scrollRef, scrollToBottom, state, sending, streaming])
+  }, [scrollRef, scrollToBottom, state])
 
   return null
 }

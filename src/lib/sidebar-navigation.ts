@@ -92,10 +92,16 @@ export const DATE_PRESETS = [
   "yesterday",
   "last3",
   "last7",
+  "last15",
   "week",
   "month",
 ] as const
 export type DatePreset = (typeof DATE_PRESETS)[number]
+export const ROLLING_DATE_PRESET_DAYS: Partial<Record<DatePreset, number>> = {
+  last3: 3,
+  last7: 7,
+  last15: 15,
+}
 export type ConversationDateFilter =
   | { preset: DatePreset }
   | {
@@ -124,8 +130,10 @@ export function resolveDateFilter(
     start.setDate(start.getDate() - 1)
     end = localDateKey(start)
   }
-  if (filter.preset === "last3") start.setDate(start.getDate() - 2)
-  if (filter.preset === "last7") start.setDate(start.getDate() - 6)
+  const rollingDays = ROLLING_DATE_PRESET_DAYS[filter.preset]
+  if (rollingDays !== undefined) {
+    start.setDate(start.getDate() - (rollingDays - 1))
+  }
   if (filter.preset === "week")
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
   if (filter.preset === "month") start.setDate(1)

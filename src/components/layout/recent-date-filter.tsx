@@ -5,6 +5,7 @@ import { useId } from "react"
 import { CalendarDays, Check, ChevronDown, ChevronRight, X } from "lucide-react"
 import {
   DATE_PRESETS,
+  ROLLING_DATE_PRESET_DAYS,
   resolveDateFilter,
   type DatePreset,
   START_OF_DAY,
@@ -93,6 +94,10 @@ export function RecentDateFilter() {
   const locale = useLocale()
   const id = useId()
   if (!navigation) return null
+  const rollingDays =
+    navigation.preset === "custom"
+      ? undefined
+      : ROLLING_DATE_PRESET_DAYS[navigation.preset]
   const label =
     navigation.preset === "custom"
       ? formatCustomRange(
@@ -101,7 +106,9 @@ export function RecentDateFilter() {
           navigation.today,
           locale
         )
-      : t(`navigation.presets.${navigation.preset}`)
+      : rollingDays !== undefined
+        ? t("navigation.rollingDaysCompact", { days: rollingDays })
+        : t(`navigation.presets.${navigation.preset}`)
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -109,9 +116,8 @@ export function RecentDateFilter() {
           variant="ghost"
           size="sm"
           type="button"
-          data-filter-active={navigation.preset !== "today"}
           aria-describedby={`${id}-label`}
-          className="inline-flex h-7 shrink max-w-40 min-w-0 items-center gap-1 rounded-md bg-transparent px-1.5 data-[filter-active=true]:bg-sidebar-foreground/[0.04] text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-foreground/[0.08] hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:bg-sidebar-foreground/[0.08] data-[state=open]:text-sidebar-foreground"
+          className="inline-flex h-7 shrink max-w-40 min-w-0 items-center gap-1 rounded-md bg-transparent px-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-foreground/[0.08] hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[state=open]:bg-sidebar-foreground/[0.08] data-[state=open]:text-sidebar-foreground"
           aria-label={t("navigation.filterDate")}
           title={
             navigation.preset === "custom"

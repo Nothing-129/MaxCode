@@ -56,7 +56,6 @@ describe("MaxCode: sidebar status persists beside actions", () => {
             onSelect={onSelect}
             onRename={vi.fn()}
             onDelete={vi.fn()}
-            onStatusChange={vi.fn()}
             onTogglePin={onTogglePin}
           />
         </NextIntlClientProvider>

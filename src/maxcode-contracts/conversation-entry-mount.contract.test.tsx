@@ -2,25 +2,38 @@ import { createRef } from "react"
 import type { StickToBottomContext } from "use-stick-to-bottom"
 import { act, cleanup, render } from "@testing-library/react"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
-import { MessageThread } from "@/components/ai-elements/message-thread"
+import {
+  MessageThread,
+  MessageThreadContent,
+} from "@/components/ai-elements/message-thread"
 import { VirtualizedMessageThread } from "@/components/message/virtualized-message-thread"
 
-const observers = new Map<Element, ResizeObserverCallback[]>()
+const observers = new Map<Element, Set<ResizeObserverCallback>>()
 
 beforeEach(() => {
   observers.clear()
   vi.stubGlobal(
     "ResizeObserver",
     class {
+      private elements = new Set<Element>()
+
       constructor(private callback: ResizeObserverCallback) {}
+
       observe(element: Element) {
-        observers.set(element, [
-          ...(observers.get(element) ?? []),
-          this.callback,
-        ])
+        const callbacks = observers.get(element) ?? new Set()
+        callbacks.add(this.callback)
+        observers.set(element, callbacks)
+        this.elements.add(element)
       }
-      unobserve() {}
-      disconnect() {}
+
+      unobserve(element: Element) {
+        observers.get(element)?.delete(this.callback)
+        this.elements.delete(element)
+      }
+
+      disconnect() {
+        for (const element of this.elements) this.unobserve(element)
+      }
     }
   )
   vi.stubGlobal(
@@ -36,6 +49,7 @@ afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
 it("positions the real virtualized thread at the bottom before any animation frame", () => {
@@ -109,6 +123,48 @@ function flushFrame() {
     for (const [callback] of callbacks) callback(performance.now())
   })
 }
+
+it("keeps following when the browser clamps the scroll position as a reply ends", () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+  const context = createRef<StickToBottomContext>()
+  const viewportHeight = vi
+    .spyOn(HTMLElement.prototype, "clientHeight", "get")
+    .mockReturnValue(400)
+  const view = (streaming: boolean) => (
+    <MessageThread
+      entryKey="active-reply"
+      streaming={streaming}
+      contextRef={context}
+    >
+      <MessageThreadContent>Latest reply</MessageThreadContent>
+    </MessageThread>
+  )
+  const { rerender } = render(view(true))
+  const viewport = context.current!.scrollRef.current!
+  resizeElement(viewport, 400)
+  expect(viewport.scrollTop).toBe(9599)
+  act(() => {
+    viewport.dispatchEvent(new Event("scroll"))
+    vi.advanceTimersByTime(2)
+  })
+
+  // The live stats bar disappears at completion. With more room, the browser
+  // limits scrollTop to the new maximum and emits a native scroll event.
+  viewportHeight.mockReturnValue(500)
+  rerender(view(false))
+  act(() => {
+    viewport.scrollTop = 9500
+    viewport.dispatchEvent(new Event("scroll"))
+  })
+  resizeElement(viewport, 500)
+  flushFrame()
+  act(() => vi.advanceTimersByTime(2))
+
+  // The final reply can still grow after the layout change.
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(10300)
+  resizeContent(context.current!, 10300)
+  expect(viewport.scrollTop).toBe(9799)
+})
 
 it("reconciles a shrinking virtual history after its anchor adjustment", () => {
   const context = createRef<StickToBottomContext>()

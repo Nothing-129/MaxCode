@@ -1956,7 +1956,7 @@
       "searchPlaceholder": "Konversationen suchen...",
       "viewOptions": "Anzeigeoptionen",
       "listOptions": "Konversationsliste",
-      "showCompleted": "Abgeschlossene Konversationen anzeigen",
+      "showCompleted": "Abgeschlossene Gespräche anzeigen",
       "showStatus": "Statusfarben anzeigen",
       "allowStatusActions": "Ändern des Konversationsstatus erlauben",
       "prefsSaveFailed": "Speichern der Ansichtseinstellung fehlgeschlagen: {message}",
@@ -2113,9 +2113,6 @@
         "hours": "Stunden",
         "days": "Tage",
         "working": "Arbeitet",
-        "done": "Abgeschlossen",
-        "activeDrag": "Aktiv",
-        "pinnedDrag": "Angeheftet",
         "compose": "Neuer Thread",
         "settleShort": "Erledigen"
       },
@@ -2141,6 +2138,7 @@
         "endDate": "Enddatum",
         "groupByFolder": "Nach Ordner gruppieren",
         "filterDate": "Nach Datum filtern",
+        "rollingDaysCompact": "{days} Tage",
         "clear": "Löschen",
         "clearDate": "Datumsfilter löschen",
         "presets": {
@@ -2148,6 +2146,7 @@
           "yesterday": "Gestern",
           "last3": "Letzte 3 Tage",
           "last7": "Letzte 7 Tage",
+          "last15": "Letzte 15 Tage",
           "week": "Diese Woche",
           "month": "Dieser Monat",
           "custom": "Benutzerdefiniert"
@@ -2255,7 +2254,6 @@
       "save": "Speichern",
       "pin": "Anheften",
       "unpin": "Loslösen",
-      "markCompleted": "Als abgeschlossen markieren",
       "reopen": "Erneut öffnen",
       "expandSubsessions": "Unterkonversationen einblenden",
       "collapseSubsessions": "Unterkonversationen ausblenden",

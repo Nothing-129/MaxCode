@@ -1956,7 +1956,7 @@
       "searchPlaceholder": "Rechercher des conversations...",
       "viewOptions": "Options d'affichage",
       "listOptions": "Liste des conversations",
-      "showCompleted": "Afficher les conversations terminées",
+      "showCompleted": "Afficher les conversations clôturées",
       "showStatus": "Afficher les couleurs de statut",
       "allowStatusActions": "Autoriser le changement de statut",
       "prefsSaveFailed": "Échec de l'enregistrement de la préférence d'affichage : {message}",
@@ -2113,9 +2113,6 @@
         "hours": "Heures",
         "days": "Jours",
         "working": "En cours",
-        "done": "Terminé",
-        "activeDrag": "Actif",
-        "pinnedDrag": "Épinglés",
         "compose": "Nouveau fil",
         "settleShort": "Clore"
       },
@@ -2141,6 +2138,7 @@
         "endDate": "Date de fin",
         "groupByFolder": "Regrouper par dossier",
         "filterDate": "Filtrer par date",
+        "rollingDaysCompact": "{days} jours",
         "clear": "Effacer",
         "clearDate": "Effacer le filtre de date",
         "presets": {
@@ -2148,6 +2146,7 @@
           "yesterday": "Hier",
           "last3": "3 derniers jours",
           "last7": "7 derniers jours",
+          "last15": "15 derniers jours",
           "week": "Cette semaine",
           "month": "Ce mois",
           "custom": "Personnalisé"
@@ -2255,7 +2254,6 @@
       "save": "Enregistrer",
       "pin": "Épingler",
       "unpin": "Désépingler",
-      "markCompleted": "Marquer comme terminé",
       "reopen": "Rouvrir",
       "expandSubsessions": "Développer les sous-conversations",
       "collapseSubsessions": "Réduire les sous-conversations",

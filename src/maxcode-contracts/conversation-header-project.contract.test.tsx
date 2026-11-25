@@ -23,7 +23,6 @@ function renderHeader() {
         folderPath="/repos/worktree-dir"
         project={project}
         title="Current conversation"
-        status={undefined}
       />
     </NextIntlClientProvider>
   )

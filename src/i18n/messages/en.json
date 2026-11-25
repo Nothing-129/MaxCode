@@ -1956,7 +1956,7 @@
       "searchPlaceholder": "Search conversations...",
       "viewOptions": "View options",
       "listOptions": "Conversation list",
-      "showCompleted": "Show completed conversations",
+      "showCompleted": "Show settled conversations",
       "showStatus": "Show status colors",
       "allowStatusActions": "Allow changing conversation status",
       "prefsSaveFailed": "Failed to save view preference: {message}",
@@ -2113,9 +2113,6 @@
         "hours": "Hours",
         "days": "Days",
         "working": "Working",
-        "done": "Completed",
-        "activeDrag": "Active",
-        "pinnedDrag": "Pinned",
         "compose": "New thread",
         "settleShort": "Settle"
       },
@@ -2141,6 +2138,7 @@
         "endDate": "End date",
         "groupByFolder": "Group by folder",
         "filterDate": "Filter by date",
+        "rollingDaysCompact": "{days} days",
         "clear": "Clear",
         "clearDate": "Clear date filter",
         "presets": {
@@ -2148,6 +2146,7 @@
           "yesterday": "Yesterday",
           "last3": "Last 3 days",
           "last7": "Last 7 days",
+          "last15": "Last 15 days",
           "week": "This week",
           "month": "This month",
           "custom": "Custom"
@@ -2255,7 +2254,6 @@
       "save": "Save",
       "pin": "Pin",
       "unpin": "Unpin",
-      "markCompleted": "Mark as completed",
       "reopen": "Reopen",
       "expandSubsessions": "Expand sub-conversations",
       "collapseSubsessions": "Collapse sub-conversations",

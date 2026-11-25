@@ -88,7 +88,6 @@ describe("sidebar session tree rails", () => {
             onSelect={noop}
             onRename={asyncNoop}
             onDelete={asyncNoop}
-            onStatusChange={asyncNoop}
           />
         </NextIntlClientProvider>
       )
@@ -154,7 +153,6 @@ describe("sidebar session tree rails", () => {
             onSelect={noop}
             onRename={asyncNoop}
             onDelete={asyncNoop}
-            onStatusChange={asyncNoop}
           />
         </NextIntlClientProvider>
       )

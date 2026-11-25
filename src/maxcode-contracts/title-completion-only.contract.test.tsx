@@ -9,7 +9,6 @@ import enMessages from "@/i18n/messages/en.json"
 const h = vi.hoisted(() => ({
   updateConversationTitle: vi.fn(async () => {}),
   deleteConversation: vi.fn(async () => {}),
-  updateConversationStatus: vi.fn(async () => {}),
   updateConversationPinned: vi.fn(async () => {}),
   createConversationShare: vi.fn(async () => ({
     token: "0123456789abcdef0123456789abcdef",
@@ -57,7 +56,6 @@ const h = vi.hoisted(() => ({
 vi.mock("@/lib/api", () => ({
   updateConversationTitle: h.updateConversationTitle,
   deleteConversation: h.deleteConversation,
-  updateConversationStatus: h.updateConversationStatus,
   updateConversationPinned: h.updateConversationPinned,
   createConversationShare: h.createConversationShare,
   revokeConversationShare: h.revokeConversationShare,
@@ -125,7 +123,6 @@ const A: Props = {
   folderId: 1,
   folderPath: "/a",
   title: "conv-a",
-  status: "in_progress",
 }
 
 function withIntl(ui: ReactElement) {
@@ -315,7 +312,7 @@ describe("MaxCode: title completion is the only status action", () => {
     expect(view.queryByRole("search")).toBeNull()
   })
 
-  it("marks the conversation completed without exposing status choices", async () => {
+  it("omits the old completion action and status choices", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 })
     const view = render(withIntl(<ConversationDetailHeader {...A} />))
     await user.click(
@@ -325,21 +322,14 @@ describe("MaxCode: title completion is the only status action", () => {
     )
     expect(view.queryByText("Status")).toBeNull()
     expect(view.queryByText("Review")).toBeNull()
-    await user.click(view.getByRole("menuitem", { name: "Mark as completed" }))
-    await waitFor(() => {
-      expect(h.updateConversationStatus).toHaveBeenCalledWith(1, "completed")
-      expect(h.updateConversationLocal).toHaveBeenCalledWith(1, {
-        status: "completed",
-      })
-      expect(h.updateConversationTitle).not.toHaveBeenCalled()
-    })
+    expect(
+      view.queryByRole("menuitem", { name: "Mark as completed" })
+    ).toBeNull()
   })
 
   it("leaves the title unchanged and offers no reopen action", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 })
-    const view = render(
-      withIntl(<ConversationDetailHeader {...A} status="completed" />)
-    )
+    const view = render(withIntl(<ConversationDetailHeader {...A} />))
     expect(view.getByText("conv-a")).toBeInTheDocument()
     expect(view.queryByText("Completed")).toBeNull()
     await user.click(

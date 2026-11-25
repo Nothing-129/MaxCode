@@ -5,6 +5,7 @@ import { useNow, useTranslations } from "next-intl"
 import { ChevronDown, Search, X } from "lucide-react"
 import { toast } from "sonner"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useSidebarScrollMotion } from "@/hooks/use-sidebar-scroll-motion"
 import { AgentIcon } from "@/components/agent-icon"
 import { useTabActions, useTabStore } from "@/contexts/tab-context"
 import { useWorkbenchRoute } from "@/contexts/workbench-route-context"
@@ -15,6 +16,7 @@ import {
   formatFolderLabelWithAlias,
 } from "@/lib/folder-display"
 import {
+  isConversationSettled,
   labGroup,
   labSnoozeUntil,
   labSettledAt,
@@ -31,12 +33,7 @@ import {
   type TodoConversationLinkTarget,
 } from "@/components/todos/todo-conversation-link-dialog"
 import { formatConversationTitle } from "@/lib/conversation-title"
-import { useConversationUnreadStore } from "@/stores/conversation-unread-store"
-import {
-  deleteConversation,
-  updateConversationStatus,
-  updateConversationPinned,
-} from "@/lib/api"
+import { deleteConversation } from "@/lib/api"
 import { useSidebarNavigation } from "@/contexts/sidebar-navigation-context"
 import { updatedWithinDateRange } from "@/lib/sidebar-navigation"
 import { getTransport } from "@/lib/transport"
@@ -56,7 +53,27 @@ interface Row {
   projectId: string
   projectColor?: string
 }
-const shelves = ["running", "completed", "snoozed", "finished"] as const
+const shelves = ["running", "snoozed", "finished"] as const
+
+function LabScrollArea({
+  children,
+  className,
+}: {
+  children: React.ReactNode
+  className: string
+}) {
+  const [viewport, setViewport] = useState<HTMLElement | null>(null)
+  useSidebarScrollMotion(viewport)
+
+  return (
+    <ScrollArea
+      className={cn("px-2 [overflow-anchor:none]", className)}
+      onViewportRef={setViewport}
+    >
+      {children}
+    </ScrollArea>
+  )
+}
 
 function useContentMatches(query: string, candidates: Row[]) {
   const [result, setResult] = useState<{
@@ -111,8 +128,7 @@ function LabShelf({
 }) {
   const l = useTranslations("Folder.sidebar.lab")
   const key = "maxcode:lab-shelf:" + group
-  const completedLabel = useTranslations("Folder.statusLabels")("completed")
-  const isActivityShelf = group === "running" || group === "completed"
+  const isActivityShelf = group === "running"
   const [open, setOpen] = useState(() => {
     if (isActivityShelf) return true
     try {
@@ -123,9 +139,17 @@ function LabShelf({
   })
   return (
     <>
-      <details open={open} className="group/section shrink-0">
+      <details
+        open={open}
+        className={cn("group/section shrink-0", isActivityShelf && "mb-2")}
+      >
         <summary
-          className="flex cursor-pointer list-none items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-sidebar-foreground"
+          className={cn(
+            "flex cursor-pointer list-none items-center gap-1.5 px-2 py-1.5 text-xs",
+            isActivityShelf
+              ? "rounded-md bg-sidebar-accent/60 font-semibold text-sidebar-foreground hover:bg-sidebar-accent"
+              : "font-semibold text-muted-foreground hover:text-sidebar-foreground"
+          )}
           onClick={(e) => {
             e.preventDefault()
             setOpen(!open)
@@ -136,7 +160,7 @@ function LabShelf({
           }}
         >
           <ChevronDown className="size-3 -rotate-90 group-open/section:rotate-0" />
-          {group === "completed" ? completedLabel : l(group)}
+          {l(group)}
           <span className="ms-auto tabular-nums">{count}</span>
         </summary>
         {open && children(true)}
@@ -182,17 +206,6 @@ export function ConversationLab({
     kind: "details" | "delete"
     c: DbConversationSummary
   } | null>(null)
-  async function complete(c: DbConversationSummary) {
-    try {
-      await updateConversationStatus(c.id, "completed")
-      useAppWorkspaceStore
-        .getState()
-        .updateConversationLocal(c.id, { status: "completed" })
-      useConversationUnreadStore.getState().markRead(c.id)
-    } catch (e) {
-      toast.error(toErrorMessage(e))
-    }
-  }
   async function remove(c: DbConversationSummary) {
     try {
       await deleteConversation(c.id)
@@ -208,19 +221,6 @@ export function ConversationLab({
   const input = useRef<HTMLInputElement>(null)
   const now = useNow({ updateInterval: 5000 }).getTime()
   const { marks, signals, seenFailures, change } = useLabState()
-  const [drag, setDrag] = useState<DbConversationSummary | null>(null)
-  const [order, setOrder] = useState<string[]>(() => {
-    try {
-      const value: unknown = JSON.parse(
-        localStorage.getItem("maxcode:lab-row-order") || "[]"
-      )
-      return Array.isArray(value)
-        ? value.filter((k): k is string => typeof k === "string")
-        : []
-    } catch {
-      return []
-    }
-  })
   const available = useMemo(
     () => folders.filter((f) => f.kind !== "chat" && f.parent_id == null),
     [folders]
@@ -285,25 +285,17 @@ export function ConversationLab({
     startTime,
     endTime,
   ])
-  const unreadIds = useConversationUnreadStore((s) => s.unreadIds)
   const groups = useMemo(() => {
     const g: Record<LabGroup, Row[]> = {
       pinned: [],
       main: [],
       running: [],
-      completed: [],
       snoozed: [],
       finished: [],
     }
     for (const row of rows)
       g[
-        labGroup(
-          row.c,
-          marks.get(labKey(row.c)),
-          now,
-          signals.get(row.c.id),
-          unreadIds.has(row.c.id)
-        )
+        labGroup(row.c, marks.get(labKey(row.c)), now, signals.get(row.c.id))
       ].push(row)
     const markedAt = (r: Row) => {
       const mark = marks.get(labKey(r.c))
@@ -318,19 +310,10 @@ export function ConversationLab({
     )
     g.finished.sort((a, b) => markedAt(b) - markedAt(a))
     g.snoozed.sort((a, b) => markedAt(a) - markedAt(b))
-    if (order.length) {
-      const ranks = new Map(order.map((key, i) => [key, i]))
-      for (const section of [g.pinned, g.main])
-        section.sort(
-          (a, b) =>
-            (ranks.get(labKey(a.c)) ?? -1) - (ranks.get(labKey(b.c)) ?? -1)
-        )
-    }
     return g
-  }, [rows, marks, now, order, signals, unreadIds])
+  }, [rows, marks, now, signals])
   const visibleShelves = shelves.filter(
-    (group) =>
-      groups[group].length > 0 || (group === "finished" && (mobile || drag))
+    (group) => groups[group].length > 0 || (group === "finished" && mobile)
   )
   const term = query.trim().toLocaleLowerCase()
   const titles = useMemo(
@@ -370,7 +353,11 @@ export function ConversationLab({
   }
   function open(c: DbConversationSummary) {
     const opened = afterOpen(openTab(c.folder_id, c.id, c.agent_type, false))
-    if (opened && !c.lab_settled_at && labHasWoken(marks.get(labKey(c)), now))
+    if (
+      opened &&
+      !isConversationSettled(c) &&
+      labHasWoken(marks.get(labKey(c)), now)
+    )
       change(c)
     return opened
   }
@@ -381,75 +368,6 @@ export function ConversationLab({
   function choose(r: Row) {
     if (open(r.c)) search("")
   }
-  async function move(
-    target: "pinned" | "main" | "finished",
-    before?: DbConversationSummary,
-    after = false
-  ) {
-    const c = drag
-    setDrag(null)
-    if (!c || before?.id === c.id) return
-    try {
-      if (target === "finished") {
-        change(c, { settledAt: now })
-        return
-      }
-      const pin = target === "pinned"
-      if (pin !== !!c.pinned_at) {
-        await updateConversationPinned(c.id, pin)
-        useAppWorkspaceStore.getState().updateConversationLocal(c.id, {
-          pinned_at: pin ? new Date().toISOString() : null,
-        })
-      }
-      change(c)
-      const key = labKey(c)
-      const groupKeys = groups[target]
-        .map((r) => labKey(r.c))
-        .filter((k) => k !== key)
-      const index = before
-        ? groupKeys.indexOf(labKey(before))
-        : groupKeys.length
-      groupKeys.splice(index + (before && after ? 1 : 0), 0, key)
-      setOrder((previous) => {
-        const recent = new Set(groupKeys)
-        const next = [...previous.filter((k) => !recent.has(k)), ...groupKeys]
-        return next
-      })
-    } catch (e) {
-      toast.error(toErrorMessage(e))
-    }
-  }
-  useEffect(() => {
-    if (order.length) {
-      try {
-        localStorage.setItem("maxcode:lab-row-order", JSON.stringify(order))
-      } catch {}
-    }
-  }, [order])
-  function target(
-    group: LabGroup,
-    before?: DbConversationSummary
-  ): React.HTMLAttributes<HTMLDivElement> {
-    if (
-      !drag ||
-      group === "snoozed" ||
-      group === "running" ||
-      group === "completed"
-    )
-      return {}
-    return {
-      onDragOver: (e) => {
-        e.preventDefault()
-        e.dataTransfer.dropEffect = "move"
-      },
-      onDrop: (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        const rect = e.currentTarget.getBoundingClientRect()
-        void move(group, before, e.clientY > rect.top + rect.height / 2)
-      },
-    }
-  }
   function renderRows(group: LabGroup, expanded = true) {
     const items = groups[group]
     const limit = group === "finished" ? settledLimit : items.length
@@ -459,66 +377,53 @@ export function ConversationLab({
     return (
       <>
         {visible.map(({ c, project, projectId, projectColor }) => (
-          <div
+          <LabRow
             key={labKey(c)}
-            draggable={group !== "running" && group !== "completed"}
-            onDragStart={(e) => {
-              if (group === "running" || group === "completed") return
-              e.dataTransfer.setData("text/plain", String(c.id))
-              e.dataTransfer.effectAllowed = "move"
-              setDrag(c)
-            }}
-            onDragEnd={() => setDrag(null)}
-            {...target(group, c)}
-          >
-            <LabRow
-              c={c}
-              project={project}
-              hasProject={projectId !== "none"}
-              projectColor={projectColor}
-              group={group}
-              mark={marks.get(labKey(c))}
-              now={now}
-              selected={selected === c.id}
-              open={() => open(c)}
-              signal={signals.get(c.id)}
-              failureSeen={
-                seenFailures.get(labKey(c)) === signals.get(c.id)?.edge
-              }
-              change={(mark) =>
-                change(
-                  c,
-                  mark,
-                  typeof mark === "number" && mark > now
-                    ? signals.get(c.id)?.edge
-                    : undefined
-                )
-              }
-              complete={() => void complete(c)}
-              details={() => setDialog({ kind: "details", c })}
-              remove={() => setDialog({ kind: "delete", c })}
-              linkTodo={
-                todoState &&
-                (todoState.mode === "personal" || todoState.active_team_id)
-                  ? () =>
-                      setLinkTarget({
-                        conversationId: c.id,
-                        title: formatConversationTitle(c.title) || untitled,
-                        scopeId:
-                          todoState.mode === "personal"
-                            ? "personal"
-                            : todoState.active_team_id!,
-                        scopeName:
-                          todoState.mode === "personal"
-                            ? tTodos("personalMode")
-                            : (todoState.teams.find(
-                                (team) => team.id === todoState.active_team_id
-                              )?.name ?? tTodos("teamMode")),
-                      })
+            c={c}
+            project={project}
+            hasProject={projectId !== "none"}
+            projectColor={projectColor}
+            group={group}
+            mark={marks.get(labKey(c))}
+            now={now}
+            selected={selected === c.id}
+            open={() => open(c)}
+            signal={signals.get(c.id)}
+            failureSeen={
+              seenFailures.get(labKey(c)) === signals.get(c.id)?.edge
+            }
+            change={(mark) =>
+              change(
+                c,
+                mark,
+                typeof mark === "number" && mark > now
+                  ? signals.get(c.id)?.edge
                   : undefined
-              }
-            />
-          </div>
+              )
+            }
+            details={() => setDialog({ kind: "details", c })}
+            remove={() => setDialog({ kind: "delete", c })}
+            linkTodo={
+              todoState &&
+              (todoState.mode === "personal" || todoState.active_team_id)
+                ? () =>
+                    setLinkTarget({
+                      conversationId: c.id,
+                      title: formatConversationTitle(c.title) || untitled,
+                      scopeId:
+                        todoState.mode === "personal"
+                          ? "personal"
+                          : todoState.active_team_id!,
+                      scopeName:
+                        todoState.mode === "personal"
+                          ? tTodos("personalMode")
+                          : (todoState.teams.find(
+                              (team) => team.id === todoState.active_team_id
+                            )?.name ?? tTodos("teamMode")),
+                    })
+                : undefined
+            }
+          />
         ))}
         {expanded && items.length > visible.length && (
           <button
@@ -545,9 +450,9 @@ export function ConversationLab({
   return (
     <section
       aria-label={t("navigation.lab")}
-      className="flex min-h-0 flex-1 flex-col px-2 pb-2"
+      className="flex min-h-0 flex-1 flex-col pb-2"
     >
-      <div className="flex items-center gap-1 pb-2">
+      <div className="flex items-center gap-1 px-2 pb-2">
         <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md bg-transparent px-2 hover:bg-interaction-hover focus-within:ring-1 focus-within:ring-ring">
           <Search className="size-3.5 shrink-0 text-muted-foreground" />
           <input
@@ -608,13 +513,13 @@ export function ConversationLab({
       {error && (
         <button
           onClick={() => void refresh()}
-          className="p-2 text-start text-xs text-destructive"
+          className="mx-2 p-2 text-start text-xs text-destructive"
         >
           {error} · {l("retry")}
         </button>
       )}
       {term ? (
-        <ScrollArea className="min-h-0 flex-1">
+        <LabScrollArea className="min-h-0 flex-1">
           <div role="listbox" id="lab-search-list" aria-label={l("search")}>
             {results.map((r, i) => (
               <button
@@ -662,34 +567,18 @@ export function ConversationLab({
                 : t("noMatchingConversations")}
             </p>
           )}
-        </ScrollArea>
+        </LabScrollArea>
       ) : (
         <>
-          <div className="min-h-0 flex-1" {...target("main")}>
-            <ScrollArea className="h-full">
-              {drag && (
-                <div
-                  className="rounded border border-dashed px-2 py-1 text-xs text-muted-foreground"
-                  {...target("pinned")}
-                >
-                  {l("pinnedDrag")}
-                </div>
-              )}
+          <div className="min-h-0 flex-1">
+            <LabScrollArea className="h-full">
               {renderRows("pinned")}
-              {groups.pinned.length > 0 && !drag && (
+              {groups.pinned.length > 0 && (
                 <hr
                   aria-hidden="true"
                   data-lab-pinned-divider=""
                   className="mx-2 my-1.5 border-sidebar-border/60"
                 />
-              )}
-              {drag && (
-                <div
-                  className="border-t px-2 py-1 text-xs text-muted-foreground"
-                  {...target("main")}
-                >
-                  {l("activeDrag")}
-                </div>
               )}
               {renderRows("main")}
               {!error && !labGroups.some((g) => groups[g].length) && (
@@ -697,18 +586,20 @@ export function ConversationLab({
                   {loading ? l("loading") : t("noMatchingConversations")}
                 </p>
               )}
-            </ScrollArea>
+            </LabScrollArea>
           </div>
           {visibleShelves.length > 0 && (
-            <ScrollArea className="min-h-0 max-h-[55%] shrink-0 border-t border-sidebar-border/60">
+            <LabScrollArea className="min-h-0 max-h-[55%] shrink-0 border-t border-sidebar-border/60">
               {visibleShelves.map((group) => (
-                <div key={group} {...target(group)}>
-                  <LabShelf group={group} count={groups[group].length}>
-                    {(expanded) => renderRows(group, expanded)}
-                  </LabShelf>
-                </div>
+                <LabShelf
+                  key={group}
+                  group={group}
+                  count={groups[group].length}
+                >
+                  {(expanded) => renderRows(group, expanded)}
+                </LabShelf>
               ))}
-            </ScrollArea>
+            </LabScrollArea>
           )}
         </>
       )}

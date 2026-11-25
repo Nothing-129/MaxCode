@@ -2520,7 +2520,7 @@ pub async fn update_conversation_status_core(
         serde_json::from_value(serde_json::Value::String(status)).map_err(|e| {
             AppCommandError::invalid_input("Invalid conversation status").with_detail(e.to_string())
         })?;
-    conversation_service::update_status(conn, conversation_id, status_enum)
+    conversation_service::update_manual_status(conn, conversation_id, status_enum)
         .await
         .map_err(AppCommandError::from)
 }

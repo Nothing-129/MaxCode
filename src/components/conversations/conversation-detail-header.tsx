@@ -44,7 +44,6 @@ import {
   revokeConversationShare,
   updateWebServiceConfig,
   updateConversationPinned,
-  updateConversationStatus,
   updateConversationTitle,
   type WebServiceConfig,
   type ConversationShareRoundPreview,
@@ -66,14 +65,9 @@ import { ConversationTitleTransition } from "./conversation-title-transition"
 import { OPEN_CONVERSATION_SHARE_EVENT } from "@/lib/conversation-share-events"
 import { splitShareUserText } from "@/lib/conversation-share-content"
 import { useAppWorkspaceStore } from "@/stores/app-workspace-store"
-import { useConversationUnreadStore } from "@/stores/conversation-unread-store"
 import { useTabActions, useTabStore } from "@/contexts/tab-context"
 import { getRuntimeSession } from "@/stores/conversation-runtime-store"
-import type {
-  ConversationShareOptions,
-  ConversationStatus,
-  FolderDetail,
-} from "@/lib/types"
+import type { ConversationShareOptions, FolderDetail } from "@/lib/types"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -113,7 +107,7 @@ import { ConversationShareOptionsEditor } from "./conversation-share-options"
 interface ConversationDetailHeaderProps {
   tabId: string
   selectionActive?: boolean
-  /** Persisted DB id — null for an unsaved draft (rename / pin / status /
+  /** Persisted DB id — null for an unsaved draft (rename / pin /
    *  details / delete disabled until the first send persists the row). */
   conversationId: number | null
   /** Virtual runtime key a new conversation streams under before it reconciles
@@ -123,7 +117,6 @@ interface ConversationDetailHeaderProps {
   folderPath: string | undefined
   project?: Pick<FolderDetail, "name" | "alias" | "color">
   title: string
-  status: ConversationStatus | undefined
 }
 
 function linkTitleHost(title: string): string | undefined {
@@ -144,7 +137,7 @@ function linkTitleHost(title: string): string | undefined {
  * tiled.
  *
  * The ⋯ menu shares the sidebar conversation card's actions (
- * rename / pin / details / status / delete) so the two entry points stay
+ * rename / pin / details / delete) so the two entry points stay
  * consistent, wired to the same APIs. Subscriptions are kept narrow — a
  * primitive `pinned_at != null` boolean — so the header never re-renders on
  * streaming tokens; details data is read on demand at click time via
@@ -159,7 +152,6 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
   folderPath,
   project,
   title,
-  status,
 }: ConversationDetailHeaderProps) {
   const t = useTranslations("Folder.conversationCard")
   const tFind = useTranslations("Folder.chat.conversationFind")
@@ -183,7 +175,7 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
   // runtime key even after it persists — its DB row exists, but the live
   // session (detail/turns) stays keyed by `runtimeConversationId`. So details
   // must target that key; the runtime store resolves the fetchable DB id from
-  // it. Rename/pin/status/delete act on `conversationId` (the DB row).
+  // it. Rename/pin/delete act on `conversationId` (the DB row).
   const runtimeId = runtimeConversationId ?? conversationId
   const storedParentId = useAppWorkspaceStore(
     (state) =>
@@ -300,21 +292,6 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
     }
     setRenameTarget(null)
   }, [renameTarget, renameValue, refreshConversations])
-
-  const handleStatusChange = useCallback(
-    (next: ConversationStatus) => {
-      if (conversationId == null) return
-      // Optimistic local patch, then persist (mirrors sidebar handleStatusChange).
-      updateConversationLocal(conversationId, { status: next })
-      if (next === "completed") {
-        useConversationUnreadStore.getState().markRead(conversationId)
-      }
-      updateConversationStatus(conversationId, next).catch((err) => {
-        console.error("[ConversationDetailHeader] status change:", err)
-      })
-    },
-    [conversationId, updateConversationLocal]
-  )
 
   const handleDeleteOpen = useCallback(() => {
     if (conversationId == null) return
@@ -689,15 +666,6 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
         >
           <Link2 className="size-4" />
           {tTodos("linkConversation")}
-        </DropdownMenuItem>
-      )}
-      {status !== "completed" && (
-        <DropdownMenuItem
-          disabled={!persisted}
-          onSelect={() => handleStatusChange("completed")}
-        >
-          <Check className="h-4 w-4" />
-          {t("markCompleted")}
         </DropdownMenuItem>
       )}
       <DropdownMenuSeparator />

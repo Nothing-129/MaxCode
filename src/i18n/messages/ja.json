@@ -1956,7 +1956,7 @@
       "searchPlaceholder": "会話を検索...",
       "viewOptions": "表示オプション",
       "listOptions": "会話リスト",
-      "showCompleted": "完了した会話を表示",
+      "showCompleted": "クローズ済みの会話を表示",
       "showStatus": "ステータスの色を表示",
       "allowStatusActions": "会話ステータスの変更を許可",
       "prefsSaveFailed": "表示設定の保存に失敗しました：{message}",
@@ -2113,9 +2113,6 @@
         "hours": "時間",
         "days": "日",
         "working": "作業中",
-        "done": "完了",
-        "activeDrag": "アクティブ",
-        "pinnedDrag": "ピン留め済み",
         "compose": "新しいスレッド",
         "settleShort": "対応済みにする"
       },
@@ -2141,6 +2138,7 @@
         "endDate": "終了日",
         "groupByFolder": "フォルダー別にグループ化",
         "filterDate": "日付で絞り込み",
+        "rollingDaysCompact": "{days}日",
         "clear": "リセット",
         "clearDate": "日付をリセット",
         "presets": {
@@ -2148,6 +2146,7 @@
           "yesterday": "昨日",
           "last3": "過去3日",
           "last7": "過去7日",
+          "last15": "過去15日",
           "week": "今週",
           "month": "今月",
           "custom": "カスタム"
@@ -2255,7 +2254,6 @@
       "save": "保存",
       "pin": "ピン留め",
       "unpin": "ピン留めを解除",
-      "markCompleted": "完了にする",
       "reopen": "再開する",
       "expandSubsessions": "サブ会話を展開",
       "collapseSubsessions": "サブ会話を折りたたむ",
