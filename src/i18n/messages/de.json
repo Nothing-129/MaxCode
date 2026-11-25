@@ -2112,6 +2112,7 @@
         "minutes": "Minuten",
         "hours": "Stunden",
         "days": "Tage",
+        "done": "Abgeschlossen",
         "working": "Arbeitet",
         "compose": "Neuer Thread",
         "settleShort": "Erledigen"

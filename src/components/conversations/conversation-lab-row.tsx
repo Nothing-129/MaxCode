@@ -80,6 +80,7 @@ const badgeStyles = {
   waiting: [CircleDotDashed, "text-muted-foreground"],
   failed: [CircleAlert, "text-destructive"],
   limited: [CircleAlert, "text-amber-700 dark:text-amber-400"],
+  done: [CircleCheck, "text-emerald-600 dark:text-emerald-400"],
   woken: [AlarmClock, "text-orange-700 dark:text-orange-400"],
 } as const
 
@@ -176,7 +177,9 @@ export function LabRow({
   const hasDraft =
     !selected &&
     !!loadMessageInputDraftV2(buildConversationDraftStorageKey(c.id))
-  const status = liveKind ?? (showWoke ? "woken" : undefined)
+  const status =
+    liveKind ??
+    (showWoke ? "woken" : group === "completed" && unread ? "done" : undefined)
   const isWorking = status === "working" || status === "goal"
   const BadgeIcon = status ? badgeStyles[status][0] : undefined
   const start = signal?.startedAt ?? started
@@ -250,8 +253,8 @@ export function LabRow({
                         className="size-3.5 shrink-0"
                       />
                     )}
-                    {c.pinned_at && <Pin className="size-3 shrink-0" />}
                     <span className="flex shrink-0 items-center gap-1 group-hover/row:invisible group-has-[[aria-haspopup=menu][data-state=open]]/row:invisible">
+                      {c.pinned_at && <Pin className="size-3 shrink-0" />}
                       {status && BadgeIcon ? (
                         <span
                           aria-hidden={showWoke || undefined}

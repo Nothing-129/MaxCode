@@ -2112,6 +2112,7 @@
         "minutes": "分钟",
         "hours": "小时",
         "days": "天",
+        "done": "完成",
         "working": "运行中",
         "compose": "新建会话",
         "settleShort": "收尾"

@@ -283,7 +283,10 @@ it("keeps finished unread chats in their own completed shelf until viewed", () =
           .getByText("Thread 1")
           .closest("button")
           ?.querySelector("[data-unread-dot]")
-      ).toBeTruthy()
+      ).toBeNull()
+      expect(screen.getByText("Thread 1").closest("button")).toHaveTextContent(
+        en.Folder.sidebar.lab.done
+      )
       expect(screen.getByText("Thread 2")).not.toHaveClass("font-semibold")
       act(() => useConversationUnreadStore.getState().setViewed([4, 1]))
       expect(
@@ -321,6 +324,14 @@ it("keeps finished unread chats in their own completed shelf until viewed", () =
       useAppWorkspaceStore.getState().updateConversationLocal(4, {
         pinned_at: "2026-11-24T10:00:00Z",
       })
+    )
+    const pin = screen
+      .getByText("Thread 0")
+      .closest("button")
+      ?.querySelector(".lucide-pin")
+    expect(pin?.parentElement).toHaveClass(
+      "group-hover/row:invisible",
+      "group-has-[[aria-haspopup=menu][data-state=open]]/row:invisible"
     )
     const divider = container.querySelector("[data-lab-pinned-divider]")
     expect(divider?.previousElementSibling).toHaveTextContent("Thread 0")

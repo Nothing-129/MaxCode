@@ -2112,6 +2112,7 @@
         "minutes": "Minutes",
         "hours": "Heures",
         "days": "Jours",
+        "done": "Terminé",
         "working": "En cours",
         "compose": "Nouveau fil",
         "settleShort": "Clore"

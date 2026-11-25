@@ -2112,6 +2112,7 @@
         "minutes": "分",
         "hours": "時間",
         "days": "日",
+        "done": "完了",
         "working": "作業中",
         "compose": "新しいスレッド",
         "settleShort": "対応済みにする"

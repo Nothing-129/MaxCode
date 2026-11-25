@@ -2112,6 +2112,7 @@
         "minutes": "Minutos",
         "hours": "Horas",
         "days": "Días",
+        "done": "Completada",
         "working": "Trabajando",
         "compose": "Nuevo hilo",
         "settleShort": "Resolver"

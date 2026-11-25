@@ -2112,6 +2112,7 @@
         "minutes": "Minutes",
         "hours": "Hours",
         "days": "Days",
+        "done": "Completed",
         "working": "Working",
         "compose": "New thread",
         "settleShort": "Settle"
