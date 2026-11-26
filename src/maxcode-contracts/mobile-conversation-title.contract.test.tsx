@@ -84,9 +84,9 @@ describe("mobile conversation list layout", () => {
     ).toBeInTheDocument()
     fireEvent.click(title)
     expect(select).toHaveBeenCalledWith(42, "codex", 1)
-    expect(
-      screen.getByRole("button", { name: "More actions" })
-    ).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "More actions" })).toBeNull()
+    fireEvent.contextMenu(title)
+    expect(screen.getByRole("menu")).toBeVisible()
   })
 
   it("keeps unstructured titles and metadata readable without a date", () => {

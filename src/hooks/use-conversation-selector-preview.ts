@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useMemo } from "react"
-import type { SessionConfigOptionInfo } from "@/lib/types"
+import type { SessionConfigOptionInfo, SessionModeStateInfo } from "@/lib/types"
+import { isPermissionConfigId } from "@/lib/permission-config"
 import {
   getCachedSelectors,
   isCachedSelectors,
@@ -89,32 +90,51 @@ function writePreview(key: string, options: SessionConfigOptionInfo[]): void {
 /** Build read-only labels from persisted values, never another chat's current values. */
 export function persistedSelectorPreview(
   values: Record<string, string> | null | undefined,
-  catalog: SessionConfigOptionInfo[] | null
+  catalog: SessionConfigOptionInfo[] | null,
+  modes: SessionModeStateInfo | null = null
 ): SessionConfigOptionInfo[] | null {
   if (!values || Object.keys(values).length === 0) return null
-  return Object.entries(values).map(([id, value]) => {
-    const option = catalog?.find((item) => item.id === id)
-    const kind = option?.kind
-    const label =
-      kind?.type === "select"
-        ? ([
-            ...kind.options,
-            ...(kind.groups ?? []).flatMap((group) => group.options),
-          ].find((item) => item.value === value)?.name ?? value)
-        : value
-    return {
-      id,
-      name: option?.name ?? id,
-      category:
-        option?.category ?? (id === "model" ? "model" : "thought_level"),
-      kind: {
-        type: "select",
-        current_value: value,
-        options: [{ value, name: label }],
-        groups: [],
-      },
-    }
-  })
+  return Object.entries(values)
+    .filter(([id]) => id !== "$session_mode")
+    .concat(
+      values.$session_mode && !values.mode
+        ? [["mode", values.$session_mode]]
+        : []
+    )
+    .map(([id, value]) => {
+      const option = catalog?.find((item) => item.id === id)
+      const kind = option?.kind
+      const label =
+        kind?.type === "select"
+          ? ([
+              ...kind.options,
+              ...(kind.groups ?? []).flatMap((group) => group.options),
+            ].find((item) => item.value === value)?.name ?? value)
+          : id === "mode"
+            ? (modes?.available_modes.find((mode) => mode.id === value)?.name ??
+              value)
+            : value
+      return {
+        id,
+        name: option?.name ?? id,
+        category:
+          option?.category ??
+          (id === "model"
+            ? "model"
+            : isPermissionConfigId(id)
+              ? "mode"
+              : "thought_level"),
+        kind:
+          kind?.type === "boolean"
+            ? { type: "boolean", current_value: value === "true" }
+            : {
+                type: "select",
+                current_value: value,
+                options: [{ value, name: label }],
+                groups: [],
+              },
+      }
+    })
 }
 
 /** Display only: SQLite/native session restoration remains authoritative. */
@@ -147,11 +167,12 @@ export function useConversationSelectorPreview({
     if (!key || !ready || configOptions == null) return
     writePreview(key, configOptions)
   }, [key, ready, configOptions])
-  return ready
-    ? configOptions
-    : (preview ??
-        persistedSelectorPreview(
-          persistedValues,
-          getCachedSelectors(agentType)?.configOptions ?? null
-        ))
+  if (ready) return configOptions
+  if (preview?.length) return preview
+  const catalog = getCachedSelectors(agentType)
+  return persistedSelectorPreview(
+    persistedValues,
+    catalog?.configOptions ?? null,
+    catalog?.modes ?? null
+  )
 }

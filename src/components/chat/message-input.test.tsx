@@ -2575,3 +2575,99 @@ describe("Fast belongs to the model picker", () => {
     expect(onConfigOptionChange).toHaveBeenCalledWith("fast-mode", "off")
   })
 })
+
+it("renders one Codex settings summary and sends edits through the composer callback", () => {
+  const onConfigOptionChange = vi.fn()
+  renderInput({
+    agentType: "codex",
+    onConfigOptionChange,
+    configOptions: [
+      MODEL_OPTION,
+      {
+        id: "reasoning_effort",
+        name: "Reasoning effort",
+        category: "thought_level",
+        kind: {
+          type: "select",
+          current_value: "low",
+          groups: [],
+          options: [
+            { value: "low", name: "Low" },
+            { value: "high", name: "High" },
+          ],
+        },
+      },
+      {
+        id: "fast-mode",
+        name: "Fast",
+        kind: { type: "boolean", current_value: false },
+      },
+      {
+        id: "mode",
+        name: "Permissions",
+        kind: {
+          type: "select",
+          current_value: "workspace",
+          groups: [],
+          options: [
+            { value: "workspace", name: "Workspace" },
+            { value: "full-access", name: "Full access" },
+          ],
+        },
+      },
+    ],
+  })
+  const summary = screen.getByRole("button", {
+    name: "Default · Low · Standard",
+  })
+  fireEvent.click(summary)
+  const panel = within(screen.getByRole("dialog", { name: MSGS.agentSettings }))
+  fireEvent.click(panel.getByRole("button", { name: "High" }))
+  fireEvent.click(panel.getByRole("button", { name: "Fast" }))
+  expect(onConfigOptionChange.mock.calls).toEqual([
+    ["reasoning_effort", "high"],
+    ["fast-mode", "true"],
+  ])
+})
+
+it("uses the new combined Codex selector at phone widths", () => {
+  const matchMedia = window.matchMedia
+  const mobileMedia = vi
+    .spyOn(window, "matchMedia")
+    .mockImplementation((query) => {
+      const result = matchMedia(query)
+      return query === "(max-width: 767px)"
+        ? { ...result, matches: true }
+        : result
+    })
+  try {
+    renderInput({
+      agentType: "codex",
+      configOptions: [
+        MODEL_OPTION,
+        {
+          ...MODEL_OPTION,
+          id: "mode",
+          name: "Permissions",
+        },
+      ],
+      onConfigOptionChange: vi.fn(),
+    })
+    const summary = screen.getByRole("button", { name: /^Default$/ })
+    expect(summary).toHaveAttribute("data-codex-composer-summary")
+    expect(
+      screen.queryByRole("button", { name: "Permissions: Default" })
+    ).toBeNull()
+    fireEvent.click(summary)
+    const panel = within(
+      screen.getByRole("dialog", { name: MSGS.agentSettings })
+    )
+    expect(panel.getByRole("button", { name: "Opus" })).toBeVisible()
+    expect(
+      panel.getByRole("button", { name: "Permissions: Default" })
+    ).toBeVisible()
+  } finally {
+    cleanup()
+    mobileMedia.mockRestore()
+  }
+})

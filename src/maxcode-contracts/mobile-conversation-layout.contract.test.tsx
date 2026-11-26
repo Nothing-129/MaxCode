@@ -55,9 +55,7 @@ describe("MaxCode: mobile conversation layout", () => {
     const header = source(
       "src/components/conversations/conversation-detail-header.tsx"
     )
-    expect(header).toMatch(
-      /<DropdownMenuItem\s+disabled=\{runtimeConversationId/
-    )
+    expect(header).toContain("find={runtimeId != null ? find : undefined}")
     expect(edit).toContain("group-hover/user-msg:opacity-100")
     expect(edit).toContain("focus-visible:opacity-100")
     expect(edit).not.toContain("md:opacity-0")

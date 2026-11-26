@@ -231,3 +231,30 @@ it("keeps the latest message pinned in the same frame as entry measurements", ()
   flushFrame()
   expect(viewport.scrollTop).toBe(400)
 })
+
+it("keeps a settled transcript near the bottom from snapping during row remeasurement", () => {
+  const context = createRef<StickToBottomContext>()
+  render(
+    <MessageThread entryKey="idle-history" contextRef={context}>
+      <VirtualizedMessageThread
+        items={["first", "last"]}
+        getItemKey={(item) => item}
+        renderItem={(item) => <div>{item}</div>}
+      />
+    </MessageThread>
+  )
+  const thread = context.current!
+  const viewport = thread.scrollRef.current!
+  resizeContent(thread, 10000)
+  flushFrame()
+
+  // The reader has approached the last reply, inside the library’s near-bottom
+  // threshold, but still has another 50px to scroll after measuring the rows.
+  viewport.scrollTop = 9429
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(9980)
+  resizeContent(thread, 9980)
+  expect(viewport.scrollTop).toBe(9429)
+  flushFrame()
+  expect(viewport.scrollTop).toBe(9429)
+  expect(viewport).toHaveClass("overscroll-y-none")
+})

@@ -87,11 +87,26 @@ const StickThroughViewportResize = ({
     const content = contentRef?.current
     if (!content) return
     let frame: number | undefined
-    const observer = new ResizeObserver(() => {
+    let previousHeight: number | undefined
+    const initialTarget = state.calculatedTargetScrollTop
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return
       if (frame !== undefined) cancelAnimationFrame(frame)
+      const { height } = entry.contentRect
+      const target = state.calculatedTargetScrollTop
+      const previousTarget =
+        previousHeight === undefined
+          ? initialTarget
+          : target - (height - previousHeight)
+      previousHeight = height
       if (!state.isAtBottom) return
       if (!sending && !streaming) {
-        state.scrollTop = Math.max(0, state.calculatedTargetScrollTop)
+        // The library follows within a near-bottom threshold. Idle row
+        // measurements should move the reader only if they were already at
+        // the previous bottom or the browser has clamped to the new one.
+        if (state.scrollTop < Math.max(0, Math.min(target, previousTarget)) - 2)
+          return
+        state.scrollTop = Math.max(0, target)
       }
       frame = requestAnimationFrame(() => {
         frame = undefined

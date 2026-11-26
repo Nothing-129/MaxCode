@@ -1,4 +1,5 @@
 "use client"
+import { ConversationActionsMenu } from "./conversation-actions-menu"
 
 import {
   memo,
@@ -8,24 +9,14 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react"
 import {
-  AtSign,
-  Pencil,
-  Trash2,
-  SquarePen,
-  Pin,
-  PinOff,
   Folder,
   FolderX,
-  Info,
   MessageSquare,
   ChevronRight,
   Ellipsis,
-  Link2,
 } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { useImeGuard } from "@/hooks/use-ime-guard"
-import { useTabStore } from "@/contexts/tab-context"
-import { emitAttachSessionToSession } from "@/lib/session-attachment-events"
 import type { DbConversationSummary } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import {
@@ -36,8 +27,6 @@ import {
   ContextMenu,
   ContextMenuTrigger,
   ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
 } from "@/components/ui/context-menu"
 import {
   Dialog,
@@ -132,21 +121,6 @@ export function SubsessionAncestorRails({
   )
 }
 
-/**
- * The conversation tab whose composer "add to session" writes into — the active
- * one — or null when no conversation tab is open. Reads the store imperatively so
- * it can serve both the menu's disabled state and the click itself.
- *
- * Deliberately no self-mention guard: the composer's own `@` panel lists every
- * session including the one being typed in, so the sidebar matches it.
- */
-function resolveAttachTabId(): string | null {
-  const { tabs, activeTabId } = useTabStore.getState()
-  const activeTab = tabs.find((tab) => tab.id === activeTabId)
-  if (!activeTab || activeTab.kind !== "conversation") return null
-  return activeTab.id
-}
-
 interface SidebarConversationCardProps {
   conversation: DbConversationSummary
   isSelected: boolean
@@ -218,13 +192,10 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
   const t = useTranslations("Folder.conversationCard")
   const ime = useImeGuard()
   const tSidebar = useTranslations("Folder.sidebar")
-  const tDetails = useTranslations("Folder.sessionDetails")
-  const tTodos = useTranslations("Todos")
   const [renameOpen, setRenameOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [renameValue, setRenameValue] = useState("")
-  const [attachTabId, setAttachTabId] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
 
   const selectConversation = useCallback(() => {
@@ -261,29 +232,6 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
     conversation.agent_type,
     conversation.folder_id,
   ])
-
-  // Snapshotted on open instead of subscribed: one card renders per visible
-  // sidebar row, so a live `useTabStore` selector here would add a store
-  // subscription — and a re-render on every tab switch — to each of them for a
-  // value only the context menu reads. This snapshot drives the DISABLED STATE
-  // only; the click re-resolves (see `handleAttachToSession`).
-  const handleMenuOpenChange = useCallback((open: boolean) => {
-    setMenuOpen(open)
-    if (!open) return
-    setAttachTabId(resolveAttachTabId())
-  }, [])
-
-  const handleAttachToSession = useCallback(() => {
-    // Re-resolved at click time rather than reused from the open-time snapshot:
-    // the workspace's `mod+w` / `mod+tab` handler sits on `document`, and Radix
-    // lets modifier combos through to it while the menu is open, so the active
-    // tab really can change under an open menu. Posting to the stale id would
-    // drop the badge into a closed (or now-background) composer and read to the
-    // user as "nothing happened".
-    const tabId = resolveAttachTabId()
-    if (!tabId) return
-    emitAttachSessionToSession({ tabId, conversation })
-  }, [conversation])
 
   const handleRenameOpen = useCallback(() => {
     setRenameValue(conversationTitleTopic(conversation.title))
@@ -327,7 +275,7 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
 
   return (
     <>
-      <ContextMenu onOpenChange={handleMenuOpenChange}>
+      <ContextMenu onOpenChange={setMenuOpen}>
         <ContextMenuTrigger asChild>
           <div
             className={cn(
@@ -679,8 +627,7 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
                   ) : null}
                 </span>
                 {showHoverActions &&
-                  !(stackedLayout && hasUnread) &&
-                  !(stackMetadata && isRunning) && (
+                  !(stackedLayout && (hasUnread || isRunning)) && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -720,71 +667,30 @@ export const SidebarConversationCard = memo(function SidebarConversationCard({
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          {onLinkTodo && !isSubsession && (
-            <ContextMenuItem
-              onSelect={() =>
-                onLinkTodo(
-                  conversation.id,
-                  formatConversationTitle(conversation.title) ||
-                    t("untitledConversation")
-                )
-              }
-            >
-              <Link2 className="size-4" />
-              {tTodos("linkConversation")}
-            </ContextMenuItem>
-          )}
-          {onNewConversation && (
-            <>
-              <ContextMenuItem
-                onSelect={() => onNewConversation(conversation.folder_id)}
-              >
-                <SquarePen className="h-4 w-4" />
-                {t("newConversation")}
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-            </>
-          )}
-          <ContextMenuItem onSelect={handleRenameOpen}>
-            <Pencil className="h-4 w-4" />
-            {t("rename")}
-          </ContextMenuItem>
-          {onTogglePin && (
-            <ContextMenuItem
-              onSelect={() => onTogglePin(conversation.id, !isPinned)}
-            >
-              {isPinned ? (
-                <PinOff className="h-4 w-4" />
-              ) : (
-                <Pin className="h-4 w-4" />
-              )}
-              {isPinned ? t("unpin") : t("pin")}
-            </ContextMenuItem>
-          )}
-          <ContextMenuItem onSelect={() => setDetailsOpen(true)}>
-            <Info className="h-4 w-4" />
-            {tDetails("menuLabel")}
-          </ContextMenuItem>
-          {/* Mirrors the file tree's "add to session": inserts an `@`-style
-              mention of THIS conversation into the active session's composer.
-              Disabled only when no conversation tab is open — there is no
-              composer to write into then. */}
-          <ContextMenuItem
-            onSelect={handleAttachToSession}
-            disabled={!attachTabId}
-          >
-            <AtSign className="h-4 w-4" />
-            {t("attachToCurrentSession")}
-          </ContextMenuItem>
-
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            variant="destructive"
-            onSelect={() => setDeleteOpen(true)}
-          >
-            <Trash2 className="h-4 w-4" />
-            {t("delete")}
-          </ContextMenuItem>
+          <ConversationActionsMenu
+            context
+            conversation={conversation}
+            folderId={conversation.folder_id}
+            pinned={isPinned}
+            rename={handleRenameOpen}
+            details={() => setDetailsOpen(true)}
+            remove={() => setDeleteOpen(true)}
+            pin={onTogglePin && (() => onTogglePin(conversation.id, !isPinned))}
+            newConversation={
+              onNewConversation &&
+              (() => onNewConversation(conversation.folder_id))
+            }
+            linkTodo={
+              !isSubsession && onLinkTodo
+                ? () =>
+                    onLinkTodo(
+                      conversation.id,
+                      formatConversationTitle(conversation.title) ||
+                        t("untitledConversation")
+                    )
+                : undefined
+            }
+          />
         </ContextMenuContent>
       </ContextMenu>
 

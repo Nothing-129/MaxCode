@@ -27,6 +27,10 @@ describe("MaxCode contract: mobile conversation sharing", () => {
     expect(header).toMatch(
       /window\.removeEventListener\(\s*OPEN_CONVERSATION_SHARE_EVENT,\s*handleShareRequest\s*\)/
     )
-    expect(header.match(/open=\{shareTarget != null\}/g)).toHaveLength(1)
+    expect(
+      source(
+        "src/components/conversations/conversation-action-dialogs.tsx"
+      ).match(/open=\{shareTarget != null\}/g)
+    ).toHaveLength(1)
   })
 })

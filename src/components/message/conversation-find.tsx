@@ -12,6 +12,7 @@ import {
 } from "react"
 import { ArrowDown, ArrowUp, Search, X } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { useConversationMenuRequest } from "@/components/conversations/conversation-menu-request"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { OPEN_CONVERSATION_FIND_EVENT } from "@/lib/conversation-find-events"
 import type { ThreadRenderItem } from "./message-list-view"
@@ -97,6 +98,19 @@ export function ConversationFind({
       inputRef.current?.select()
     })
   }, [])
+
+  useEffect(() => {
+    if (!active) return
+    const consume = () => {
+      const { pending } = useConversationMenuRequest.getState()
+      if (pending?.action !== "find" || pending.id !== conversationId) return
+      useConversationMenuRequest.setState({ pending: null })
+      show()
+    }
+    const unsubscribe = useConversationMenuRequest.subscribe(consume)
+    consume()
+    return unsubscribe
+  }, [active, conversationId, show])
 
   useEffect(() => {
     if (!active) return

@@ -21,13 +21,61 @@ import {
   preferLabSignal,
 } from "@/lib/conversation-lab-status"
 import type { DbConversationSummary, FolderDetail } from "@/lib/types"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { DATE_FILTER_STORAGE_KEY } from "@/lib/sidebar-navigation"
 import {
   NAVIGATION_IDS,
   SidebarNavigationProvider,
 } from "@/contexts/sidebar-navigation-context"
 import { source } from "./contract-source"
+
+const snoozeBackend = vi.hoisted(() => ({
+  values: new Map<
+    number,
+    { conversation_id: number; mark: unknown; revision: number }
+  >(),
+}))
+vi.mock("@/lib/transport", () => ({
+  getTransport: () => ({
+    subscribe: async () => () => {},
+    onReconnect: () => () => {},
+    call: async (
+      command: string,
+      args: {
+        conversation_id: number
+        mark: unknown
+        legacy?: boolean
+        expected_revision?: number
+      }
+    ) => {
+      if (command === "get_conversation_snoozes")
+        return [...snoozeBackend.values.values()]
+      if (command === "update_conversation_snooze") {
+        const previous = snoozeBackend.values.get(args.conversation_id)
+        if (
+          (args.legacy && previous) ||
+          (args.expected_revision !== undefined &&
+            args.expected_revision !== (previous?.revision ?? 0))
+        )
+          return previous
+        const value = {
+          conversation_id: args.conversation_id,
+          mark: args.mark,
+          revision: (previous?.revision ?? 0) + 1,
+        }
+        snoozeBackend.values.set(args.conversation_id, value)
+        return value
+      }
+      return []
+    },
+  }),
+}))
+beforeEach(() => snoozeBackend.values.clear())
+const flushSnooze = async () => {
+  await act(async () => {
+    for (let i = 0; i < 15; i++) await Promise.resolve()
+  })
+}
 
 function ConversationLab({ mobile = false }: { mobile?: boolean }) {
   return (
@@ -177,6 +225,7 @@ vi.mock("@/contexts/tab-context", () => ({
   useTabStore: () => live.selected,
 }))
 vi.mock("@/contexts/workbench-route-context", () => ({
+  useOptionalWorkbenchRoute: () => ({ openConversations: () => {} }),
   useWorkbenchRoute: () => ({ openConversations: () => {} }),
 }))
 
@@ -526,7 +575,7 @@ it("offers open root projects without shortcut hints or shortcut creation", asyn
   }
 })
 
-it("shows a compact snoozed row, wakes it and lets the user undo settlement", () => {
+it("shows a compact snoozed row, wakes it and lets the user undo settlement", async () => {
   const previous = useAppWorkspaceStore.getState()
   const c = {
     id: 431,
@@ -561,10 +610,12 @@ it("shows a compact snoozed row, wakes it and lets the user undo settlement", ()
     const shelf = container.querySelector("details")!
     expect(shelf.textContent).not.toContain("Chat")
     fireEvent.click(screen.getByRole("button", { name: "Wake thread now" }))
+    await flushSnooze()
     expect(container.querySelector("summary")).toBeNull()
     expect(
       screen.queryByRole("button", { name: "Dismiss wake notification" })
     ).toBeNull()
+    await flushSnooze()
     expect(localStorage.getItem(labKey(c))).toBeNull()
     const settle = screen.getByRole("button", { name: "Settle thread" })
     const snooze = screen.getByRole("button", { name: "Snooze thread" })
@@ -581,6 +632,7 @@ it("shows a compact snoozed row, wakes it and lets the user undo settlement", ()
     }
     fireEvent.click(settle)
     expect(save).toHaveBeenCalledWith(c.id, expect.any(Number))
+    await flushSnooze()
     const finished = screen.getByText(en.Folder.sidebar.lab.finished, {
       selector: "summary",
     })
@@ -588,6 +640,7 @@ it("shows a compact snoozed row, wakes it and lets the user undo settlement", ()
     fireEvent.click(finished)
     expect(localStorage.getItem("maxcode:lab-shelf:finished")).toBe("1")
     fireEvent.click(screen.getByRole("button", { name: "Un-settle thread" }))
+    await flushSnooze()
     expect(localStorage.getItem(labKey(c))).toBeNull()
     expect(save).toHaveBeenLastCalledWith(c.id, 0)
   } finally {
@@ -599,7 +652,7 @@ it("shows a compact snoozed row, wakes it and lets the user undo settlement", ()
   }
 })
 
-it("shows a wake badge when the snooze timer expires and after reopening the lab", () => {
+it("shows a wake badge when the snooze timer expires and after reopening the lab", async () => {
   vi.useFakeTimers()
   const previous = useAppWorkspaceStore.getState()
   const c = {
@@ -624,6 +677,7 @@ it("shows a wake badge when the snooze timer expires and after reopening the lab
       conversationsLoading: false,
     })
     const { unmount } = render(view)
+    await flushSnooze()
     expect(screen.queryByText("Woke up")).toBeNull()
     act(() => {
       vi.advanceTimersByTime(5000)
@@ -636,7 +690,15 @@ it("shows a wake badge when the snooze timer expires and after reopening the lab
     const dismiss = screen.getByRole("button", {
       name: "Dismiss wake notification",
     })
+    expect(dismiss).toHaveClass(
+      "group-hover/row:invisible",
+      "group-has-[[aria-haspopup=menu][data-state=open]]/row:invisible"
+    )
+    const settle = screen.getByRole("button", { name: "Settle thread" })
+    expect(settle.parentElement?.parentElement).toHaveClass("absolute", "end-1")
+    expect(dismiss.parentElement).not.toBe(settle.parentElement?.parentElement)
     fireEvent.click(dismiss)
+    await flushSnooze()
     expect(localStorage.getItem(labKey(c))).toBeNull()
     expect(
       screen.queryByRole("button", { name: "Dismiss wake notification" })
@@ -948,7 +1010,7 @@ it("uses actual requests and terminal failures for priority and early wake", asy
   ).toBe(false)
 })
 
-it("returns a snoozed parent for a child approval and dismisses the wake without opening it", () => {
+it("returns a snoozed parent for a child approval and dismisses the wake without opening it", async () => {
   const previous = useAppWorkspaceStore.getState()
   const tabs = tabStore.getState().rawTabs
   const parent = {
@@ -976,6 +1038,7 @@ it("returns a snoozed parent for a child approval and dismisses the wake without
         <ConversationLab />
       </NextIntlClientProvider>
     )
+    await flushSnooze()
     expect(screen.getByText("Snoozed")).toBeTruthy()
     act(() => {
       live.connections.set(childKey, {
@@ -985,6 +1048,7 @@ it("returns a snoozed parent for a child approval and dismisses the wake without
       } as ConnectionState)
       live.listeners.get(childKey)?.()
     })
+    await flushSnooze()
     expect(screen.getByText("Approval")).toBeTruthy()
     expect(screen.queryByText("Snoozed")).toBeNull()
     expect(screen.queryByRole("button", { name: "Snooze thread" })).toBeNull()
@@ -995,6 +1059,7 @@ it("returns a snoozed parent for a child approval and dismisses the wake without
     fireEvent.click(
       screen.getByRole("button", { name: "Dismiss wake notification" })
     )
+    await flushSnooze()
     expect(localStorage.getItem(labKey(parent))).toBeNull()
     expect(live.connections.size).toBe(0)
     unmount()

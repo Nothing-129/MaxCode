@@ -61,12 +61,8 @@ it("lets pointer input pass through unused right chrome to the conversation menu
   expect(chrome).not.toContain("data-drag-region")
   expect(chrome).not.toContain("rightChromeClusterWidth")
 })
-it("omits new conversation from the conversation header tools", () => {
+it("uses the shared actions for the desktop and mobile header menus", () => {
   const header = source("conversations/conversation-detail-header")
-  const menu = header.slice(
-    header.indexOf("const conversationMenuItems"),
-    header.indexOf("const header =")
-  )
-  expect(menu).not.toContain('t("newConversation")')
-  expect(menu).not.toContain("openNewConversationTab")
+  expect(header).toContain("<ConversationActionsMenu")
+  expect(header.match(/\{conversationMenuItems\}/g)).toHaveLength(2)
 })

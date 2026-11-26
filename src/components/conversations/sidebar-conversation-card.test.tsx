@@ -404,10 +404,12 @@ describe("SidebarConversationCard actions menu", () => {
     expect(screen.queryByRole("menuitem", { name: "Reopen" })).toBeNull()
   })
 
-  it("keeps details available when pinning is unavailable", async () => {
+  it("exposes pin and details without a list-specific pin handler", async () => {
     renderCard(conv(5), false)
     await openActions()
-    expect(screen.queryByRole("menuitem", { name: "Pin" })).toBeNull()
+    expect(screen.getByRole("menuitem", { name: "Pin" })).not.toHaveAttribute(
+      "data-disabled"
+    )
     expect(
       screen.getByRole("menuitem", {
         name: enMessages.Folder.sessionDetails.menuLabel,

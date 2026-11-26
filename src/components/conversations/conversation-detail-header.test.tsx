@@ -325,10 +325,10 @@ describe("ConversationDetailHeader dialog target snapshot", () => {
       expect(item.querySelector("svg")).toBeVisible()
     }
     expect(
-      view.queryByRole("menuitem", {
+      view.getByRole("menuitem", {
         name: enMessages.Folder.conversationCard.newConversation,
       })
-    ).toBeNull()
+    ).toBeVisible()
     expect(
       view.queryByRole("menuitem", { name: "Mark as completed" })
     ).toBeNull()

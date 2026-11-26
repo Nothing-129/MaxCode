@@ -94,3 +94,70 @@ async fn model_memory_worker_saves_history_without_relinking_or_changing_status(
         config_options: vec![]
     }));
 }
+
+#[tokio::test]
+async fn permission_memory_worker_saves_confirmed_standard_mode_events() {
+    let db = fresh_in_memory_db().await;
+    let folder = seed_folder(&db, "/tmp/permission-mode-events").await;
+    let id = seed_conversation(&db, folder, AgentType::ClaudeCode).await;
+    let manager = ConnectionManager::new();
+    manager
+        .insert_test_connection(
+            "permission",
+            AgentType::ClaudeCode,
+            None,
+            EventEmitter::Noop,
+        )
+        .await;
+    let (state, _) = manager.get_state_and_emitter("permission").await.unwrap();
+    {
+        let mut state = state.write().await;
+        state.model_config_conversation_id = Some(id);
+        state.selectors_ready = true;
+    }
+    for event in [
+        AcpEvent::SessionModes {
+            modes: crate::acp::types::SessionModeStateInfo {
+                current_mode_id: "default".into(),
+                available_modes: vec![],
+            },
+        },
+        AcpEvent::ModeChanged {
+            mode_id: "bypassPermissions".into(),
+        },
+    ] {
+        assert!(is_lifecycle_relevant(&event));
+        state.write().await.apply_event(&event);
+        let (tx, rx) = mpsc::channel(1);
+        tx.send(Arc::new(EventEnvelope {
+            seq: 1,
+            connection_id: "permission".into(),
+            payload: event,
+        }))
+        .await
+        .unwrap();
+        drop(tx);
+        connection_worker_loop(
+            "permission".into(),
+            db.conn.clone(),
+            manager.clone_ref(),
+            None,
+            rx,
+        )
+        .await;
+        let (_, mut values) = preferences_for_connect(
+            &db.conn,
+            AgentType::ClaudeCode,
+            Some(id),
+            None,
+            Default::default(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            crate::acp::conversation_model_config::take_mode_for_connect(true, None, &mut values),
+            state.read().await.current_mode
+        );
+    }
+    assert!(state.read().await.conversation_id.is_none());
+}

@@ -62,7 +62,9 @@ describe("current conversation find contract", () => {
       "src/components/conversations/conversation-detail-header.tsx"
     )
     expect(header).toContain("openConversationFind(id)")
-    expect(header).toContain('{tFind("title")}')
+    expect(
+      source("src/components/conversations/conversation-actions-menu.tsx")
+    ).toContain('tFind("title")')
   })
 
   it("does not open or intercept find shortcuts on mobile", () => {

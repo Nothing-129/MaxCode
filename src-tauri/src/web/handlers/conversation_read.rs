@@ -15,12 +15,19 @@ pub async fn get_conversation_reads(
 #[derive(Deserialize)]
 pub struct Params {
     pub ids: Vec<i64>,
+    pub expected_receipts: Option<std::collections::HashMap<String, String>>,
 }
 pub async fn mark_conversations_read(
     Extension(state): Extension<Arc<AppState>>,
     Json(params): Json<Params>,
 ) -> Result<Json<Vec<ReadReceipt>>, AppCommandError> {
     Ok(Json(
-        conversation_read::save(&state.db.conn, &state.emitter, params.ids).await?,
+        conversation_read::save_expected(
+            &state.db.conn,
+            &state.emitter,
+            params.ids,
+            params.expected_receipts,
+        )
+        .await?,
     ))
 }

@@ -44,3 +44,5 @@ pub mod workspace_files;
 pub mod workspace_state;
 
 pub mod conversation_read;
+
+pub mod conversation_snooze;

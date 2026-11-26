@@ -16,6 +16,8 @@ function sameIdSet(a: ReadonlySet<number>, b: ReadonlySet<number>): boolean {
 }
 
 export interface ConversationUnreadState {
+  authoritativeIds: ReadonlySet<number>
+  applyRemoteState: (conversationId: number, unread: boolean) => void
   unreadIds: ReadonlySet<number>
   viewedIds: ReadonlySet<number>
   visibleIds: ReadonlySet<number>
@@ -34,12 +36,28 @@ function persistUnread(ids: ReadonlySet<number>): void {
 
 export const useConversationUnreadStore = create<ConversationUnreadState>(
   (set, get) => ({
+    authoritativeIds: new Set(),
+    applyRemoteState: (conversationId, unread) => {
+      const state = get()
+      const authoritativeIds = new Set(state.authoritativeIds).add(
+        conversationId
+      )
+      const unreadIds = new Set(state.unreadIds)
+      if (unread && !state.viewedIds.has(conversationId))
+        unreadIds.add(conversationId)
+      else unreadIds.delete(conversationId)
+      persistUnread(unreadIds)
+      set({ authoritativeIds, unreadIds })
+      if (unread && state.viewedIds.has(conversationId))
+        publishConversationRead([conversationId])
+    },
     unreadIds: new Set(loadUnreadConversationIds()),
     viewedIds: new Set(),
     visibleIds: new Set(),
 
     noteActivity: (conversationId) => {
-      if (conversationId <= 0) return
+      if (conversationId <= 0 || get().authoritativeIds.has(conversationId))
+        return
       const { viewedIds, unreadIds } = get()
       if (viewedIds.has(conversationId)) {
         publishConversationRead([conversationId])
@@ -139,6 +157,7 @@ export function resetConversationUnreadStore() {
   clearUnreadConversationIds()
   useConversationUnreadStore.setState(
     {
+      authoritativeIds: new Set(),
       unreadIds: new Set(),
       viewedIds: new Set(),
       visibleIds: new Set(),

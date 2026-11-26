@@ -1,15 +1,12 @@
 "use client"
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 import { toErrorMessage } from "@/lib/app-error"
 import { updateLabSettlement } from "@/lib/api"
+import { createLabSnoozeSync } from "@/lib/conversation-snooze-sync"
 import { createStore, useStore } from "zustand"
+import { ConversationLabContext as Context } from "./conversation-lab-context"
+import { CustomSnooze } from "./conversation-lab-snooze"
 import { useLabSignals } from "./use-lab-signals"
 import { shouldWakeLabSnooze } from "@/lib/conversation-lab-status"
 import {
@@ -46,22 +43,58 @@ function loadSeenFailures(): Map<string, string> {
 }
 
 function createLabMarksStore() {
-  return createStore<{
+  const hydratedKeys = new Set<string>()
+  const sync = createLabSnoozeSync({
+    conversations: () => useAppWorkspaceStore.getState().conversations,
+    mark: (c) => store.getState().marks.get(labKey(c)),
+    apply: (c, mark) => {
+      const key = labKey(c)
+      const previous = store.getState().marks.get(key)
+      const hydrated = hydratedKeys.has(key)
+      hydratedKeys.add(key)
+      if (hydrated && JSON.stringify(previous) === JSON.stringify(mark)) return
+      // Legacy settlement migration owns these entries until it succeeds.
+      if (
+        mark === undefined &&
+        (previous === "finished" || labSettledAt(previous))
+      )
+        return
+      try {
+        if (mark === undefined) localStorage.removeItem(key)
+        else
+          localStorage.setItem(
+            key,
+            typeof mark === "string" ? mark : JSON.stringify(mark)
+          )
+      } catch {}
+      const marks = new Map(store.getState().marks)
+      if (mark === undefined) marks.delete(key)
+      else marks.set(key, mark)
+      store.setState({ marks })
+    },
+  })
+  const store = createStore<{
+    startSync: () => () => void
+    refresh: () => Promise<void>
     marks: Map<string, LabMark>
     seenFailures: Map<string, string>
     change: (
       c: DbConversationSummary,
       mark?: LabMark,
-      previousEdge?: string
+      previousEdge?: string,
+      automatic?: boolean
     ) => void
     seeFailure: (key: string, edge: string) => void
   }>()((set, get) => ({
+    startSync: sync.start,
+    refresh: sync.refresh,
     marks: loadLabMarks(),
     seenFailures: loadSeenFailures(),
     async change(
       c: DbConversationSummary,
       mark?: LabMark,
-      previousEdge?: string
+      previousEdge?: string,
+      automatic = false
     ) {
       const key = labKey(c)
       const settledAt = labSettledAt(mark)
@@ -83,21 +116,10 @@ function createLabMarksStore() {
       if (typeof mark === "number")
         mark = { until: mark, since: Date.now(), previousEdge }
       try {
-        if (mark === undefined) localStorage.removeItem(key)
-        else
-          localStorage.setItem(
-            key,
-            typeof mark === "object"
-              ? "until" in mark
-                ? JSON.stringify(mark)
-                : "finished:" + mark.settledAt
-              : mark
-          )
-      } catch {}
-      const marks = new Map(get().marks)
-      if (mark === undefined) marks.delete(key)
-      else marks.set(key, mark)
-      set({ marks })
+        await sync.save(c, mark, automatic)
+      } catch (error) {
+        toast.error(toErrorMessage(error))
+      }
     },
     seeFailure(key: string, edge: string) {
       const seenFailures = new Map(get().seenFailures).set(key, edge)
@@ -107,6 +129,7 @@ function createLabMarksStore() {
       set({ seenFailures })
     },
   }))
+  return store
 }
 
 function useLabController() {
@@ -116,6 +139,10 @@ function useLabController() {
   const { marks, seenFailures, change, seeFailure } = useStore(store)
   const signals = useLabSignals(conversations)
   const viewed = useConversationUnreadStore((s) => s.viewedIds)
+  useEffect(() => store.getState().startSync(), [store])
+  useEffect(() => {
+    void store.getState().refresh()
+  }, [conversations, store])
   useEffect(() => {
     let active = true
     async function migrate() {
@@ -151,7 +178,7 @@ function useLabController() {
   useEffect(() => {
     const sync = (e: StorageEvent) => {
       if (!e.key || e.key.startsWith("maxcode:conversation-lab:"))
-        store.setState({ marks: loadLabMarks() })
+        void store.getState().refresh()
       if (!e.key || e.key === seenKey)
         store.setState({ seenFailures: loadSeenFailures() })
     }
@@ -172,10 +199,10 @@ function useLabController() {
         const snooze =
           typeof mark === "object" && "until" in mark ? mark : undefined
         if (shouldWakeLabSnooze(signal, snooze?.previousEdge, snooze?.since))
-          change(c, viewed.has(c.id) ? undefined : "woken")
+          change(c, viewed.has(c.id) ? undefined : "woken", undefined, true)
       }
       if (viewed.has(c.id)) {
-        if (labHasWoken(mark, now)) change(c)
+        if (labHasWoken(mark, now)) change(c, undefined, undefined, true)
         else if (until != null) nextViewedWake = Math.min(nextViewedWake, until)
       }
       if (
@@ -208,14 +235,22 @@ function useLabController() {
   return { marks, signals, seenFailures, change }
 }
 
-const Context = createContext<ReturnType<typeof useLabController> | null>(null)
+type CustomSnoozeHandler = (at: number) => void
+export type ConversationLabState = ReturnType<typeof useLabController> & {
+  customSnooze: (handler: CustomSnoozeHandler) => void
+}
+
 export function ConversationLabProvider({ children }: { children: ReactNode }) {
-  const value = useLabController()
-  return <Context.Provider value={value}>{children}</Context.Provider>
+  const state = useLabController()
+  const [custom, setCustom] = useState<CustomSnoozeHandler | null>(null)
+  function customSnooze(handler: CustomSnoozeHandler) {
+    setCustom(() => handler)
+  }
+  return (
+    <Context.Provider value={{ ...state, customSnooze }}>
+      {children}
+      {custom && <CustomSnooze snooze={custom} close={() => setCustom(null)} />}
+    </Context.Provider>
+  )
 }
-export function useLabState() {
-  const value = useContext(Context)
-  if (!value)
-    throw new Error("ConversationLab requires ConversationLabProvider")
-  return value
-}
+export { useLabState } from "./conversation-lab-context"

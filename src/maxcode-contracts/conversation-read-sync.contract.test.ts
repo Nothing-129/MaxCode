@@ -4,7 +4,12 @@ const wire = vi.hoisted(() => ({
   call: vi.fn(),
   event: null as
     | null
-    | ((value: { conversation_id: number; receipt: string }) => void),
+    | ((value: {
+        conversation_id: number
+        receipt: string
+        unread?: boolean
+        revision?: number
+      }) => void),
   reconnect: null as null | (() => void),
 }))
 vi.mock("@/lib/transport", () => ({
@@ -129,5 +134,78 @@ it("shares mark-all-read while retaining local viewed tracking", async () => {
     ids: [7, 8],
   })
   expect([...useConversationUnreadStore.getState().viewedIds]).toEqual([9])
+  stop()
+})
+
+it("loads a completion missed offline and treats server reads as authoritative", async () => {
+  wire.call.mockResolvedValue([
+    { conversation_id: 7, receipt: "turn-1", unread: true },
+  ])
+  const stop = startConversationReadSync()
+  await settle()
+  expect(useConversationUnreadStore.getState().unreadIds.has(7)).toBe(true)
+  wire.event?.({ conversation_id: 7, receipt: "read-1", unread: false })
+  useConversationUnreadStore.getState().noteActivity(7)
+  expect(useConversationUnreadStore.getState().unreadIds.has(7)).toBe(false)
+  stop()
+})
+
+it("acknowledges only the completion observed when opening the conversation", async () => {
+  wire.call.mockResolvedValue([
+    { conversation_id: 7, receipt: "turn-1", unread: true },
+  ])
+  const stop = startConversationReadSync()
+  await settle()
+  useConversationUnreadStore.getState().setViewed([7])
+  expect(wire.call).toHaveBeenCalledWith("mark_conversations_read", {
+    ids: [7],
+    expected_receipts: { "7": "turn-1" },
+  })
+  stop()
+})
+
+it("waits for initial server state before acknowledging an already open conversation", async () => {
+  let resolve!: (values: unknown[]) => void
+  wire.call.mockImplementation((command: string) =>
+    command === "get_conversation_reads"
+      ? new Promise((done) => {
+          resolve = done
+        })
+      : Promise.resolve([])
+  )
+  useConversationUnreadStore.getState().setViewed([7])
+  const stop = startConversationReadSync()
+  await settle()
+  expect(wire.call).not.toHaveBeenCalledWith(
+    "mark_conversations_read",
+    expect.anything()
+  )
+  resolve([
+    { conversation_id: 7, receipt: "new-turn", unread: true, revision: 2 },
+  ])
+  await settle()
+  expect(wire.call).toHaveBeenCalledWith("mark_conversations_read", {
+    ids: [7],
+    expected_receipts: { "7": "new-turn" },
+  })
+  stop()
+})
+
+it("ignores an out-of-order read from an earlier execution", async () => {
+  const stop = startConversationReadSync()
+  await settle()
+  wire.event?.({
+    conversation_id: 7,
+    receipt: "new-turn",
+    unread: true,
+    revision: 3,
+  })
+  wire.event?.({
+    conversation_id: 7,
+    receipt: "old-read",
+    unread: false,
+    revision: 2,
+  })
+  expect(useConversationUnreadStore.getState().unreadIds.has(7)).toBe(true)
   stop()
 })

@@ -336,7 +336,7 @@ function VirtualizedMessageThreadImpl<T>({
     <MessageScrollProvider value={scrollContextValue}>
       <MessageThreadContent
         className={cn("mx-0 max-w-none p-0", contentClassName)}
-        scrollClassName="scrollbar-thin overscroll-contain [overflow-anchor:none] outline-none"
+        scrollClassName="scrollbar-thin overscroll-x-contain overscroll-y-none [overflow-anchor:none] outline-none"
         {...contentProps}
       >
         {items.length === 0 ? (

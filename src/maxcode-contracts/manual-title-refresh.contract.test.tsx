@@ -22,7 +22,9 @@ describe("MaxCode contract: manual title refresh is removed", () => {
       "src/components/conversations/sidebar-conversation-card.tsx",
       "src/components/conversations/conversation-detail-header.tsx",
     ]) {
-      expect(source(path)).toContain("onSelect={handleRenameOpen}")
+      expect(source(path)).toMatch(
+        /rename=\{(?:persisted \? )?handleRenameOpen/
+      )
     }
   })
 })

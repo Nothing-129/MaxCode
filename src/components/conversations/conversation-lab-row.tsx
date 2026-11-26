@@ -1,11 +1,11 @@
 "use client"
+import { ConversationActionsMenu } from "./conversation-actions-menu"
 
 import { formatConversationTitle } from "@/lib/conversation-title"
 import { useState } from "react"
 import { useLocale, useNow, useTranslations } from "next-intl"
 import {
   AlarmClock,
-  Check,
   CircleCheck,
   CircleAlert,
   CircleDashed,
@@ -14,11 +14,6 @@ import {
   MessageCircleQuestionMark,
   SquarePen,
   Clock,
-  Info,
-  Link2,
-  Trash2,
-  Pencil,
-  PinOff,
   Pin,
   Undo2,
 } from "lucide-react"
@@ -28,11 +23,6 @@ import {
   ContextMenu,
   ContextMenuTrigger,
   ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuSeparator,
 } from "@/components/ui/context-menu"
 import {
   DropdownMenu,
@@ -42,7 +32,7 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { updateConversationPinned, updateConversationTitle } from "@/lib/api"
+import { updateConversationTitle } from "@/lib/api"
 import { toErrorMessage } from "@/lib/app-error"
 import { isImeCompositionKey } from "@/lib/ime-composition"
 import {
@@ -71,6 +61,8 @@ import { labTool } from "./conversation-lab-projects"
 import { ConversationUnreadDot } from "./conversation-unread-dot"
 
 const rowAction = cn(labTool, "hover:bg-transparent")
+const rowStatusVisibility =
+  "group-hover/row:invisible group-has-[[aria-haspopup=menu][data-state=open]]/row:invisible"
 
 const badgeStyles = {
   approval: [ShieldQuestionMark, "text-amber-700 dark:text-amber-400"],
@@ -130,8 +122,6 @@ export function LabRow({
   const l = useTranslations("Folder.sidebar.lab")
   const t = useTranslations("Folder.conversationCard")
   const tSidebar = useTranslations("Folder.sidebar")
-  const tTodos = useTranslations("Todos")
-  const tDetails = useTranslations("Folder.sessionDetails")
   const locale = useLocale()
   const [custom, setCustom] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -189,14 +179,6 @@ export function LabRow({
       folderColor={projectColor}
     />
   )
-  async function pin() {
-    try {
-      await updateConversationPinned(c.id, !c.pinned_at)
-      update(c.id, { pinned_at: c.pinned_at ? null : new Date().toISOString() })
-    } catch (e) {
-      toast.error(toErrorMessage(e))
-    }
-  }
   async function rename() {
     if (!name.trim() || saving) return
     setSaving(true)
@@ -233,7 +215,8 @@ export function LabRow({
                   </span>
                   <span
                     className={cn(
-                      "flex items-center gap-1 group-hover/row:invisible group-has-[[aria-haspopup=menu][data-state=open]]/row:invisible",
+                      "flex items-center gap-1",
+                      rowStatusVisibility,
                       snoozed && "text-amber-600 dark:text-amber-400"
                     )}
                   >
@@ -253,7 +236,12 @@ export function LabRow({
                         className="size-3.5 shrink-0"
                       />
                     )}
-                    <span className="flex shrink-0 items-center gap-1 group-hover/row:invisible group-has-[[aria-haspopup=menu][data-state=open]]/row:invisible">
+                    <span
+                      className={cn(
+                        "flex shrink-0 items-center gap-1",
+                        rowStatusVisibility
+                      )}
+                    >
                       {c.pinned_at && <Pin className="size-3 shrink-0" />}
                       {status && BadgeIcon ? (
                         <span
@@ -329,78 +317,38 @@ export function LabRow({
                   {!compact && l("settleShort")}
                 </button>
               </div>
-              {showWoke && (
-                <button
-                  type="button"
-                  aria-label={l("dismissWoke")}
-                  title={l("dismissWoke")}
-                  onClick={() => change()}
-                  className="pointer-events-auto me-1 mt-1.5 inline-flex h-5 items-center gap-1 rounded-sm text-xs font-medium text-orange-700 hover:underline focus-visible:ring-2 dark:text-orange-400"
-                >
-                  <AlarmClock aria-hidden="true" className="size-3.5" />
-                  {l("woken")}
-                </button>
-              )}
             </div>
+            {showWoke && (
+              <button
+                type="button"
+                aria-label={l("dismissWoke")}
+                title={l("dismissWoke")}
+                onClick={() => change()}
+                className={cn(
+                  "absolute end-2 top-1.5 inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-sm text-xs font-medium text-orange-700 hover:underline focus-visible:ring-2 dark:text-orange-400",
+                  rowStatusVisibility
+                )}
+              >
+                <AlarmClock aria-hidden="true" className="size-3.5" />
+                {l("woken")}
+              </button>
+            )}
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
-          {linkTodo && (
-            <ContextMenuItem onSelect={linkTodo}>
-              <Link2 />
-              {tTodos("linkConversation")}
-            </ContextMenuItem>
-          )}
-
-          <ContextMenuItem onSelect={() => void pin()}>
-            {c.pinned_at ? <PinOff /> : <Pin />}
-            {t(c.pinned_at ? "unpin" : "pin")}
-          </ContextMenuItem>
-          <ContextMenuItem onSelect={toggleSettlement}>
-            {finished ? <Undo2 /> : <Check />}
-            {l(finished ? "unsettle" : "finish")}
-          </ContextMenuItem>
-          {snoozed ? (
-            <ContextMenuItem onSelect={wake}>
-              <Clock />
-              {l("wake")}
-            </ContextMenuItem>
-          ) : (
-            canSnooze && (
-              <ContextMenuSub>
-                <ContextMenuSubTrigger>
-                  <Clock />
-                  {l("snooze")}
-                </ContextMenuSubTrigger>
-                <ContextMenuSubContent>
-                  <SnoozeChoices
-                    context
-                    snooze={change}
-                    custom={() => setCustom(true)}
-                  />
-                </ContextMenuSubContent>
-              </ContextMenuSub>
-            )
-          )}
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            onSelect={() => {
+          <ConversationActionsMenu
+            context
+            conversation={c}
+            folderId={c.folder_id}
+            pinned={!!c.pinned_at}
+            rename={() => {
               setName(title)
               setRenaming(true)
             }}
-          >
-            <Pencil />
-            {t("rename")}
-          </ContextMenuItem>
-          <ContextMenuItem onSelect={details}>
-            <Info />
-            {tDetails("menuLabel")}
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem variant="destructive" onSelect={remove}>
-            <Trash2 />
-            {t("delete")}
-          </ContextMenuItem>
+            details={details}
+            remove={remove}
+            linkTodo={linkTodo}
+          />
         </ContextMenuContent>
       </ContextMenu>
       {custom && (

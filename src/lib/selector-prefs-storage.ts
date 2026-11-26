@@ -19,6 +19,10 @@
 
 import type { SessionConfigOptionInfo, SessionModeStateInfo } from "@/lib/types"
 import { getCachedSelectors } from "@/lib/selectors-cache-storage"
+import {
+  isPermissionConfigCategory,
+  isPermissionConfigId,
+} from "@/lib/permission-config"
 
 const STORAGE_KEY = "codeg:selector-prefs"
 
@@ -138,8 +142,8 @@ export function getSavedModeId(agentType: string): string | null {
  * `preferred_config_values`). Null/empty fields are normalized so the
  * call site can pass the result through unchanged.
  *
- * When restoring a conversation, model/thinking defaults and Codex Fast are
- * excluded; the backend restores that conversation's confirmed SQLite snapshot.
+ * When restoring a conversation, model/thinking/permission defaults and Codex
+ * Fast are excluded; the backend restores its confirmed SQLite snapshot.
  * Other selector defaults retain their existing behavior.
  *
  * The backend applies these on the freshly-attached session before any
@@ -174,17 +178,23 @@ export function getSavedPrefsForConnect(
       conversationIds.add("fast_mode")
     }
     for (const option of getCachedSelectors(agentType)?.configOptions ?? []) {
-      if (option.category === "model" || option.category === "thought_level") {
+      if (
+        option.category === "model" ||
+        option.category === "thought_level" ||
+        isPermissionConfigCategory(option.category)
+      ) {
         conversationIds.add(option.id)
       }
     }
     configValues = Object.fromEntries(
-      Object.entries(configValues).filter(([id]) => !conversationIds.has(id))
+      Object.entries(configValues).filter(
+        ([id]) => !conversationIds.has(id) && !isPermissionConfigId(id)
+      )
     )
     if (Object.keys(configValues).length === 0) configValues = null
   }
   return {
-    modeId: prefs.modeId ?? null,
+    modeId: restoringConversation ? null : (prefs.modeId ?? null),
     configValues,
   }
 }

@@ -93,6 +93,7 @@ async fn history_keeps_its_own_pair_across_database_reopen_and_other_conversatio
         first,
         AgentType::Codex,
         &pair("gpt-5.6", "medium"),
+        None,
     )
     .await
     .unwrap();
@@ -101,6 +102,7 @@ async fn history_keeps_its_own_pair_across_database_reopen_and_other_conversatio
         second,
         AgentType::Codex,
         &pair("gpt-6.1-sol", "high"),
+        None,
     )
     .await
     .unwrap();
@@ -178,7 +180,7 @@ async fn legacy_history_preserves_native_state_and_new_sessions_use_defaults() {
 }
 
 #[tokio::test]
-async fn persist_only_confirmed_ready_values_and_keep_permissions_out_of_model_memory() {
+async fn persist_only_confirmed_ready_model_and_permission_values() {
     let db = fresh_in_memory_db().await;
     let folder = seed_folder(&db, "/tmp/confirmed-memory").await;
     let id = seed_conversation(&db, folder, AgentType::Codex).await;
@@ -208,7 +210,8 @@ async fn persist_only_confirmed_ready_values_and_keep_permissions_out_of_model_m
             .unwrap();
     assert_eq!(confirmed["model"], "gpt-5.6");
     assert_eq!(confirmed["reasoning_effort"], "medium");
-    assert_eq!(confirmed.len(), 2);
+    assert_eq!(confirmed["approval_policy"], "never");
+    assert_eq!(confirmed.len(), 3);
     // A model switch may remove thinking support; do not replay its old effort.
     state.write().await.config_options = Some(vec![option("model", "model", "plain-model")]);
     persist_state(&db.conn, &state).await.unwrap();
@@ -230,9 +233,15 @@ async fn preserving_an_outgoing_session_also_preserves_its_model_pair() {
     conversation_service::bind_external_id(&db.conn, id, "old", &[])
         .await
         .unwrap();
-    save_model_config(&db.conn, id, AgentType::Codex, &pair("gpt-5.6", "medium"))
-        .await
-        .unwrap();
+    save_model_config(
+        &db.conn,
+        id,
+        AgentType::Codex,
+        &pair("gpt-5.6", "medium"),
+        None,
+    )
+    .await
+    .unwrap();
     let preserved = conversation_service::bind_external_id(&db.conn, id, "new", &[])
         .await
         .unwrap()

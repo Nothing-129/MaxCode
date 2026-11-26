@@ -45,8 +45,10 @@ describe("MaxCode contract: desktop title bar icons", () => {
     expect(source("src/components/layout/sidebar.tsx")).toContain(
       "openSettingsWindow()"
     )
-    expect(header).toContain("onSelect={handleShareOpen}")
-    expect(header).toContain('DesktopChromeIcon name="share"')
+    expect(header).toContain("share={persisted ? handleShareOpen : undefined}")
+    expect(
+      source("src/components/conversations/conversation-actions-menu.tsx")
+    ).toContain('DesktopChromeIcon name="share"')
     expect(header).toContain('DesktopChromeIcon name="more"')
   })
 })

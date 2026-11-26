@@ -242,6 +242,14 @@ pub fn build_router(
             post(handlers::conversations::update_conversation_title),
         )
         .route(
+            "/get_conversation_snoozes",
+            post(handlers::conversation_snooze::get_conversation_snoozes),
+        )
+        .route(
+            "/update_conversation_snooze",
+            post(handlers::conversation_snooze::update_conversation_snooze),
+        )
+        .route(
             "/update_lab_settlement",
             post(handlers::conversations::update_lab_settlement),
         )

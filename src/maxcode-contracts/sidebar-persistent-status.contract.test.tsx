@@ -94,3 +94,27 @@ describe("MaxCode: sidebar status persists beside actions", () => {
     }
   )
 })
+
+it("keeps the mobile running spinner clear of the overlapping menu button", async () => {
+  const user = userEvent.setup()
+  const { container } = render(
+    <NextIntlClientProvider locale="en" messages={messages}>
+      <SidebarConversationCard
+        conversation={{ ...conversation, status: "in_progress" }}
+        isSelected={false}
+        isMobile
+        timeLabel="5m"
+        onSelect={vi.fn()}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    </NextIntlClientProvider>
+  )
+  expect(container.querySelector("[data-running-spinner]")).toBeVisible()
+  expect(screen.queryByRole("button", { name: "More actions" })).toBeNull()
+  await user.pointer({
+    target: screen.getByText("Preserve status"),
+    keys: "[MouseRight]",
+  })
+  expect(screen.getByRole("menu")).toBeVisible()
+})

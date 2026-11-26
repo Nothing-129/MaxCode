@@ -221,7 +221,14 @@ describe("MaxCode: provisional conversation titles", () => {
     const label = view.container.querySelector("[data-conversation-title]")
     expect(label).toHaveTextContent(title.replace(/^1119｜/, ""))
     expect(label).toHaveClass("max-w-full", "truncate")
-    expect(label?.parentElement).toHaveClass("inset-x-2", "md:inset-x-28")
+    expect(label?.parentElement).toHaveClass(
+      "inset-x-2",
+      "md:inset-x-28",
+      "md:flex-row"
+    )
+    const menu = label?.nextElementSibling
+    expect(menu).toHaveAttribute("aria-haspopup", "menu")
+    expect(menu).not.toHaveClass("absolute")
   })
 })
 

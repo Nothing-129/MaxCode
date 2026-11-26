@@ -7233,8 +7233,8 @@ export function AcpConnectionsProvider({ children }: { children: ReactNode }) {
         // regressed when the snapshot path replaced the event path on tab
         // re-open (the snapshot frame doesn't carry a `session_modes` event,
         // so the apply-on-event hook never fired).
-        // Historical model/thinking choices and Codex Fast belong to the
-        // conversation in SQLite. Neither connect nor the post-spawn replay
+        // Historical model/thinking/permission choices and Codex Fast belong
+        // to the conversation in SQLite. Neither connect nor the post-spawn replay
         // may substitute another conversation's most recent global choices.
         const restoringConversation =
           sessionId != null || conversationId != null

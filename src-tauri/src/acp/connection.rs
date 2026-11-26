@@ -11586,6 +11586,9 @@ async fn run_conversation_loop(
                     {
                         emit_with_state(&st, &h, AcpEvent::AsyncTask { delta }).await;
                     } else if let Some(notice) = session_notice(&dispatch) {
+                        if !should_surface_session_notice(agent_type, &notice) {
+                            continue;
+                        }
                         // Advisories land outside a turn as readily as inside
                         // one (a config warning at startup, a model reroute
                         // between prompts).
@@ -12073,6 +12076,9 @@ async fn run_conversation_loop(
                                 )
                                 .await;
                             } else if let Some(notice) = session_notice(&dispatch) {
+                                if !should_surface_session_notice(agent_type, &notice) {
+                                    continue;
+                                }
                                 // Deliberately does NOT set
                                 // `saw_agent_output`. A notice is an
                                 // adapter-composed advisory, not
@@ -17940,6 +17946,30 @@ fn session_notice(dispatch: &Dispatch) -> Option<SessionNotice> {
         title,
         description: air_task_str(update.get("description")),
     })
+}
+
+/// Hide Codex's resume advisory without affecting model selection or other notices.
+fn should_surface_session_notice(agent_type: AgentType, notice: &SessionNotice) -> bool {
+    if agent_type != AgentType::Codex
+        || notice.severity != "warning"
+        || notice.description.is_some()
+    {
+        return true;
+    }
+    let Some((previous, rest)) = notice
+        .title
+        .strip_prefix("This session was recorded with model `")
+        .and_then(|text| text.split_once("` but is resuming with `"))
+    else {
+        return true;
+    };
+    let Some((current, suggested)) = rest
+        .strip_suffix("` as it may affect Codex performance.")
+        .and_then(|text| text.split_once("`. Consider switching back to `"))
+    else {
+        return true;
+    };
+    previous.is_empty() || current.is_empty() || suggested != previous
 }
 
 /// What the `session/load` drain does with one replayed frame, as far as
@@ -37743,3 +37773,7 @@ mod maxcode_agent_startup_steering;
 #[cfg(test)]
 #[path = "../../../src/maxcode-contracts/conversation-fast-mode-wire.contract.rs"]
 mod conversation_fast_mode_wire_contract;
+
+#[cfg(test)]
+#[path = "../../../src/maxcode-contracts/codex-resume-notice.contract.rs"]
+mod codex_resume_notice_contract;

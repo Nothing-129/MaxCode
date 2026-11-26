@@ -2,6 +2,10 @@
 
 import { ShieldAlert, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import {
+  isFullAccessPermission,
+  isPermissionConfigId,
+} from "@/lib/permission-config"
 
 interface DropdownRadioItemContentProps {
   configId?: string
@@ -27,12 +31,10 @@ export function DropdownRadioItemContent({
   recommendedLabel,
 }: DropdownRadioItemContentProps) {
   const normalizedDescription = description?.trim()
-  const permission = /(?:mode|sandbox|approval)/i.test(configId ?? "")
-  const fullAccess =
-    permission &&
-    ["agent-full-access", "danger-full-access", "full-access"].includes(
-      valueId ?? ""
-    )
+  const permission =
+    isPermissionConfigId(configId ?? "") ||
+    /(?:mode|sandbox|approval)/i.test(configId ?? "")
+  const fullAccess = permission && isFullAccessPermission(valueId)
   const autoReview =
     permission &&
     (["auto-review", "auto_review"].includes(valueId ?? "") ||
@@ -52,13 +54,13 @@ export function DropdownRadioItemContent({
   const badge = recommendedLabel?.trim()
 
   return (
-    <div className="w-full min-w-0 flex-1" title={label}>
+    <span className="block w-full min-w-0 flex-1" title={label}>
       {/* The badge is `shrink-0` (Badge's own base class) so a long model name
           truncates instead of squeezing the chip away. */}
-      <div className="flex min-w-0 items-center gap-1.5">
-        <p className="min-w-0 truncate text-sm font-medium leading-5">
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span className="min-w-0 truncate text-sm font-medium leading-5">
           {label}
-        </p>
+        </span>
         {ultra && (
           <Zap
             aria-hidden="true"
@@ -76,17 +78,17 @@ export function DropdownRadioItemContent({
             {badge}
           </Badge>
         ) : null}
-      </div>
+      </span>
       {normalizedDescription ? (
-        <p className="text-muted-foreground mt-0.5 text-xs leading-[1.5] whitespace-pre-wrap wrap-break-word">
+        <span className="block text-muted-foreground mt-0.5 text-xs leading-[1.5] whitespace-pre-wrap wrap-break-word">
           {normalizedDescription}
-        </p>
+        </span>
       ) : null}
       {riskNote && (
-        <p className="mt-1 text-xs leading-[1.5] text-muted-foreground">
+        <span className="mt-1 block text-xs leading-[1.5] text-muted-foreground">
           {riskNote}
-        </p>
+        </span>
       )}
-    </div>
+    </span>
   )
 }

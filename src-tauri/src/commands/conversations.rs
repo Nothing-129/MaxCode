@@ -2025,7 +2025,11 @@ pub(crate) async fn emit_conversation_upsert(
                 ConversationChange::Upsert {
                     summary: Box::new(summary),
                 },
-            )
+            );
+            match crate::commands::conversation_read::current(conn, conversation_id.into()).await {
+                Ok(read) => emit_event(emitter, crate::commands::conversation_read::EVENT, &read),
+                Err(error) => tracing::warn!("[conversations] read state emit failed: {error}"),
+            }
         }
         Err(e) => tracing::warn!(
             "[conversations] upsert emit skipped (get_by_id {conversation_id} failed): {e}"
@@ -5611,6 +5615,12 @@ mod tests {
         emit_conversation_upsert(&emitter, &db.conn, id).await;
         let evt = rx.try_recv().expect("upsert should broadcast");
         assert_eq!(evt.payload["summary"]["status"], "pending_review");
+        let read = rx
+            .try_recv()
+            .expect("pending review state should broadcast to all clients");
+        assert_eq!(read.channel, crate::commands::conversation_read::EVENT);
+        assert_eq!(read.payload["conversation_id"], id);
+        assert_eq!(read.payload["unread"], true);
     }
 
     #[tokio::test]

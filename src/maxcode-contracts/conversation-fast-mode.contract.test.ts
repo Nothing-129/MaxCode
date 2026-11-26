@@ -68,15 +68,11 @@ it("keeps Codex Fast as a new-session default but never sends it to an existing 
     fast_mode: "true",
     approval_policy: "never",
   })
-  expect(getSavedPrefsForConnect("codex", true).configValues).toEqual({
-    approval_policy: "never",
-  })
+  expect(getSavedPrefsForConnect("codex", true).configValues).toBeNull()
 
   // Re-reading during a slow reconnect must not replay another tab's edit.
   saveConfigPreference("codex", "fast-mode", "off")
-  expect(getSavedPrefsForConnect("codex", true).configValues).toEqual({
-    approval_policy: "never",
-  })
+  expect(getSavedPrefsForConnect("codex", true).configValues).toBeNull()
 
   saveConfigPreference("claude_code", "fast-mode", "on")
   expect(getSavedPrefsForConnect("claude_code", true).configValues).toEqual({

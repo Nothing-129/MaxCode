@@ -16,7 +16,7 @@ export function AcceptPromptSuggestion({
   return (
     <button
       type="button"
-      className="pointer-events-auto relative z-10 ml-2 inline-flex cursor-pointer align-[1px] focus-visible:outline-2 focus-visible:outline-ring"
+      className="pointer-events-auto relative z-10 ml-2 inline-flex cursor-pointer align-[1px] focus-visible:outline-2 focus-visible:outline-ring max-md:ml-1 max-md:align-middle"
       aria-label={label}
       onClick={() => {
         const editor = editorRef.current
@@ -28,9 +28,9 @@ export function AcceptPromptSuggestion({
     >
       <kbd
         dir="ltr"
-        className="pointer-events-none inline-flex h-5 min-w-5 select-none items-center justify-center gap-1 rounded border border-foreground/10 px-1.5 font-sans text-xs font-medium text-muted-foreground"
+        className="pointer-events-none inline-flex h-5 min-w-5 select-none items-center justify-center gap-1 rounded border border-foreground/10 px-1.5 font-sans text-xs font-medium text-muted-foreground max-md:h-[1.125rem]"
       >
-        <span className="relative top-[0.5px]">⇥ Tab</span>
+        <span className="relative top-[0.5px] max-md:top-0">⇥ Tab</span>
       </kbd>
     </button>
   )

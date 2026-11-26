@@ -141,7 +141,7 @@ describe("pane close and replacement without hidden tab stacks", () => {
       source("src/components/conversations/conversation-detail-panel.tsx")
     ).toContain("closePane(activeTabId)")
     expect(
-      source("src/components/conversations/conversation-detail-header.tsx")
+      source("src/components/conversations/conversation-actions-menu.tsx")
     ).toContain('t("restorePaneDraft")')
   })
 })

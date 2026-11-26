@@ -102,7 +102,7 @@ async fn codex_histories_keep_their_own_fast_state_across_a_database_reopen() {
                 .unwrap();
         assert_eq!(restored["model"], model);
         assert_eq!(restored["fast-mode"], expected);
-        assert_eq!(restored["approval_policy"], "never");
+        assert!(!restored.contains_key("approval_policy"));
     }
 }
 
@@ -129,10 +129,7 @@ async fn legacy_codex_histories_do_not_inherit_fast_defaults_and_new_sessions_do
     )
     .await
     .unwrap();
-    assert_eq!(
-        legacy,
-        BTreeMap::from([("approval_policy".into(), "never".into())])
-    );
+    assert!(legacy.is_empty());
     let (_, new_session) =
         preferences_for_connect(&db.conn, AgentType::Codex, None, None, defaults.clone())
             .await

@@ -5,7 +5,7 @@
       "id": "sidebar.experimental-conversation-inbox",
       "category": "product",
       "origins": ["worktree-2026-11-24", "worktree-2026-11-25"],
-      "description": "The experimental view shares the standard sidebar header and conversation update-time filter and has a flat title and transcript search, project filters showing one badge or two overlapping badges, a compose palette, compact snoozed and settled shelves, and local snooze schedules. Snooze presets and custom date inputs calculate and display Beijing time (Asia/Shanghai), regardless of device or provider timezone. The compose picker lists only open root projects and omits shortcut hints and local chat/project creation hotkeys. Project folder icons and chat bubbles both use 12px with a 1.5 stroke, with a 6px project label gap. All project badges, including MaxCode, use neutral outline folder icons without colored tiles or initials in rows, search and filters, independent of saved folder colors. A subtle inset divider and vertical spacing mark the end of the pinned rows. Recent conversations follow their last update time and the experimental list has no drag-and-drop actions. Projectless sessions display a single outline chat bubble in a 12px slot without a tile background and the Chat label. Experimental conversation titles use regular weight, including unread and running conversations; section headings use semibold weight. The running shelf header uses a subtle sidebar accent background, foreground text, and space below the shelf. Completed-shelf unread rows use a green checkmark and Done label; other full-size unread rows use the standard unread dot without emphasizing the title. Runtime requests, including delegated approval and input, and terminal failures can wake snoozed threads early. Ordinary timestamp labels reuse the standard sidebar relative-time formatter with the last update time. Connection setup preserves the existing conversation row time or reminder and keeps the conversation out of the running shelf. An executing turn takes priority over a second connection preparing. The settled shelf replaces only the legacy manual completed status and action; the completed shelf still shows execution-finished unread sessions until viewed. Upgrade migrates legacy completed top-level regular and chat conversations using their previous update timestamp, preserving existing settlements and explicit undos. New turn completions appear in the completed shelf until viewed, then return to the ordinary list. The running shelf opens with every matching conversation visible and hides all its rows when collapsed. Settlement and undo sync across clients, and legacy local settlements import only into untouched rows. The settled shelf starts collapsed and remembers manual toggles. Mobile keeps the settled shelf visible with a zero count when no sessions match. Running duration ticks each second and keeps two-digit seconds visible after reaching a minute or an hour. Runtime status takes priority over the individually dismissible wake badge and unread completion. Manual wake clears the snooze. Inactive conversations can show their unsent draft. Inline snooze and settle controls use the row background and appear on hover or while their menu is open; the pin indicator hides together with the timestamp/status to prevent overlapping these controls. Tab skips these actions and focusing the row preserves its status label. The list, search results and shelves use the standard conversation view's edge-aligned overlay scrollbar and eased wheel motion. The search field is transparent until hovered. Project filtering is toolbar-only. Context actions and snooze choices have leading icons. The context menu supports settlement and undo, scoped todo linking, session details and confirmed deletion.",
+      "description": "The experimental view shares the standard sidebar header and conversation update-time filter and has a flat title and transcript search, project filters showing one badge or two overlapping badges, a compose palette, compact snoozed and settled shelves, and local snooze schedules. Snooze presets and custom date inputs calculate and display Beijing time (Asia/Shanghai), regardless of device or provider timezone. The compose picker lists only open root projects and omits shortcut hints and local chat/project creation hotkeys. Project folder icons and chat bubbles both use 12px with a 1.5 stroke, with a 6px project label gap. All project badges, including MaxCode, use neutral outline folder icons without colored tiles or initials in rows, search and filters, independent of saved folder colors. A subtle inset divider and vertical spacing mark the end of the pinned rows. Recent conversations follow their last update time and the experimental list has no drag-and-drop actions. Projectless sessions display a single outline chat bubble in a 12px slot without a tile background and the Chat label. Experimental conversation titles use regular weight, including unread and running conversations; section headings use semibold weight. The running shelf header uses a subtle sidebar accent background, foreground text, and space below the shelf. Completed-shelf unread rows use a green checkmark and Done label; other full-size unread rows use the standard unread dot without emphasizing the title. Runtime requests, including delegated approval and input, and terminal failures can wake snoozed threads early. Ordinary timestamp labels reuse the standard sidebar relative-time formatter with the last update time. Connection setup preserves the existing conversation row time or reminder and keeps the conversation out of the running shelf. An executing turn takes priority over a second connection preparing. The settled shelf replaces only the legacy manual completed status and action; the completed shelf still shows execution-finished unread sessions until viewed. Upgrade migrates legacy completed top-level regular and chat conversations using their previous update timestamp, preserving existing settlements and explicit undos. New turn completions appear in the completed shelf until viewed, then return to the ordinary list. The running shelf opens with every matching conversation visible and hides all its rows when collapsed. Settlement and undo sync across clients, and legacy local settlements import only into untouched rows. The settled shelf starts collapsed and remembers manual toggles. Mobile keeps the settled shelf visible with a zero count when no sessions match. Running duration ticks each second and keeps two-digit seconds visible after reaching a minute or an hour. Runtime status takes priority over the individually dismissible wake badge and unread completion. Manual wake clears the snooze. Inactive conversations can show their unsent draft. Inline snooze and settle controls use the row background and appear on hover or while their menu is open; the pin indicator, timestamp, status and wake badge hide when these controls appear. The wake badge does not reserve space to the right of the controls. Tab skips these actions and focusing the row preserves its status label. The list, search results and shelves use the standard conversation view's edge-aligned overlay scrollbar and eased wheel motion. The search field is transparent until hovered. Project filtering is toolbar-only. Context actions and snooze choices have leading icons. The context menu supports settlement and undo, scoped todo linking, session details and confirmed deletion.",
       "paths": [
         "src/components/conversations/conversation-lab.tsx",
         "src/hooks/use-sidebar-scroll-motion.ts",
@@ -820,7 +820,7 @@
         "worktree-2026-11-02",
         "worktree-2026-11-20"
       ],
-      "description": "Empty composers offer adoption inline after the prediction: the T3 Code outline keycap with literal ⇥ Tab text on desktop and touch, with a uniform 1px outline at 10% foreground opacity and vertically balanced arrow and label. Wrapped suggestions contribute their full height to the shared editor scroll area. Placeholder taps only focus; adopting fills and focuses without submitting or overwriting a live draft. Desktop predictions end with an inline Tab keycap that stays outside the editable document.",
+      "description": "Empty composers offer adoption inline after the prediction: the T3 Code outline keycap with literal ⇥ Tab text on desktop and touch, with a uniform 1px outline at 10% foreground opacity and vertically balanced arrow and label. The phone keycap is shorter, sits closer to the suggestion, and is vertically aligned with the text. Wrapped suggestions contribute their full height to the shared editor scroll area. Placeholder taps only focus; adopting fills and focuses without submitting or overwriting a live draft. Desktop predictions end with an inline Tab keycap that stays outside the editable document.",
       "paths": [
         "src/components/chat/message-input.tsx",
         "src/components/chat/composer/rich-composer.tsx",
@@ -1191,7 +1191,7 @@
       "origins": [
         "worktree-2026-10-28"
       ],
-      "description": "Active live output follows line-height and viewport growth through a shared visibly eased spring rather than instant bottom jumps. Preserve viewport measurements across send and streaming transitions so browser scroll clamping does not cancel following. User escape remains respected; initial history, inactive views and reduced motion retain instant positioning. Send motion keeps its independent tuning.",
+      "description": "Active live output follows line-height and viewport growth through a shared visibly eased spring rather than instant bottom jumps. Preserve viewport measurements across send and streaming transitions so browser scroll clamping does not cancel following. User escape remains respected; initial history, inactive views and reduced motion retain instant positioning. Send motion keeps its independent tuning. Idle content remeasurement pins only from the actual old or new bottom, rather than the near-bottom threshold.",
       "paths": [
         "src/components/ai-elements/message-thread.tsx",
         "src/components/message/message-list-view.tsx"
@@ -2878,12 +2878,21 @@
     {
       "id": "sidebar.conversation-menu-parity",
       "category": "product",
-      "description": "Conversation title right-click and ellipsis open the same full context menu, with identical ordering, leading action icons, disabled states and handlers; the retired manual completion action is absent and keyboard activation remains available.",
+      "description": "Title ellipsis, Lab rows and sidebar rows share the full conversation menu, with consistent ordering, target-specific availability and deletion last.",
       "origins": [
         "worktree-2026-10-16"
       ],
       "paths": [
-        "src/components/conversations/sidebar-conversation-card.tsx"
+        "src/components/conversations/conversation-actions-menu.tsx",
+        "src/components/conversations/conversation-action-dialogs.tsx",
+        "src/components/conversations/conversation-menu-request.ts",
+        "src/components/conversations/conversation-detail-header.tsx",
+        "src/components/conversations/conversation-lab-row.tsx",
+        "src/components/conversations/sidebar-conversation-card.tsx",
+        "src/components/conversations/conversation-lab-context.ts",
+        "src/components/conversations/conversation-lab-state.tsx",
+        "src/components/message/conversation-find.tsx",
+        "src/app/workspace/layout.tsx"
       ],
       "contracts": [
         "src/maxcode-contracts/conversation-menu-parity.contract.test.tsx"
@@ -3528,7 +3537,7 @@
     {
       "id": "chat.conversation-model-memory",
       "category": "product",
-      "description": "Model and thinking selections belong to each conversation and persist in SQLite. Reopening history restores its confirmed pair instead of per-agent defaults; legacy history retains native restored values, new sessions use recent defaults, and only confirmed ready selectors are recorded without changing recency or permission policy. Conversation summaries expose confirmed model_config for cold clients and evicted previews. Previews store only selected labels in separate per-conversation entries, never synchronously parse or rewrite all full model catalogs on reopen. Reopening shows a bounded per-conversation confirmed selector preview immediately, read-only until live restoration completes. Codex resume supplies the saved model and reasoning effort through process-local CODEX_CONFIG before loading the thread, preserving other config and all warning notifications.",
+      "description": "Model and thinking selections belong to each conversation and persist in SQLite. Reopening history restores its confirmed pair instead of per-agent defaults; legacy history retains native restored values, new sessions use recent defaults, and only confirmed ready selectors are recorded without changing recency. Permission selections share this conversation snapshot under chat.conversation-permission-memory. Conversation summaries expose confirmed model_config for cold clients and evicted previews. Previews store only selected labels in separate per-conversation entries, never synchronously parse or rewrite all full model catalogs on reopen. Reopening shows a bounded per-conversation confirmed selector preview immediately, read-only until live restoration completes. Codex resume supplies the saved model and reasoning effort through process-local CODEX_CONFIG before loading the thread, preserving other config and all warning notifications.",
       "origins": [
         "worktree-2026-10-12",
         "worktree-2026-10-29"
@@ -3563,6 +3572,26 @@
       "contracts": [
         "src/maxcode-contracts/conversation-model-memory.contract.test.ts",
         "src/maxcode-contracts/conversation-selector-preview.contract.test.tsx"
+      ]
+    },
+    {
+      "id": "chat.conversation-permission-memory",
+      "category": "product",
+      "description": "Permission and sandbox selections belong to each conversation alongside its model. Confirmed select, boolean and standard ACP session-mode choices persist in SQLite without changing recency. History reconnects and post-connect replay never apply another conversation's permission defaults; legacy histories retain native restored permissions. New chats continue using recent per-agent defaults. Cold previews preserve permission categories and boolean values and hide internal session-mode metadata. Standard mode changes reach the lifecycle persistence worker.",
+      "origins": ["worktree-2026-11-25"],
+      "paths": [
+        "src/lib/permission-config.ts",
+        "src/lib/selector-prefs-storage.ts",
+        "src/hooks/use-conversation-selector-preview.ts",
+        "src/contexts/acp-connections-context.tsx",
+        "src-tauri/src/acp/conversation_model_config.rs",
+        "src-tauri/src/acp/lifecycle.rs",
+        "src-tauri/src/web/handlers/acp.rs",
+        "src/maxcode-contracts/conversation-permission-memory.contract.rs",
+        "src/maxcode-contracts/conversation-model-lifecycle.contract.rs"
+      ],
+      "contracts": [
+        "src/maxcode-contracts/conversation-permission-memory.contract.test.ts"
       ]
     },
     {
@@ -3608,7 +3637,7 @@
     {
       "id": "conversations.persistent-sidebar-status",
       "category": "product",
-      "description": "Sidebar running, unread and timestamp indicators remain visible on hover and while a separate ellipsis menu offers pin/unpin. The menu is reachable by keyboard and touch, never selects the conversation through bubbling, and retains root-only action rules and context-menu access.",
+      "description": "Sidebar running, unread and timestamp indicators remain visible on hover and while a separate ellipsis menu offers pin/unpin. The menu is reachable by keyboard and touch, never selects the conversation through bubbling, and retains root-only action rules and context-menu access. Stacked mobile rows keep the running indicator in the trailing slot and use the row context menu for actions.",
       "origins": [
         "worktree-2026-10-11"
       ],
@@ -4761,9 +4790,31 @@
       ]
     },
     {
+      "id": "conversations.cross-device-snooze",
+      "category": "runtime",
+      "description": "Snooze deadlines and wake/dismiss state persist on the backend and synchronize across clients and reconnects. One-time local import respects cleared tombstones; revision-guarded automatic wake cannot override a newer snooze.",
+      "origins": [
+        "worktree-2026-11-25"
+      ],
+      "paths": [
+        "src/lib/conversation-snooze-sync.ts",
+        "src/components/conversations/conversation-lab-state.tsx",
+        "src/lib/conversation-lab.ts",
+        "src-tauri/src/commands/conversation_snooze.rs",
+        "src-tauri/src/commands/mod.rs",
+        "src-tauri/src/web/handlers/conversation_snooze.rs",
+        "src-tauri/src/web/handlers/mod.rs",
+        "src-tauri/src/web/router.rs"
+      ],
+      "contracts": [
+        "src/maxcode-contracts/conversation-snooze-sync.contract.test.ts",
+        "src/maxcode-contracts/conversation-lab.contract.test.tsx"
+      ]
+    },
+    {
       "id": "conversations.cross-device-read",
       "category": "runtime",
-      "description": "Read receipts persist on the backend, broadcast across desktop and mobile, and reconcile on reconnect/wake without reapplying seen receipts to new unread activity.",
+      "description": "Completion and read state persist transactionally on the backend, broadcast across desktop and mobile, and reconcile on reconnect/wake. Revision ordering and completion-specific acknowledgements protect new results from stale reads.",
       "origins": [
         "worktree-2026-09-10"
       ],
@@ -4772,6 +4823,9 @@
         "src/stores/conversation-unread-store.ts",
         "src/components/conversations/conversation-unread-sync.tsx",
         "src-tauri/src/commands/conversation_read.rs",
+        "src-tauri/src/acp/lifecycle.rs",
+        "src-tauri/src/db/service/conversation_service.rs",
+        "src-tauri/src/commands/conversations.rs",
         "src-tauri/src/web/handlers/conversation_read.rs",
         "src-tauri/src/web/router.rs",
         "src-tauri/src/lib.rs"
@@ -5943,6 +5997,21 @@
       ]
     },
     {
+      "id": "chat.codex-resume-notice",
+      "category": "product",
+      "description": "Hide the Codex resume model-switch advisory on live ACP paths while preserving other notices and model selection.",
+      "origins": [
+        "worktree-2026-11-26"
+      ],
+      "paths": [
+        "src-tauri/src/acp/connection.rs",
+        "src/maxcode-contracts/codex-resume-notice.contract.rs"
+      ],
+      "contracts": [
+        "src/maxcode-contracts/codex-resume-notice.contract.test.ts"
+      ]
+    },
+    {
       "id": "chat.codex-plugin-context-filter",
       "category": "product",
       "description": "Codex injected recommended_plugins records never appear as chat turns, titles or message counts; real prompts remain visible.",
@@ -6740,7 +6809,7 @@
     {
       "id": "chat.desktop-composer-layout",
       "category": "product",
-      "description": "Screenshot-matched Codex desktop chat: 48rem centered transcript/composer column with a 104px minimum docked composer and 20px corners, narrow sidebar, one header row, original inline model/permission controls with a narrow settings menu, folder/branch controls plus runtime metrics in an independent unboxed row below the composer, and the original full agent strip above the welcome composer.",
+      "description": "Screenshot-matched Codex desktop chat: 48rem centered transcript/composer column with a 104px minimum docked composer and 20px corners, narrow sidebar, one header row with the actions menu immediately after the conversation title, original inline model/permission controls with a narrow settings menu, folder/branch controls plus runtime metrics in an independent unboxed row below the composer, and the original full agent strip above the welcome composer.",
       "origins": [
         "worktree-2026-09-08"
       ],
@@ -6768,6 +6837,7 @@
       ],
       "contracts": [
         "src/maxcode-contracts/chat-desktop-layout.contract.test.ts",
+        "src/maxcode-contracts/title-completion-only.contract.test.tsx",
         "src/maxcode-contracts/desktop-chrome-icons.contract.test.tsx"
       ]
     },
@@ -7216,7 +7286,7 @@
     {
       "id": "chat.streaming-scroll-interaction",
       "category": "product",
-      "description": "Keep message controls clickable while the current virtualized transcript scrolls, retaining MaxCode layout and bottom-follow policy.",
+      "description": "Keep message controls clickable while the current virtualized transcript scrolls, retaining MaxCode layout and bottom-follow policy. The message viewport suppresses vertical overscroll bounce while retaining normal scrolling.",
       "origins": [
         "c83aab6c7"
       ],
@@ -7387,13 +7457,16 @@
         "worktree-2026-11-18",
         "worktree-2026-11-19"
       ],
-      "description": "Automation and task editors, task settings and delegation defaults reuse the composer model and mode menus while preserving inherited and explicit overrides. Project, model, reasoning and permission menus share soft neutral floating surfaces, trailing checkmarks and consistent label/description hierarchy, retaining keyboard behavior and available viewport bounds. Adapt reference proportions to the workbench: 296px detail menus, 16px outer radius, 6px inset, 8px vertical row padding and 14px/12px text hierarchy. Keep Fast visible outside the options scroller in regular, searchable and compact model menus. Draw the divider between Fast and the model list, below Fast in compact menus and above Fast in wide menus.",
+      "description": "Automation and task editors, task settings and delegation defaults reuse the composer model and mode menus while preserving inherited and explicit overrides. Project, model, reasoning and permission menus share soft neutral floating surfaces, trailing checkmarks and consistent label/description hierarchy, retaining keyboard behavior and available viewport bounds. Adapt reference proportions to the workbench: 296px detail menus, 16px outer radius, 6px inset, 8px vertical row padding and 14px/12px text hierarchy. Keep Fast visible outside the options scroller in regular, searchable and compact model menus. Draw the divider between Fast and the model list, below Fast in compact menus and above Fast in wide menus. The Codex chat composer combines model search, current-model reasoning, available speed tiers, and permission in one popover with a per-conversation model, reasoning and speed summary trigger. The summary uses the compact Codex model label without a GPT prefix. The model panel opens permissions in a separate anchored overlay so the panel does not grow; permission rows keep their full height and the overlay scrolls independently when space is limited, showing permission names, existing icons and the selected checkmark without descriptions. The composer summary shows model, reasoning and speed in the previous selector’s medium-weight muted foreground. Picker labels reuse existing Codex option names and recommendations. The model search and reasoning columns share aligned dividers that do not change color on focus. The reasoning column visually shows only the current model in its heading. Model and reasoning rows are borderless, with a fill and checkmark for the selection. The model column includes historical options by default and uses an auto-hiding overlay scrollbar. The picker footer uses compact vertical spacing and borderless speed and permission controls. The speed control uses segmented choices, mapping binary Fast to Standard and Fast, with a thin outline lightning icon on the Fast option and the same icon-only Fast state in the composer summary. Ultrafast is hidden for now. The panel caps its desktop width at 30rem. Phone layouts keep the viewport-bounded panel and truncate the model summary to available space.",
       "paths": [
         "src/components/shared/agent-option-picker.tsx",
         "src/components/automations/agent-config-section.tsx",
         "src/components/settings/delegation-agent-defaults.tsx",
         "src/lib/model-config-groups.ts",
         "src/components/chat/model-fast-mode.tsx",
+        "src/components/chat/codex-composer-settings.tsx",
+        "src/lib/permission-config.ts",
+        "src/i18n/messages/",
         "src/components/chat/selector-menu-style.ts",
         "src/components/chat/conversation-context-bar.tsx",
         "src/components/chat/mode-selector.tsx",
@@ -7405,6 +7478,7 @@
         "src/components/chat/session-selectors-panel.tsx"
       ],
       "contracts": [
+        "src/maxcode-contracts/codex-composer-settings.contract.test.tsx",
         "src/maxcode-contracts/task-model-picker.contract.test.tsx",
         "src/maxcode-contracts/unified-selector-menus.contract.test.ts",
         "src/maxcode-contracts/model-fast-visibility.contract.test.tsx"

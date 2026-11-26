@@ -8,10 +8,10 @@ describe("MaxCode contract: read-only conversation sharing", () => {
       "src/components/conversations/conversation-detail-header.tsx"
     )
     expect(header).not.toMatch(/<button\b[^>]*onClick=\{handleShareOpen\}/)
-    expect(header.match(/\{t\("shareConversation"\)\}/g)).toHaveLength(1)
-    expect(header).toMatch(
-      /<DropdownMenuItem\s+disabled=\{!persisted\}\s+onSelect=\{handleShareOpen\}>[\s\S]*?\{t\("shareConversation"\)\}[\s\S]*?<\/DropdownMenuItem>/
-    )
+    expect(header).toContain("share={persisted ? handleShareOpen : undefined}")
+    expect(
+      source("src/components/conversations/conversation-actions-menu.tsx")
+    ).toContain('t("shareConversation")')
   })
 
   it("uses a revocable capability outside the authenticated API router", () => {
@@ -74,7 +74,7 @@ describe("MaxCode contract: read-only conversation sharing", () => {
 
   it("captures and persists the public origin on first share", () => {
     const header = source(
-      "src/components/conversations/conversation-detail-header.tsx"
+      "src/components/conversations/conversation-action-dialogs.tsx"
     )
     const saveConfig = header.indexOf("await updateWebServiceConfig({")
     const createLink = header.indexOf("await createShareLink(", saveConfig)

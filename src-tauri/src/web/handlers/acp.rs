@@ -118,7 +118,7 @@ pub async fn acp_connect(
         .await
         .map_err(|e| AppCommandError::task_execution_failed(e.to_string()))?;
 
-    let (conversation, preferred_config_values) =
+    let (conversation, mut preferred_config_values) =
         crate::acp::conversation_model_config::preferences_for_connect(
             &db.conn,
             params.agent_type,
@@ -129,6 +129,12 @@ pub async fn acp_connect(
         .await
         .map_err(|e| AppCommandError::task_execution_failed(e.to_string()))?;
 
+    let preferred_mode_id = crate::acp::conversation_model_config::take_mode_for_connect(
+        params.conversation_id.is_some() || params.session_id.is_some(),
+        params.preferred_mode_id,
+        &mut preferred_config_values,
+    );
+
     let emitter = state.emitter.clone();
     let connection_id = manager
         .spawn_agent(
@@ -138,7 +144,7 @@ pub async fn acp_connect(
             runtime_env,
             "web".to_string(),
             emitter,
-            params.preferred_mode_id,
+            preferred_mode_id,
             preferred_config_values,
         )
         .await

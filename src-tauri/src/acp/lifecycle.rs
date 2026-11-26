@@ -68,6 +68,8 @@ fn is_lifecycle_relevant(event: &AcpEvent) -> bool {
             | AcpEvent::TurnComplete { .. }
             | AcpEvent::ConversationLinked { .. }
             | AcpEvent::SessionConfigOptions { .. }
+            | AcpEvent::SessionModes { .. }
+            | AcpEvent::ModeChanged { .. }
             | AcpEvent::SelectorsReady
             | AcpEvent::NativeSessionTitle { .. }
             | AcpEvent::TranscriptRolledOver { .. }
@@ -325,6 +327,10 @@ pub(crate) async fn handle_event(
                     },
                 )
                 .await;
+                // Publish durable pending-review state even when no client has
+                // this conversation open or subscribed to its ACP stream.
+                crate::commands::conversations::emit_conversation_upsert(&emitter, db_conn, cid)
+                    .await;
             }
 
             // If this conversation was spawned by a delegation, resolve the
@@ -1574,7 +1580,10 @@ async fn connection_worker_loop(
                     tracing::error!("[lifecycle] persist conversation model config: {e}");
                 }
             }
-            AcpEvent::SessionConfigOptions { .. } | AcpEvent::SelectorsReady => {
+            AcpEvent::SessionConfigOptions { .. }
+            | AcpEvent::SessionModes { .. }
+            | AcpEvent::ModeChanged { .. }
+            | AcpEvent::SelectorsReady => {
                 if let Err(e) = persist_model_config_event(
                     &db,
                     &manager,
@@ -2909,6 +2918,14 @@ mod tests {
 
         assert_eq!(observed_external.as_deref(), Some("ext-final"));
         assert_eq!(observed_status, ConversationStatus::PendingReview);
+        let review = crate::commands::conversation_read::current(&db.conn, conv.id.into())
+            .await
+            .unwrap();
+        assert!(
+            review.unread,
+            "completion must persist without a frontend client"
+        );
+        assert_eq!(review.revision, 1);
     }
 
     /// Burst: emit a long sequence of relevant events followed by a

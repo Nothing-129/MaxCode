@@ -74,7 +74,7 @@ it("saves the shared conversation without native Codex history by default", asyn
 
 it("the conversation menu hands the full conversation directly to the todo draft", () => {
   const header = source(
-    "src/components/conversations/conversation-detail-header.tsx"
+    "src/components/conversations/conversation-action-dialogs.tsx"
   )
   const action = header
     .split("function handleTodoShareOpen()")[1]

@@ -109,6 +109,11 @@ import {
   InlineSessionConfigToggle,
 } from "@/components/chat/session-config-selector"
 import { ModelOptionPicker } from "@/components/chat/model-option-picker"
+import { CodexComposerSettings } from "@/components/chat/codex-composer-settings"
+import {
+  isPermissionConfigCategory,
+  isPermissionConfigId,
+} from "@/lib/permission-config"
 import { SelectorTooltip } from "@/components/chat/selector-tooltip"
 import {
   SessionSelectorsPanel,
@@ -1015,8 +1020,6 @@ export function MessageInput({
   // The loading placeholder takes the inline slot too, not just the collapsed
   // popover's row: at composer widths the chips would occupy, "still loading"
   // has to be visible without opening anything.
-  const hasInlineSelectors =
-    hasConfigOptions || showModeSelector || showSelectorsLoading
   const hasFolderBranchPicker = useConversationFolderBranchPickerVisible(
     attachmentTabId,
     folderPickerOverride
@@ -2058,7 +2061,62 @@ export function MessageInput({
     t,
   ])
 
+  const configFor = (predicate: (option: SessionConfigOptionInfo) => boolean) =>
+    availableConfigOptions.find(predicate)
+  const settingFor = (option?: SessionConfigOptionInfo) =>
+    option &&
+    collapsedSettings.find((setting) => setting.key === `config:${option.id}`)
+  const codexModel =
+    agentType === "codex"
+      ? settingFor(configFor(isModelConfigOption))
+      : undefined
+  const codexReasoning =
+    codexModel &&
+    settingFor(
+      configFor(
+        (option) =>
+          option.category === "thought_level" ||
+          [
+            "reasoning_effort",
+            "reasoning-effort",
+            "thought_level",
+            "thought-level",
+            "reasoning",
+          ].includes(option.id)
+      )
+    )
+  const codexSpeed =
+    codexModel &&
+    settingFor(
+      configFor((option) =>
+        ["service_tier", "service-tier", "speed"].includes(option.id)
+      ) ?? fastOption
+    )
+  const codexPermission =
+    codexModel &&
+    settingFor(
+      configFor(
+        (option) =>
+          option.kind.type === "select" &&
+          (isPermissionConfigId(option.id) ||
+            isPermissionConfigCategory(option.category))
+      )
+    )
+  const bundledKeys = new Set(
+    [codexModel, codexReasoning, codexSpeed, codexPermission].map(
+      (setting) => setting?.key
+    )
+  )
+  // When a distinct tier selector exists it replaces the legacy Fast toggle.
+  if (codexSpeed && fastOption) bundledKeys.add(`config:${fastOption.id}`)
+  const inlineOptions = availableConfigOptions
+    .filter(showComposerConfigInline)
+    .filter((option) => !bundledKeys.has(`config:${option.id}`))
+  const hasInlineSelectors =
+    inlineOptions.length > 0 || showModeSelector || showSelectorsLoading
+
   const modelSettings = collapsedSettings.flatMap((setting) => {
+    if (bundledKeys.has(setting.key)) return []
     const option = availableConfigOptions.find(
       (option) => setting.key === `config:${option.id}`
     )
@@ -2097,23 +2155,20 @@ export function MessageInput({
           label={showConfigLoading ? t("loadingSettings") : t("loadingMode")}
         />
       )}
-      {hasConfigOptions &&
-        availableConfigOptions
-          .filter(showComposerConfigInline)
-          .map((option) => {
-            return (
-              <div
-                key={option.id}
-                inert={configOptionsReadOnly}
-                aria-disabled={configOptionsReadOnly}
-                data-composer-config={option.id}
-                className="flex min-w-0 items-center"
-                title={configTitle(option)}
-              >
-                {renderInlineConfigOption(option)}
-              </div>
-            )
-          })}
+      {inlineOptions.map((option) => {
+        return (
+          <div
+            key={option.id}
+            inert={configOptionsReadOnly}
+            aria-disabled={configOptionsReadOnly}
+            data-composer-config={option.id}
+            className="flex min-w-0 items-center"
+            title={configTitle(option)}
+          >
+            {renderInlineConfigOption(option)}
+          </div>
+        )
+      })}
       {showModeSelector && (
         <InlineModeSelector
           modes={availableModes}
@@ -2422,6 +2477,20 @@ export function MessageInput({
                     shortcuts={menuShortcuts}
                     slashCommands={slashCommands}
                   />
+                  {codexModel && (
+                    <CodexComposerSettings
+                      key={attachmentTabId}
+                      model={codexModel}
+                      reasoning={codexReasoning}
+                      speed={codexSpeed}
+                      legacyFast={Boolean(
+                        fastOption &&
+                        codexSpeed?.key === `config:${fastOption.id}`
+                      )}
+                      permission={codexPermission}
+                      readOnly={configOptionsReadOnly || !onConfigOptionChange}
+                    />
+                  )}
                   {hasInlineSelectors && (
                     <div className="hidden min-w-0 flex-1 items-center gap-1 @[30rem]:flex">
                       {inlineSelectorItems}
@@ -2430,7 +2499,7 @@ export function MessageInput({
                   {hasAnySelector && (
                     <div
                       className={cn(
-                        "flex",
+                        "flex shrink-0",
                         hasInlineSelectors && "@[30rem]:hidden"
                       )}
                     >

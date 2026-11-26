@@ -75,16 +75,22 @@ describe("desktop and touch composer suggestion adoption", () => {
     expect(editorRef.current?.getText()).toBe("我的草稿")
   })
 
-  it("uses the T3 outline key and literal label on all devices", () => {
+  it("keeps the outlined Tab label and tightens its alignment on phones", () => {
     mount()
     const button = screen.getByRole("button", { name: "采纳建议" })
-    expect(button).toHaveClass("ml-2", "align-[1px]")
+    expect(button).toHaveClass(
+      "ml-2",
+      "align-[1px]",
+      "max-md:ml-1",
+      "max-md:align-middle"
+    )
     const key = button.querySelector("kbd")
     expect(key?.textContent?.trim()).toBe("⇥ Tab")
     expect(key).not.toHaveClass("border-b-2")
-    expect(key?.firstElementChild).toHaveClass("top-[0.5px]")
+    expect(key?.firstElementChild).toHaveClass("top-[0.5px]", "max-md:top-0")
     expect(key).toHaveClass(
       "h-5",
+      "max-md:h-[1.125rem]",
       "min-w-5",
       "font-medium",
       "text-xs",

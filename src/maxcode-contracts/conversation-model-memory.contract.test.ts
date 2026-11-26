@@ -48,8 +48,9 @@ it("keeps unrelated selector defaults while restoring conversation models", () =
   saveConfigPreference("zcode", "model", "old-model")
   saveConfigPreference("zcode", "thinking_level", "high")
   saveConfigPreference("zcode", "mode", "full_access")
+  saveConfigPreference("zcode", "unrelated-option", "keep")
   expect(getSavedPrefsForConnect("zcode", true).configValues).toEqual({
-    mode: "full_access",
+    "unrelated-option": "keep",
   })
 })
 

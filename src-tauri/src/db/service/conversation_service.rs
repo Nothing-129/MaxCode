@@ -4,7 +4,7 @@ use chrono::Utc;
 use sea_orm::sea_query::Expr;
 use sea_orm::{
     ActiveModelTrait, ActiveValue::NotSet, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, QuerySelect, Set,
+    QueryFilter, QueryOrder, QuerySelect, Set, TransactionTrait,
 };
 
 use crate::db::entities::conversation::ConversationKind;
@@ -149,10 +149,16 @@ async fn write_status(
     status: conversation::ConversationStatus,
     manual: bool,
 ) -> Result<(), DbError> {
+    let tx = conn.begin().await?;
     let conv = conversation::Entity::find_by_id(conversation_id)
-        .one(conn)
+        .one(&tx)
         .await?
         .ok_or_else(|| DbError::Migration(format!("Conversation not found: {conversation_id}")))?;
+    let completed_turn = !manual
+        && conv.status != status
+        && status == conversation::ConversationStatus::PendingReview
+        && conv.parent_id.is_none()
+        && conv.deleted_at.is_none();
     let now = Utc::now();
     let legacy_completion = manual
         && status == conversation::ConversationStatus::Completed
@@ -169,7 +175,11 @@ async fn write_status(
     if legacy_completion {
         active.lab_settled_at = Set(Some(now.timestamp_millis()));
     }
-    active.update(conn).await?;
+    active.update(&tx).await?;
+    if completed_turn {
+        crate::commands::conversation_read::record_completion(&tx, conversation_id).await?;
+    }
+    tx.commit().await?;
     Ok(())
 }
 
@@ -1553,6 +1563,42 @@ mod tests {
     use super::*;
     use crate::acp::delegation::spawner::DelegationLink;
     use crate::db::test_helpers::{fresh_in_memory_db, seed_folder};
+
+    #[tokio::test]
+    async fn runtime_completion_persists_pending_review_without_any_client() {
+        let db = fresh_in_memory_db().await;
+        let folder = seed_folder(&db, "/tmp/codeg-shared-review").await;
+        let (id, _) = seed_parent_with_child(&db.conn, folder).await;
+        update_status(&db.conn, id, conversation::ConversationStatus::InProgress)
+            .await
+            .unwrap();
+        update_status(
+            &db.conn,
+            id,
+            conversation::ConversationStatus::PendingReview,
+        )
+        .await
+        .unwrap();
+        let state = crate::commands::conversation_read::current(&db.conn, id.into())
+            .await
+            .unwrap();
+        assert!(state.unread);
+        assert_eq!(state.revision, 1);
+        update_status(
+            &db.conn,
+            id,
+            conversation::ConversationStatus::PendingReview,
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            crate::commands::conversation_read::current(&db.conn, id.into())
+                .await
+                .unwrap()
+                .receipt,
+            state.receipt
+        );
+    }
 
     /// Build a parent + a delegation child for filter assertions.
     async fn seed_parent_with_child(conn: &DatabaseConnection, folder_id: i32) -> (i32, i32) {

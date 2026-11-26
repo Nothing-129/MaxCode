@@ -1,4 +1,4 @@
-//! Conversation-owned model/thinking choices and Codex Fast mode. Global
+//! Conversation-owned model/thinking/permission choices and Codex Fast mode. Global
 //! selector preferences seed new sessions, never an existing conversation.
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -11,6 +11,47 @@ use crate::models::AgentType;
 
 use super::session_state::SessionState;
 use super::types::{SessionConfigKindInfo, SessionConfigOptionInfo};
+
+/// The standard ACP mode channel is separate from config option ids.
+const SESSION_MODE_KEY: &str = "$session_mode";
+
+fn is_permission_config_id(id: &str) -> bool {
+    matches!(
+        id.replace('-', "_").to_ascii_lowercase().as_str(),
+        "mode"
+            | "permission"
+            | "permissions"
+            | "permission_mode"
+            | "approval"
+            | "approval_mode"
+            | "approval_policy"
+            | "sandbox"
+            | "sandbox_mode"
+            | "auto_approve"
+    )
+}
+
+fn is_permission_option(option: &SessionConfigOptionInfo) -> bool {
+    is_permission_config_id(&option.id)
+        || matches!(
+            option.category.as_deref(),
+            Some("mode" | "permission" | "permissions" | "approval" | "sandbox")
+        )
+}
+
+/// Consume stored mode metadata before passing real config ids to the adapter.
+pub fn take_mode_for_connect(
+    restoring: bool,
+    default: Option<String>,
+    values: &mut BTreeMap<String, String>,
+) -> Option<String> {
+    let saved = values.remove(SESSION_MODE_KEY);
+    if restoring {
+        saved
+    } else {
+        default
+    }
+}
 
 /// codex-acp merges CODEX_CONFIG into thread/resume before returning selectors.
 /// Restore the conversation pair there, rather than first resuming with the
@@ -77,6 +118,8 @@ pub async fn preferences_for_connect(
     defaults.retain(|id, _| {
         !is_model_config_id(id)
             && !is_codex_fast_config_id(agent_type, id)
+            && !is_permission_config_id(id)
+            && id != SESSION_MODE_KEY
             && !values.contains_key(id)
     });
     defaults.extend(values);
@@ -107,13 +150,15 @@ fn model_config_values(
             matches!(option.category.as_deref(), Some("model" | "thought_level"))
                 || is_model_config_id(&option.id)
                 || is_codex_fast_config_id(agent_type, &option.id)
+                || is_permission_option(option)
         })
         .filter_map(|option| match &option.kind {
             SessionConfigKindInfo::Select(select) => {
                 Some((option.id.clone(), select.current_value.clone()))
             }
             SessionConfigKindInfo::Boolean(boolean)
-                if is_codex_fast_config_id(agent_type, &option.id) =>
+                if is_codex_fast_config_id(agent_type, &option.id)
+                    || is_permission_option(option) =>
             {
                 Some((option.id.clone(), boolean.current_value.to_string()))
             }
@@ -127,8 +172,16 @@ async fn save_model_config(
     conversation_id: i32,
     agent_type: AgentType,
     options: &[SessionConfigOptionInfo],
+    mode: Option<&str>,
 ) -> Result<(), DbError> {
-    let values = model_config_values(agent_type, options);
+    let mut values = model_config_values(agent_type, options);
+    // Adapters exposing a config "mode" restore through set_config_option.
+    // Mode-only adapters need the standard session/set_mode channel instead.
+    if !values.contains_key("mode") {
+        if let Some(mode) = mode {
+            values.insert(SESSION_MODE_KEY.into(), mode.into());
+        }
+    }
     if values.is_empty() {
         return Ok(());
     }
@@ -152,7 +205,7 @@ pub async fn persist_state(
     db: &DatabaseConnection,
     state: &Arc<RwLock<SessionState>>,
 ) -> Result<(), DbError> {
-    let (conversation_id, agent_type, options) = {
+    let (conversation_id, agent_type, options, mode) = {
         let state = state.read().await;
         if !state.selectors_ready {
             return Ok(());
@@ -161,10 +214,18 @@ pub async fn persist_state(
             state.conversation_id.or(state.model_config_conversation_id),
             state.agent_type,
             state.config_options.clone(),
+            state.current_mode.clone(),
         )
     };
-    if let (Some(id), Some(options)) = (conversation_id, options) {
-        save_model_config(db, id, agent_type, &options).await?;
+    if let Some(id) = conversation_id {
+        save_model_config(
+            db,
+            id,
+            agent_type,
+            &options.unwrap_or_default(),
+            mode.as_deref(),
+        )
+        .await?;
     }
     Ok(())
 }
@@ -176,3 +237,7 @@ mod contracts;
 #[cfg(test)]
 #[path = "../../../src/maxcode-contracts/conversation-fast-mode.contract.rs"]
 mod fast_mode_contracts;
+
+#[cfg(test)]
+#[path = "../../../src/maxcode-contracts/conversation-permission-memory.contract.rs"]
+mod permission_memory_contracts;
