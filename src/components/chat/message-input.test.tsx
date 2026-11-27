@@ -2280,14 +2280,13 @@ describe("MessageInput predicted follow-up prompt", () => {
     return result
   }
 
-  it("fills the draft from the inline Tab button without submitting", async () => {
+  it("fills the draft from the inline suggestion button without submitting", async () => {
     const onSend = vi.fn()
     await mounted({ promptSuggestion: "Run the tests", onSend })
     const label = enMessages.Folder.chat.messageInput.acceptPromptSuggestion
     const accept = screen.getByRole("button", { name: label })
     expect(composerHandle.current!.isEmpty()).toBe(true)
     expect(accept.closest(".codeg-composer-suggestion-preview")).toBeTruthy()
-    expect(accept).toHaveTextContent("Tab")
     fireEvent.click(accept)
     expect(composerHandle.current!.getText()).toBe("Run the tests")
     expect(onSend).not.toHaveBeenCalled()

@@ -1,15 +1,15 @@
 import {
-  FlaskConical,
   FolderClosed,
   House,
   ListTodo,
+  MessageSquareText,
   MessagesSquare,
 } from "lucide-react"
 import type { SVGProps } from "react"
 import type { NavigationId } from "@/contexts/sidebar-navigation-context"
 
 const railOutlineIcons = {
-  lab: FlaskConical,
+  lab: MessageSquareText,
   home: House,
   projects: FolderClosed,
   tasks: ListTodo,
@@ -17,7 +17,7 @@ const railOutlineIcons = {
 }
 
 const railSolidPaths: Partial<Record<NavigationId, string>> = {
-  lab: "M8 2h8v2h-1v5l6 10a2 2 0 0 1-1.7 3H4.7A2 2 0 0 1 3 19L9 9V4H8ZM11 4v5.6L8.4 14h7.2L13 9.6V4Z",
+  lab: "M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2zM7 6.125h8a.875.875 0 0 1 0 1.75H7a.875.875 0 0 1 0-1.75ZM7 10.125h10a.875.875 0 0 1 0 1.75H7a.875.875 0 0 1 0-1.75ZM7 14.125h6a.875.875 0 0 1 0 1.75H7a.875.875 0 0 1 0-1.75Z",
   home: "M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2ZM10 12a1 1 0 0 0-1 1v8h6v-8a1 1 0 0 0-1-1Z",
   projects:
     "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2ZM4.875 9.125a.875.875 0 0 0 0 1.75h14.25a.875.875 0 0 0 0-1.75Z",

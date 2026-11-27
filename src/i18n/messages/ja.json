@@ -1876,7 +1876,8 @@
   "ImagePreview": {
     "zoomIn": "拡大",
     "zoomOut": "縮小",
-    "fit": "画像を画面に合わせる"
+    "fit": "画像を画面に合わせる",
+    "rotateClockwise": "時計回りに回転"
   },
   "Folder": {
     "workspaceStatus": {
@@ -2118,7 +2119,7 @@
         "settleShort": "対応済みにする"
       },
       "navigation": {
-        "lab": "実験チャット",
+        "lab": "新しいチャット",
         "label": "機能ナビゲーション",
         "home": "ホーム",
         "today": "今日",

@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo } from "react"
 import type { SessionConfigOptionInfo, SessionModeStateInfo } from "@/lib/types"
-import { isPermissionConfigId } from "@/lib/permission-config"
+import {
+  isPermissionConfigCategory,
+  isPermissionConfigId,
+} from "@/lib/permission-config"
 import {
   getCachedSelectors,
   isCachedSelectors,
@@ -168,11 +171,33 @@ export function useConversationSelectorPreview({
     writePreview(key, configOptions)
   }, [key, ready, configOptions])
   if (ready) return configOptions
-  if (preview?.length) return preview
+  if (preview?.length && !persistedValues) return preview
   const catalog = getCachedSelectors(agentType)
-  return persistedSelectorPreview(
+  const persisted = persistedSelectorPreview(
     persistedValues,
     catalog?.configOptions ?? null,
     catalog?.modes ?? null
   )
+  if (!preview?.length) return persisted
+  // The cached preview may predate a permission change made on another
+  // device. Keep local labels for unchanged options and use the saved permission
+  // when the two sources disagree.
+  const permissions = new Map(
+    persisted
+      ?.filter(
+        (option) =>
+          isPermissionConfigId(option.id) ||
+          isPermissionConfigCategory(option.category)
+      )
+      .map((option) => [option.id, option])
+  )
+  if (permissions.size === 0) return preview
+  const merged = preview.map((option) => {
+    const saved = permissions.get(option.id)
+    permissions.delete(option.id)
+    return saved && saved.kind.current_value !== option.kind.current_value
+      ? saved
+      : option
+  })
+  return [...merged, ...permissions.values()]
 }

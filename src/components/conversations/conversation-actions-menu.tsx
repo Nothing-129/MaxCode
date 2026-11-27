@@ -54,7 +54,6 @@ interface Props {
   linkTodo?: Action
   newConversation?: Action
   closePane?: Action
-  restoreDraft?: Action
 }
 
 export function ConversationActionsMenu({
@@ -73,7 +72,6 @@ export function ConversationActionsMenu({
   linkTodo,
   newConversation,
   closePane,
-  restoreDraft,
 }: Props) {
   const t = useTranslations("Folder.conversationCard")
   const sidebar = useTranslations("Folder.sidebar")
@@ -166,27 +164,32 @@ export function ConversationActionsMenu({
       </Item>
     )
   }
+  const findItem = item(
+    tFind("title"),
+    <Search />,
+    mobile ? undefined : (find ?? (c ? () => request("find") : undefined))
+  )
   return (
     <>
-      {item(
-        tFind("title"),
-        <Search />,
-        mobile ? undefined : (find ?? (c ? () => request("find") : undefined))
+      {context && (
+        <>
+          {findItem}
+          {item(
+            t("newConversation"),
+            <SquarePen />,
+            newConversation ??
+              (folder
+                ? () => {
+                    const store = useTabStore.getState()
+                    if (folder.kind === "chat") store.openChatModeTab()
+                    else store.openNewConversationTab(folder.id, folder.path)
+                    route?.openConversations()
+                  }
+                : undefined)
+          )}
+          <Separator />
+        </>
       )}
-      {item(
-        t("newConversation"),
-        <SquarePen />,
-        newConversation ??
-          (folder
-            ? () => {
-                const store = useTabStore.getState()
-                if (folder.kind === "chat") store.openChatModeTab()
-                else store.openNewConversationTab(folder.id, folder.path)
-                route?.openConversations()
-              }
-            : undefined)
-      )}
-      <Separator />
       {item(t("rename"), <Pencil />, rename)}
       {item(
         t(pinned ? "unpin" : "pin"),
@@ -217,20 +220,22 @@ export function ConversationActionsMenu({
                 ? () => request("link")
                 : undefined))
       )}
-      {item(
-        t("attachToCurrentSession"),
-        <AtSign />,
-        active && c
-          ? () => {
-              const { tabs, activeTabId } = useTabStore.getState()
-              const target = tabs.find(
-                (t) => t.id === activeTabId && t.kind === "conversation"
-              )?.id
-              if (target)
-                emitAttachSessionToSession({ tabId: target, conversation: c })
-            }
-          : undefined
-      )}
+      {!context && findItem}
+      {context &&
+        item(
+          t("attachToCurrentSession"),
+          <AtSign />,
+          active && c
+            ? () => {
+                const { tabs, activeTabId } = useTabStore.getState()
+                const target = tabs.find(
+                  (t) => t.id === activeTabId && t.kind === "conversation"
+                )?.id
+                if (target)
+                  emitAttachSessionToSession({ tabId: target, conversation: c })
+              }
+            : undefined
+        )}
       <Separator />
       <Item disabled={!c || !lab} onSelect={toggleSettlement}>
         {group === "finished" ? <Undo2 /> : <Check />}
@@ -268,14 +273,12 @@ export function ConversationActionsMenu({
         closePane ??
           (tab ? () => useTabStore.getState().closePane(tab.id) : undefined)
       )}
-      {item(
-        t("restorePaneDraft"),
-        <RotateCcw />,
-        restoreDraft ??
-          (archived
-            ? () => useTabStore.getState().restorePaneDraft()
-            : undefined)
-      )}
+      {context &&
+        item(
+          t("restorePaneDraft"),
+          <RotateCcw />,
+          archived ? () => useTabStore.getState().restorePaneDraft() : undefined
+        )}
       <Separator />
       {item(t("delete"), <Trash2 />, remove, true)}
     </>

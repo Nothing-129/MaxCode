@@ -3699,6 +3699,45 @@ describe("streaming flush window widens with the run it re-renders", () => {
   })
 })
 
+it("waits for Codex to confirm permission changes before showing them", async () => {
+  await mountProvider()
+  await act(async () => {
+    await h.actions!.connect(TAB, "codex", "/tmp/x", "sess-1")
+  })
+  const handlers = latestAttachHandlers()
+  const publishMode = (seq: number, currentValue: string) =>
+    emitAcpEvent(handlers, {
+      seq,
+      connection_id: "spawned-conn",
+      type: "session_config_options",
+      config_options: [
+        {
+          id: "mode",
+          name: "Permission",
+          category: "mode",
+          kind: {
+            type: "select",
+            current_value: currentValue,
+            options: [
+              { value: "agent", name: "Auto review" },
+              { value: "agent-full-access", name: "Full access" },
+            ],
+            groups: [],
+          },
+        },
+      ],
+    })
+  const displayedPermission = () =>
+    h.store!.getConnection(TAB)!.configOptions?.[0]?.kind.current_value
+  publishMode(1, "agent")
+  await act(async () => {
+    await h.actions!.setConfigOption(TAB, "mode", "agent-full-access")
+  })
+  expect(displayedPermission()).toBe("agent")
+  publishMode(2, "agent-full-access")
+  expect(displayedPermission()).toBe("agent-full-access")
+})
+
 describe("AcpConnectionsProvider Grok cross-agent-type model switch", () => {
   function grokModelOptions(current: string): SessionConfigOptionInfo[] {
     return [

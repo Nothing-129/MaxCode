@@ -1,7 +1,8 @@
 import { render, screen, cleanup } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { NextIntlClientProvider } from "next-intl"
 import { createTranslator } from "next-intl"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import enMessages from "@/i18n/messages/en.json"
 import { ModelOptionPicker } from "./model-option-picker"
@@ -10,6 +11,11 @@ import {
   type AgentVocabularyTranslator,
 } from "@/lib/agent-label-vocabulary"
 import type { SessionConfigOptionInfo } from "@/lib/types"
+
+vi.mock("@/hooks/use-appearance", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/hooks/use-appearance")>()),
+  useZoomLevel: () => ({ zoomLevel: 100, setZoomLevel: () => {} }),
+}))
 
 const vocabularyT = createTranslator({
   locale: "en",
@@ -68,4 +74,41 @@ describe("ModelOptionPicker with a localised agent vocabulary", () => {
       screen.getByRole("button", { name: "Model: DeepSeek Flash" })
     ).toBeInTheDocument()
   })
+
+  it.each([false, true])(
+    "only auto-focuses the searchable model list with a fine pointer (touch=%s)",
+    async (touch) => {
+      const media = window.matchMedia
+      const mock = vi
+        .spyOn(window, "matchMedia")
+        .mockImplementation((query) =>
+          query === "(pointer: coarse)"
+            ? { ...media(query), matches: touch }
+            : media(query)
+        )
+      try {
+        const user = userEvent.setup()
+        const option = deepseekModelOption
+        if (option.kind.type !== "select") throw new Error("unreachable")
+        render(
+          <NextIntlClientProvider locale="en" messages={enMessages}>
+            <ModelOptionPicker
+              option={option}
+              groups={[
+                { key: "all", name: null, options: option.kind.options },
+              ]}
+              onSelect={vi.fn()}
+            />
+          </NextIntlClientProvider>
+        )
+        await user.click(screen.getByRole("button"))
+        const search = screen.getByRole("combobox")
+        expect(touch ? screen.getByRole("dialog") : search).toHaveFocus()
+        await user.click(search)
+        expect(search).toHaveFocus()
+      } finally {
+        mock.mockRestore()
+      }
+    }
+  )
 })

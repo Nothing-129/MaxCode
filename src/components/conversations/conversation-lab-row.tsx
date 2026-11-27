@@ -38,6 +38,7 @@ import { isImeCompositionKey } from "@/lib/ime-composition"
 import {
   compactLabTime,
   formatLabWorkingDuration,
+  isLabCompletionStatus,
   labHasWoken,
   labSnoozeUntil,
   labSettledAt,
@@ -58,7 +59,6 @@ import {
 } from "@/lib/message-input-draft"
 import { formatRelative } from "./sidebar-conversation-grouping"
 import { labTool } from "./conversation-lab-projects"
-import { ConversationUnreadDot } from "./conversation-unread-dot"
 
 const rowAction = cn(labTool, "hover:bg-transparent")
 const rowStatusVisibility =
@@ -121,7 +121,6 @@ export function LabRow({
 }) {
   const l = useTranslations("Folder.sidebar.lab")
   const t = useTranslations("Folder.conversationCard")
-  const tSidebar = useTranslations("Folder.sidebar")
   const locale = useLocale()
   const [custom, setCustom] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -167,9 +166,9 @@ export function LabRow({
   const hasDraft =
     !selected &&
     !!loadMessageInputDraftV2(buildConversationDraftStorageKey(c.id))
+  const hasUnreadCompletion = unread && isLabCompletionStatus(c.status)
   const status =
-    liveKind ??
-    (showWoke ? "woken" : group === "completed" && unread ? "done" : undefined)
+    liveKind ?? (showWoke ? "woken" : hasUnreadCompletion ? "done" : undefined)
   const isWorking = status === "working" || status === "goal"
   const BadgeIcon = status ? badgeStyles[status][0] : undefined
   const start = signal?.startedAt ?? started
@@ -260,10 +259,6 @@ export function LabRow({
                               <WorkingDuration start={start} />
                             )}
                         </span>
-                      ) : unread ? (
-                        <ConversationUnreadDot
-                          label={tSidebar("unreadBadge")}
-                        />
                       ) : (
                         elapsed
                       )}

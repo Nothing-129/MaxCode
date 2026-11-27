@@ -11,9 +11,11 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  focusPopoverWithoutKeyboard,
 } from "@/components/ui/popover"
 import { ModelOptionList } from "@/components/chat/model-option-list"
 import { useScrollbarSafeDismiss } from "@/hooks/use-scrollbar-safe-dismiss"
+import { useIsMobile } from "@/hooks/use-mobile"
 import type { ModelOptionGroup } from "@/lib/model-config-groups"
 import type { SessionConfigOptionInfo } from "@/lib/types"
 
@@ -48,6 +50,7 @@ export function ModelOptionPicker({
   disabled,
 }: ModelOptionPickerProps) {
   const t = useTranslations("Folder.chat.messageInput")
+  const isMobile = useIsMobile()
   const [open, setOpen] = useState(false)
   const { contentRef, onPointerDownOutside, onFocusOutside } =
     useScrollbarSafeDismiss()
@@ -106,6 +109,9 @@ export function ModelOptionPicker({
         ref={contentRef}
         side="top"
         align="start"
+        onOpenAutoFocus={(event) =>
+          focusPopoverWithoutKeyboard(event, isMobile)
+        }
         onPointerDownOutside={onPointerDownOutside}
         onFocusOutside={onFocusOutside}
         // `max-h-(--radix-popover-content-available-height)` is the vertical twin
@@ -128,7 +134,6 @@ export function ModelOptionPicker({
           searchAriaLabel={t("searchModelAria")}
           listAriaLabel={t("modelListLabel")}
           emptyLabel={t("noModels")}
-          autoFocus
         />
         {footer}
       </PopoverContent>

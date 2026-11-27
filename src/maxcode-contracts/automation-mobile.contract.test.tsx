@@ -176,6 +176,23 @@ describe("MaxCode contract: mobile automation navigation", () => {
     }
   )
 
+  it("opens New directly in the blank mobile editor and returns to the list", () => {
+    renderPage()
+    fireEvent.click(
+      screen.getByRole("button", { name: enMessages.Automations.new })
+    )
+    expect(screen.getByTestId("editor-name")).toHaveTextContent("<blank>")
+    expect(
+      screen.queryByText(enMessages.Automations.startFromTemplate)
+    ).toBeNull()
+    expect(screen.queryByText("back-link")).toBeNull()
+    fireEvent.click(
+      screen.getByRole("button", { name: enMessages.Automations.title })
+    )
+    expect(screen.queryByTestId("editor-name")).toBeNull()
+    expect(screen.getByText(FIXTURE.name)).toBeVisible()
+  })
+
   it("opens a task in a separate full-width detail and returns to the list", () => {
     const { container } = renderPage()
     expect(screen.queryByRole("switch")).not.toBeInTheDocument()

@@ -4,6 +4,34 @@ use crate::acp::types::{SessionConfigBooleanInfo, SessionConfigSelectInfo};
 use crate::db::service::conversation_service;
 use crate::db::test_helpers::{fresh_disk_db, fresh_in_memory_db, seed_conversation, seed_folder};
 
+#[test]
+fn codex_resumes_with_the_saved_permission_before_loading_selectors() {
+    for mode in ["read-only", "workspace-write", "agent", "agent-full-access"] {
+        let preferences = BTreeMap::from([("mode".into(), mode.into())]);
+        assert_eq!(
+            codex_resume_permission_mode(AgentType::Codex, true, &preferences),
+            Some(mode)
+        );
+        assert_eq!(
+            codex_resume_permission_mode(AgentType::Codex, false, &preferences),
+            None
+        );
+        assert_eq!(
+            codex_resume_permission_mode(AgentType::ClaudeCode, true, &preferences),
+            None
+        );
+    }
+    for preferences in [
+        BTreeMap::new(),
+        BTreeMap::from([("mode".into(), "unknown".into())]),
+    ] {
+        assert_eq!(
+            codex_resume_permission_mode(AgentType::Codex, true, &preferences),
+            None
+        );
+    }
+}
+
 fn option(id: &str, category: &str, value: &str) -> SessionConfigOptionInfo {
     SessionConfigOptionInfo {
         id: id.into(),

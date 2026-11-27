@@ -1876,7 +1876,8 @@
   "ImagePreview": {
     "zoomIn": "Acercar",
     "zoomOut": "Alejar",
-    "fit": "Ajustar la imagen a la pantalla"
+    "fit": "Ajustar la imagen a la pantalla",
+    "rotateClockwise": "Girar en sentido horario"
   },
   "Folder": {
     "workspaceStatus": {
@@ -2118,7 +2119,7 @@
         "settleShort": "Resolver"
       },
       "navigation": {
-        "lab": "Chats experimentales",
+        "lab": "Chats nuevos",
         "label": "Navegación",
         "home": "Inicio",
         "today": "Hoy",

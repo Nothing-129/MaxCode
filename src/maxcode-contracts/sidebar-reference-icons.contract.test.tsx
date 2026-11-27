@@ -59,6 +59,24 @@ describe("sidebar reference icons", () => {
     expect(solid).toHaveAttribute("fill", "currentColor")
   })
 
+  it("distinguishes the experimental single message bubble from the regular conversations icon", () => {
+    const { container } = render(
+      <>
+        <SidebarRailIcon name="lab" selected={false} />
+        <SidebarRailIcon name="lab" selected />
+        <SidebarRailIcon name="conversations" selected={false} />
+      </>
+    )
+    const [outline, solid, conversations] = container.querySelectorAll("svg")
+    expect(outline).toHaveClass("lucide-message-square-text")
+    expect(conversations).toHaveClass("lucide-messages-square")
+    const shape = solid.querySelector("path")
+    expect(shape).toHaveAttribute("fill-rule", "evenodd")
+    expect(shape?.getAttribute("d")).toContain(
+      outline.querySelector("path")?.getAttribute("d")
+    )
+  })
+
   it("renders thin decorative compose, clock and task drawings", () => {
     const { container } = render(
       <>

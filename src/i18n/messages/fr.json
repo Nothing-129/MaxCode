@@ -1876,7 +1876,8 @@
   "ImagePreview": {
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière",
-    "fit": "Adapter l’image à l’écran"
+    "fit": "Adapter l’image à l’écran",
+    "rotateClockwise": "Pivoter dans le sens horaire"
   },
   "Folder": {
     "workspaceStatus": {
@@ -2118,7 +2119,7 @@
         "settleShort": "Clore"
       },
       "navigation": {
-        "lab": "Labo de discussion",
+        "lab": "Nouvelles discussions",
         "label": "Navigation",
         "home": "Accueil",
         "today": "Aujourd’hui",

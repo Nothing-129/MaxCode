@@ -1,5 +1,6 @@
 "use client"
 
+import { CornerDownLeft } from "lucide-react"
 import type { RefObject } from "react"
 import type { RichComposerHandle } from "./rich-composer"
 
@@ -16,7 +17,7 @@ export function AcceptPromptSuggestion({
   return (
     <button
       type="button"
-      className="pointer-events-auto relative z-10 ml-2 inline-flex cursor-pointer align-[1px] focus-visible:outline-2 focus-visible:outline-ring max-md:ml-1 max-md:align-middle"
+      className="pointer-events-auto relative z-10 ms-0.5 inline-flex h-[1.5em] w-6 cursor-pointer items-center justify-center align-top after:absolute after:inset-x-0 after:-inset-y-0.5 focus-visible:outline-2 focus-visible:outline-ring supports-[height:1lh]:h-[1lh]"
       aria-label={label}
       onClick={() => {
         const editor = editorRef.current
@@ -26,12 +27,10 @@ export function AcceptPromptSuggestion({
         editor.focus()
       }}
     >
-      <kbd
-        dir="ltr"
-        className="pointer-events-none inline-flex h-5 min-w-5 select-none items-center justify-center gap-1 rounded border border-foreground/10 px-1.5 font-sans text-xs font-medium text-muted-foreground max-md:h-[1.125rem]"
-      >
-        <span className="relative top-[0.5px] max-md:top-0">⇥ Tab</span>
-      </kbd>
+      <CornerDownLeft
+        aria-hidden="true"
+        className="pointer-events-none size-4 text-muted-foreground"
+      />
     </button>
   )
 }

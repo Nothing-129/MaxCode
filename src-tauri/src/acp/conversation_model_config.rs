@@ -53,6 +53,24 @@ pub fn take_mode_for_connect(
     }
 }
 
+/// codex-acp seeds its permission preset on session creation and resume.
+/// Use only known presets confirmed by this conversation's earlier session.
+pub(super) fn codex_resume_permission_mode(
+    agent_type: AgentType,
+    resuming: bool,
+    preferences: &BTreeMap<String, String>,
+) -> Option<&str> {
+    if agent_type != AgentType::Codex || !resuming {
+        return None;
+    }
+    let mode = preferences.get("mode")?.as_str();
+    matches!(
+        mode,
+        "read-only" | "workspace-write" | "agent" | "agent-full-access"
+    )
+    .then_some(mode)
+}
+
 /// codex-acp merges CODEX_CONFIG into thread/resume before returning selectors.
 /// Restore the conversation pair there, rather than first resuming with the
 /// global default and only correcting it through session/set_config_option.

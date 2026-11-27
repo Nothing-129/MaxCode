@@ -25,10 +25,12 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  focusPopoverWithoutKeyboard,
 } from "@/components/ui/popover"
 import { SelectorTooltip } from "@/components/chat/selector-tooltip"
 import { FolderAliasLabel } from "@/components/conversations/folder-alias-label"
 import { cn } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 /** The minimum a folder has to carry to be listed. `alias`/`path` are optional
  *  so a caller can offer a folder it only knows by id (an automation targeting
@@ -142,6 +144,7 @@ export function FolderMenuContent({
   ...popoverProps
 }: FolderMenuProps & FolderMenuPopoverProps) {
   const searchRef = useRef<HTMLInputElement>(null)
+  const isMobile = useIsMobile()
 
   return (
     <PopoverContent
@@ -154,6 +157,8 @@ export function FolderMenuContent({
       )}
       data-composer-selector-content={composer ? "" : undefined}
       onOpenAutoFocus={(event) => {
+        focusPopoverWithoutKeyboard(event, isMobile)
+        if (event.defaultPrevented) return
         event.preventDefault()
         searchRef.current?.focus()
       }}

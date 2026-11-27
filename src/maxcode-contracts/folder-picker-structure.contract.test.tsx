@@ -72,6 +72,30 @@ describe("folder selector structure", () => {
       .querySelector("svg")
     expect(glyph).toHaveClass("size-4", "text-foreground", "scale-y-90")
   })
+  it("opens a touch folder picker without focusing search until tapped", async () => {
+    const media = window.matchMedia
+    const mock = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) =>
+        query === "(pointer: coarse)"
+          ? { ...media(query), matches: true }
+          : media(query)
+      )
+    try {
+      const { user, onSelect } = setup()
+      await user.click(screen.getByRole("button"))
+      const search = screen.getByRole("combobox")
+      expect(screen.getByRole("dialog")).toHaveFocus()
+      expect(search).not.toHaveFocus()
+      await user.click(search)
+      expect(search).toHaveFocus()
+      await user.type(search, "/two/repo")
+      await user.keyboard("{Enter}")
+      expect(onSelect).toHaveBeenCalledWith(2)
+    } finally {
+      mock.mockRestore()
+    }
+  })
   it("shows an explicit empty state without switching folders and keeps chat mode reachable", async () => {
     const { user, onSelect, onSelectChatMode } = setup()
     await user.click(screen.getByRole("button"))

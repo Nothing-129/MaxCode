@@ -1937,6 +1937,7 @@ async fn build_agent(
     stderr_tail: &Arc<StderrTail>,
     scratch: Option<&Path>,
     prompt_suggestions: bool,
+    codex_resume_mode: Option<&str>,
 ) -> Result<AcpAgent, AcpError> {
     // A conversation can outlive the custom-agent definition it was started
     // with (the user deleted it in settings). `get_agent_meta` cannot report
@@ -2019,6 +2020,11 @@ async fn build_agent(
             } else {
                 None
             };
+            if let Some(mode) = codex_resume_mode {
+                // Override the global preset for this adapter process only.
+                merged_env.retain(|(key, _)| key != "INITIAL_AGENT_MODE");
+                merged_env.push(("INITIAL_AGENT_MODE".into(), mode.to_owned()));
+            }
             apply_codex_env_policy(agent_type, &mut merged_env, codex_initial_mode.as_deref());
             apply_codex_prompt_suggestion_policy(agent_type, &mut merged_env, prompt_suggestions);
             // codex-acp 1.0.0 honors APP_SERVER_LOGS as a directory for its
@@ -2526,6 +2532,11 @@ pub async fn spawn_agent_connection(
         &stderr_tail,
         scratch.as_ref().map(|s| s.path()),
         wants_prompt_suggestions,
+        super::conversation_model_config::codex_resume_permission_mode(
+            agent_type,
+            session_id.is_some(),
+            &preferred_config_values,
+        ),
     )
     .await
     {

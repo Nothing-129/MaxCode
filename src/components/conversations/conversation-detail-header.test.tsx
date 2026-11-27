@@ -324,11 +324,13 @@ describe("ConversationDetailHeader dialog target snapshot", () => {
       expect(item).toBeVisible()
       expect(item.querySelector("svg")).toBeVisible()
     }
-    expect(
-      view.getByRole("menuitem", {
-        name: enMessages.Folder.conversationCard.newConversation,
-      })
-    ).toBeVisible()
+    for (const name of [
+      enMessages.Folder.conversationCard.newConversation,
+      enMessages.Folder.conversationCard.attachToCurrentSession,
+      enMessages.Folder.conversationCard.restorePaneDraft,
+    ]) {
+      expect(view.queryByRole("menuitem", { name })).toBeNull()
+    }
     expect(
       view.queryByRole("menuitem", { name: "Mark as completed" })
     ).toBeNull()

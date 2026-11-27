@@ -5,6 +5,7 @@ import { SidebarSectionHeader } from "@/components/conversations/sidebar-section
 import { RecentDateFilter } from "@/components/layout/recent-date-filter"
 import { source } from "./contract-source"
 import en from "@/i18n/messages/en.json"
+import zhCN from "@/i18n/messages/zh-CN.json"
 import { WorkspaceNavigationRail } from "@/components/layout/workspace-navigation-rail"
 import {
   SidebarNavigationProvider,
@@ -163,6 +164,28 @@ describe("functional sidebar navigation", () => {
         expect(inactive).toHaveClass("hover:bg-sidebar-foreground/5")
         expect(inactive.querySelector("svg")).toHaveAttribute("fill", "none")
       }
+    }
+  )
+
+  it.each([false, true])(
+    "labels new chats and places it second by default (mobile: %s)",
+    (mobile) => {
+      render(
+        <NextIntlClientProvider locale="zh-CN" messages={zhCN}>
+          <WorkbenchRouteProvider>
+            <SidebarNavigationProvider>
+              <WorkspaceNavigationRail mobile={mobile} />
+            </SidebarNavigationProvider>
+          </WorkbenchRouteProvider>
+        </NextIntlClientProvider>
+      )
+      const buttons = screen.getByRole("navigation").querySelectorAll("button")
+      expect(
+        Array.from(buttons)
+          .slice(0, 4)
+          .map((button) => button.title)
+      ).toEqual(["主页", "新会话", "项目", "会话"])
+      expect(buttons[1]).toHaveAccessibleName("新会话")
     }
   )
 

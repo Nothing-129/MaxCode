@@ -1876,7 +1876,8 @@
   "ImagePreview": {
     "zoomIn": "Ampliar",
     "zoomOut": "Reduzir",
-    "fit": "Ajustar imagem à tela"
+    "fit": "Ajustar imagem à tela",
+    "rotateClockwise": "Girar no sentido horário"
   },
   "Folder": {
     "workspaceStatus": {
@@ -2118,7 +2119,7 @@
         "settleShort": "Concluir"
       },
       "navigation": {
-        "lab": "Laboratório de conversas",
+        "lab": "Novas conversas",
         "label": "Navegação",
         "home": "Início",
         "today": "Hoje",

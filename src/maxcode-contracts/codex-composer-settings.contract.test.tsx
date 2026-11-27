@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { NextIntlClientProvider } from "next-intl"
 import { useState } from "react"
 import { expect, it, vi } from "vitest"
@@ -194,6 +195,40 @@ it("shows searchable models and keeps the composer summary in sync while keeping
   expect(screen.queryByRole("dialog")).toBeNull()
   expect(screen.queryByRole("button", { name: /Permissions:/ })).toBeNull()
 })
+
+it.each([false, true])(
+  "only auto-focuses model search on desktop (mobile=%s)",
+  async (mobile) => {
+    const media = window.matchMedia
+    const mock = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) =>
+        query === "(max-width: 767px)"
+          ? { ...media(query), matches: mobile }
+          : media(query)
+      )
+    try {
+      const user = userEvent.setup()
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <ConversationSettings />
+        </NextIntlClientProvider>
+      )
+      await user.click(screen.getByRole("button", { name: "6.2 Sol · Low" }))
+      const picker = screen.getByRole("dialog")
+      const search = within(picker).getByRole("searchbox")
+      expect(mobile ? picker : search).toHaveFocus()
+      await user.click(search)
+      expect(search).toHaveFocus()
+      await user.type(search, "astra")
+      expect(
+        within(picker).getByRole("button", { name: "6.2 Astra" })
+      ).toBeVisible()
+    } finally {
+      mock.mockRestore()
+    }
+  }
+)
 
 it("hides an advertised Ultrafast tier without changing the saved speed", () => {
   const onSelect = vi.fn()

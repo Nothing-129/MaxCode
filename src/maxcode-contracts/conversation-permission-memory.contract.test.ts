@@ -13,6 +13,52 @@ import { updateCachedSelectors } from "@/lib/selectors-cache-storage"
 
 beforeEach(() => localStorage.clear())
 
+it("shows the conversation's server-saved permission over an older device preview", () => {
+  const autoReview = {
+    id: "mode",
+    name: "Permission",
+    category: "mode",
+    kind: {
+      type: "select" as const,
+      current_value: "agent",
+      options: [
+        { value: "agent", name: "Auto review" },
+        { value: "agent-full-access", name: "Full access" },
+      ],
+      groups: [],
+    },
+  }
+  updateCachedSelectors("codex", { configOptions: [autoReview] })
+  const live = {
+    agentType: "codex",
+    workingDir: "/project",
+    conversationId: 42,
+    ready: true,
+    configOptions: [autoReview],
+    persistedValues: { mode: "agent" },
+  }
+  const oldView = renderHook(useConversationSelectorPreview, {
+    initialProps: live,
+  })
+  oldView.unmount()
+  const phone = renderHook(useConversationSelectorPreview, {
+    initialProps: {
+      ...live,
+      ready: false,
+      persistedValues: { mode: "agent-full-access" },
+    },
+  })
+  expect(phone.result.current).toMatchObject([
+    {
+      id: "mode",
+      kind: {
+        current_value: "agent-full-access",
+        options: [{ value: "agent-full-access", name: "Full access" }],
+      },
+    },
+  ])
+})
+
 it("uses recent permission defaults only for new conversations, including slow reconnects", () => {
   for (const agent of [
     "codex",

@@ -56,6 +56,10 @@ export function conversationDisplayStatus(
   return c.status === "completed" ? "pending_review" : c.status
 }
 
+export function isLabCompletionStatus(status: DbConversationSummary["status"]) {
+  return status === "pending_review" || status === "completed"
+}
+
 export function labGroup(
   c: DbConversationSummary,
   mark: LabMark | undefined,
@@ -79,11 +83,7 @@ export function labGroup(
       : "main"
   }
   if (isRunningConversationStatus(c.status)) return "running"
-  if (
-    unread &&
-    !labHasWoken(mark, now) &&
-    (c.status === "pending_review" || c.status === "completed")
-  )
+  if (unread && !labHasWoken(mark, now) && isLabCompletionStatus(c.status))
     return "completed"
   return "main"
 }

@@ -1876,7 +1876,8 @@
   "ImagePreview": {
     "zoomIn": "放大",
     "zoomOut": "縮小",
-    "fit": "圖片適應螢幕"
+    "fit": "圖片適應螢幕",
+    "rotateClockwise": "順時針旋轉"
   },
   "Folder": {
     "workspaceStatus": {
@@ -2118,7 +2119,7 @@
         "settleShort": "收尾"
       },
       "navigation": {
-        "lab": "實驗對話",
+        "lab": "新會話",
         "label": "功能導覽",
         "home": "首頁",
         "today": "今日",

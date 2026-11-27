@@ -141,7 +141,7 @@ describe("conversation title menu entry points", () => {
   })
 })
 
-it("keeps the same actions in the sidebar, lab and title, and shares the clicked row", async () => {
+it("keeps the sidebar and lab menus aligned and omits three actions from the title menu", async () => {
   const user = userEvent.setup()
   const preview = vi
     .spyOn(api, "getConversationSharePreview")
@@ -204,5 +204,22 @@ it("keeps the same actions in the sidebar, lab and title, and shares the clicked
       name: enMessages.Folder.conversation.moreActions,
     })
   )
-  expect(labels()).toEqual(expected)
+  const { newConversation, attachToCurrentSession, restorePaneDraft } =
+    enMessages.Folder.conversationCard
+  const find = enMessages.Folder.chat.conversationFind.title
+  const titleItems = labels()
+  expect(titleItems.filter((label) => label !== find)).toEqual(
+    expected.filter(
+      (label) =>
+        label !== newConversation &&
+        label !== attachToCurrentSession &&
+        label !== restorePaneDraft &&
+        label !== find
+    )
+  )
+  const linkTodo = titleItems.indexOf(enMessages.Todos.linkConversation)
+  expect(titleItems[linkTodo + 1]).toBe(find)
+  expect(screen.getByRole("menu").firstElementChild).toHaveTextContent(
+    enMessages.Folder.conversationCard.rename
+  )
 })

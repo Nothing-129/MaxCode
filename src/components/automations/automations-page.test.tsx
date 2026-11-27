@@ -12,6 +12,7 @@ import { NextIntlClientProvider } from "next-intl"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import enMessages from "@/i18n/messages/en.json"
 import {
+  automationCreate,
   automationRunNow,
   automationRuns,
   getFolderConversation,
@@ -59,13 +60,18 @@ vi.mock("@/lib/api", () => ({
 vi.mock("./automation-editor", () => ({
   AutomationEditor: ({
     automation,
+    onCancel,
     onBackToTemplates,
   }: {
     automation: { name?: string } | null
+    onCancel: () => void
     onBackToTemplates?: () => void
   }) => (
     <div>
       <div data-testid="editor-name">{automation?.name ?? "<blank>"}</div>
+      <button type="button" onClick={onCancel}>
+        {enMessages.Automations.cancel}
+      </button>
       {onBackToTemplates ? (
         <button type="button" onClick={onBackToTemplates}>
           back-link
@@ -216,21 +222,21 @@ describe("AutomationsPage (master-detail)", () => {
     expect(sidebar.getByRole("button", { name: /Nightly sweep/ })).toBeVisible()
   })
 
-  it("can open the gallery from New and cancel back to the detail", () => {
+  it("opens a blank editor directly from New and cancels back to the detail", () => {
     renderPage()
     // Detail of the only automation is shown (name appears in list + detail).
     expect(screen.getAllByText("Nightly sweep").length).toBeGreaterThan(0)
-    // Enter the gallery, then cancel back.
     fireEvent.click(screen.getByText(enMessages.Automations.new))
-    expect(
-      screen.getByText(enMessages.Automations.startFromTemplate)
-    ).toBeInTheDocument()
-    fireEvent.click(screen.getByText(enMessages.Automations.cancel))
-    // Back to detail; the gallery heading is gone.
-    expect(screen.getAllByText("Nightly sweep").length).toBeGreaterThan(0)
+    expect(screen.getByTestId("editor-name")).toHaveTextContent("<blank>")
     expect(
       screen.queryByText(enMessages.Automations.startFromTemplate)
     ).not.toBeInTheDocument()
+    expect(screen.queryByText("back-link")).not.toBeInTheDocument()
+    expect(automationCreate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText(enMessages.Automations.cancel))
+    expect(screen.getAllByText("Nightly sweep").length).toBeGreaterThan(0)
+    expect(screen.queryByTestId("editor-name")).not.toBeInTheDocument()
+    expect(automationCreate).not.toHaveBeenCalled()
   })
 
   // `label_snapshot` freezes whatever the agent called these at save time —

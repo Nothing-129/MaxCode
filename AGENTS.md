@@ -4,6 +4,7 @@ This file provides guidance to Code Agent when working with code in this reposit
 
 ## 工作协议
 
+- 以当前工作目录所属的仓库为本次任务范围。如果在该仓库内找不到任务相关的内容，先告知用户并请用户确认目标目录。得到用户明确确认前，不得自行到其他目录或仓库搜索、修改或执行任务。
 - 如果涉及上传或推送，只允许上传或推送到用户自己的 GitHub 仓库，禁止上传或推送到上游仓库。
 - 合并上游前必须从 `main` 创建临时集成分支，并在合并提交前运行
   `pnpm upstream:impact`。命中下游重叠文件或行为热点时，需要评审对应上游提交，

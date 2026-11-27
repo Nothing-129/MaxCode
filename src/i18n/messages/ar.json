@@ -1876,7 +1876,8 @@
   "ImagePreview": {
     "zoomIn": "تكبير",
     "zoomOut": "تصغير",
-    "fit": "ملاءمة الصورة مع الشاشة"
+    "fit": "ملاءمة الصورة مع الشاشة",
+    "rotateClockwise": "تدوير باتجاه عقارب الساعة"
   },
   "Folder": {
     "workspaceStatus": {
@@ -2118,7 +2119,7 @@
         "settleShort": "إنهاء"
       },
       "navigation": {
-        "lab": "مختبر المحادثات",
+        "lab": "المحادثات الجديدة",
         "label": "التنقل",
         "home": "الرئيسية",
         "today": "اليوم",

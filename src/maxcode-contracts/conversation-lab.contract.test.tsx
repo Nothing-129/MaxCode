@@ -91,17 +91,17 @@ function ConversationLab({ mobile = false }: { mobile?: boolean }) {
 }
 
 describe("experimental conversation inbox", () => {
-  it("adds an independent destination after the existing navigation", () => {
+  it("defaults the independent new chats destination to second place", () => {
     expect(
       source("src/components/conversations/conversation-lab.tsx")
     ).not.toContain("PanelLeftClose")
     expect(NAVIGATION_IDS).toEqual([
       "home",
-      "conversations",
+      "lab",
       "projects",
+      "conversations",
       "tasks",
       "automations",
-      "lab",
     ])
     expect(source("src/components/layout/sidebar.tsx")).toContain(
       "<ConversationLab"
@@ -272,6 +272,57 @@ it.each([
     </NextIntlClientProvider>
   )
   expect(screen.getByText(en.Folder.sidebar.lab.working)).toBeVisible()
+})
+
+it("uses the completion badge instead of a blue dot outside the completed shelf", () => {
+  const previous = useConversationUnreadStore.getState()
+  const now = Date.parse("2026-11-24T10:02:00Z")
+  const row = {
+    project: "Chat",
+    hasProject: false,
+    now,
+    selected: false,
+    open: vi.fn(),
+    change: vi.fn(),
+    failureSeen: false,
+    details: vi.fn(),
+    remove: vi.fn(),
+  }
+  const conversation = {
+    id: 9003,
+    title: "Unread conversation",
+    agent_type: "codex",
+    status: "pending_review",
+    updated_at: "2026-11-24T10:00:00Z",
+  } as DbConversationSummary
+  try {
+    useConversationUnreadStore.setState({
+      unreadIds: new Set([9003, 9004, 9005]),
+    })
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <LabRow {...row} c={conversation} group="main" />
+        <LabRow
+          {...row}
+          c={{ ...conversation, id: 9004, pinned_at: conversation.updated_at }}
+          group="pinned"
+        />
+        <LabRow
+          {...row}
+          c={{ ...conversation, id: 9005, status: "cancelled" }}
+          group="main"
+        />
+      </NextIntlClientProvider>
+    )
+    expect(container.querySelector("[data-unread-dot]")).toBeNull()
+    expect(screen.getAllByText(en.Folder.sidebar.lab.done)).toHaveLength(2)
+    expect(screen.getByText("2m")).toBeVisible()
+    act(() => useConversationUnreadStore.getState().setViewed([9003, 9004]))
+    expect(screen.queryByText(en.Folder.sidebar.lab.done)).toBeNull()
+    expect(screen.getAllByText("2m")).toHaveLength(3)
+  } finally {
+    act(() => useConversationUnreadStore.setState(previous))
+  }
 })
 
 it("hides the draft badge when hover or an open snooze menu shows row actions", () => {

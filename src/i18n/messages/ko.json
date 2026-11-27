@@ -1876,7 +1876,8 @@
   "ImagePreview": {
     "zoomIn": "확대",
     "zoomOut": "축소",
-    "fit": "이미지를 화면에 맞추기"
+    "fit": "이미지를 화면에 맞추기",
+    "rotateClockwise": "시계 방향으로 회전"
   },
   "Folder": {
     "workspaceStatus": {
@@ -2118,7 +2119,7 @@
         "settleShort": "정리"
       },
       "navigation": {
-        "lab": "실험 대화",
+        "lab": "새 채팅",
         "label": "작업 공간 탐색",
         "home": "홈",
         "today": "오늘",

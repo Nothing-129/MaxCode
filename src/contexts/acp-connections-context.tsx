@@ -7892,12 +7892,16 @@ export function AcpConnectionsProvider({ children }: { children: ReactNode }) {
     async (contextKey: string, configId: string, valueId: string) => {
       const conn = storeRef.current.connections.get(contextKey)
       if (!conn) return
-      dispatch({
-        type: "CONFIG_OPTION_CHANGED",
-        contextKey,
-        configId,
-        valueId,
-      })
+      // A queued Codex permission change is not yet the live permission.
+      // Show and cache only the option returned in SessionConfigOptions.
+      if (conn.agentType !== "codex" || configId !== "mode") {
+        dispatch({
+          type: "CONFIG_OPTION_CHANGED",
+          contextKey,
+          configId,
+          valueId,
+        })
+      }
       // Persist user selection to localStorage so the next `acp_connect`
       // can ship it back to the backend as a preferred config value.
       saveConfigPreference(conn.agentType, configId, valueId)

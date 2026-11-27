@@ -1876,7 +1876,8 @@
   "ImagePreview": {
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
-    "fit": "Fit image to screen"
+    "fit": "Fit image to screen",
+    "rotateClockwise": "Rotate clockwise"
   },
   "Folder": {
     "workspaceStatus": {
@@ -2118,7 +2119,7 @@
         "settleShort": "Settle"
       },
       "navigation": {
-        "lab": "Chat lab",
+        "lab": "New chats",
         "label": "Workspace navigation",
         "home": "Home",
         "today": "Today",

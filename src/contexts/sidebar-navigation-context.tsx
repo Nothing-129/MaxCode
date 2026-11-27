@@ -17,11 +17,11 @@ import {
 
 export const NAVIGATION_IDS = [
   "home",
-  "conversations",
+  "lab",
   "projects",
+  "conversations",
   "tasks",
   "automations",
-  "lab",
 ] as const
 export type NavigationId = (typeof NAVIGATION_IDS)[number]
 const GROUP_MODES = ["recent", "folder"] as const

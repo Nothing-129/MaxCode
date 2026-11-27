@@ -5,7 +5,17 @@ import { Popover as PopoverPrimitive } from "radix-ui"
 
 import { useOverlayPortalContainer } from "@/components/ui/overlay-portal-container"
 import { useNestedLayerDismissGuard } from "@/hooks/use-nested-layer-dismiss-guard"
+import { isPrimaryPointerCoarse } from "@/hooks/use-is-coarse-pointer"
 import { cn } from "@/lib/utils"
+
+/** Start in the popup without opening the soft keyboard. */
+function focusPopoverWithoutKeyboard(event: Event, isMobile: boolean) {
+  if (!isMobile && !isPrimaryPointerCoarse()) return
+  event.preventDefault()
+  if (event.target instanceof HTMLElement) {
+    event.target.focus({ preventScroll: true })
+  }
+}
 
 function Popover({
   ...props
@@ -97,6 +107,7 @@ function PopoverDescription({
 }
 
 export {
+  focusPopoverWithoutKeyboard,
   Popover,
   PopoverAnchor,
   PopoverContent,

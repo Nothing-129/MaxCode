@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react"
 import { NextIntlClientProvider } from "next-intl"
 import { describe, expect, it, vi } from "vitest"
 import en from "@/i18n/messages/en.json"
+import zhCN from "@/i18n/messages/zh-CN.json"
 import { WorkspaceNavigationRail } from "@/components/layout/workspace-navigation-rail"
 import { SettingsAbout } from "@/components/settings/settings-about"
 import { SidebarNavigationProvider } from "@/contexts/sidebar-navigation-context"
@@ -222,6 +223,23 @@ describe("navigation utilities", () => {
       fireEvent.click(screen.getByRole("button", { name: "Restart to update" }))
     })
     expect(actions.restart).toHaveBeenCalledOnce()
+  })
+  it("uses short Chinese status text in the About footer while restarting", () => {
+    actions.status = "restarting"
+    try {
+      render(
+        <NextIntlClientProvider locale="zh-CN" messages={zhCN}>
+          <SettingsAbout />
+        </NextIntlClientProvider>
+      )
+      const version = screen.getByRole("status")
+      expect(version.textContent).toBe("v1.0 已就绪")
+      expect(screen.getByText("重启中…").parentElement).toBe(
+        version.parentElement
+      )
+    } finally {
+      actions.status = "ready_to_restart"
+    }
   })
   it("shows the current version and check action in a single plain row", () => {
     actions.status = "idle"

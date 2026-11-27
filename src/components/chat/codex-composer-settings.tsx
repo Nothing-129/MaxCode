@@ -7,12 +7,14 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  focusPopoverWithoutKeyboard,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { isFullAccessPermission } from "@/lib/permission-config"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { isImeCompositionKey } from "@/lib/ime-composition"
 import { useScrollbarSafeDismiss } from "@/hooks/use-scrollbar-safe-dismiss"
+import { useIsMobile } from "@/hooks/use-mobile"
 import type { SessionSelectorSetting } from "./session-selectors-panel"
 
 const composerControlTone =
@@ -63,6 +65,7 @@ export function CodexComposerSettings({
   readOnly,
 }: Props) {
   const t = useTranslations("Folder.chat.messageInput")
+  const isMobile = useIsMobile()
   const { contentRef, onPointerDownOutside, onFocusOutside } =
     useScrollbarSafeDismiss()
   const [open, setOpen] = useState(false)
@@ -129,6 +132,9 @@ export function CodexComposerSettings({
       <PopoverContent
         ref={contentRef}
         data-composer-selector-content=""
+        onOpenAutoFocus={(event) =>
+          focusPopoverWithoutKeyboard(event, isMobile)
+        }
         onPointerDownOutside={onPointerDownOutside}
         onFocusOutside={onFocusOutside}
         side="top"

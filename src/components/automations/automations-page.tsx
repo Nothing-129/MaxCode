@@ -205,11 +205,8 @@ function formatDateTime(
   })
 }
 
-/** The detail pane's three states. "gallery" is the template picker shown when
- *  starting a new automation; "editor" hosts the form, seeded from a template
- *  (create) or an existing automation (edit). */
 type EditingState =
-  | { kind: "create"; seed: AutomationDraft | null }
+  | { kind: "create"; seed: AutomationDraft | null; fromOnboarding?: true }
   | { kind: "edit"; automation: Automation }
 
 /** Page title rendered into the window-chrome strip above the page (the h-10
@@ -239,7 +236,6 @@ export function AutomationsPage() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [mode, setMode] = useState<"detail" | "gallery" | "editor">("detail")
   const [editing, setEditing] = useState<EditingState | null>(null)
 
   // Clear the unseen-failure badges while the page is open — on entry and again
@@ -326,17 +322,11 @@ export function AutomationsPage() {
     [automations, activeFolderFilter, statusFilter, search]
   )
 
-  const openGallery = () => {
-    setEditing(null)
-    setMode("gallery")
-  }
-  const backToGallery = () => {
-    setEditing(null)
-    setMode("gallery")
+  const startCreate = () => {
+    setEditing({ kind: "create", seed: null })
   }
   const closeToDetail = () => {
     setEditing(null)
-    setMode("detail")
   }
   const pickTemplate = (tpl: AutomationTemplate | null) => {
     const seed = tpl
@@ -346,18 +336,15 @@ export function AutomationsPage() {
           folderId: folders[0]?.id ?? null,
         })
       : null
-    setEditing({ kind: "create", seed })
-    setMode("editor")
+    setEditing({ kind: "create", seed, fromOnboarding: true })
   }
   const startEdit = (a: Automation) => {
     setEditing({ kind: "edit", automation: a })
-    setMode("editor")
   }
   const selectAutomation = (a: Automation) => {
     setMobileDetailOpen(true)
     setSelectedId(a.id)
     setEditing(null)
-    setMode("detail")
   }
 
   // Shared mutation runner for the per-row quick actions (run now / toggle /
@@ -408,14 +395,16 @@ export function AutomationsPage() {
             onSubmit={handleSubmit}
             onCancel={closeToDetail}
             onBackToTemplates={
-              editing.kind === "create" ? backToGallery : undefined
+              editing.kind === "create" && editing.fromOnboarding
+                ? closeToDetail
+                : undefined
             }
           />
         </div>
       </ScrollArea>
     ) : null
 
-  const picker = (onboarding: boolean) => (
+  const onboardingPane = (
     <ScrollArea className="h-full">
       {/* Onboarding is the whole page, so the gallery is centered in the shell
           both ways. Vertical centering rides on `my-auto` inside a
@@ -424,32 +413,16 @@ export function AutomationsPage() {
           collapse to 0, and it scrolls from the top instead of having its head
           clipped out of reach. */}
       <div className="flex min-h-full flex-col">
-        <div
-          className={cn(
-            "mx-auto flex w-full max-w-4xl flex-col gap-6 p-4",
-            onboarding && "my-auto"
-          )}
-        >
-          {onboarding ? (
-            <div className="flex flex-col items-center gap-2 text-center">
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-                <Zap className="size-6" aria-hidden="true" />
-              </span>
-              <h2 className="text-base font-semibold">{t("onboardTitle")}</h2>
-              <p className="max-w-md text-sm text-muted-foreground">
-                {t("onboardHint")}
-              </p>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {t("startFromTemplate")}
-              </h2>
-              <Button size="sm" variant="ghost" onClick={closeToDetail}>
-                {t("cancel")}
-              </Button>
-            </div>
-          )}
+        <div className="mx-auto my-auto flex w-full max-w-4xl flex-col gap-6 p-4">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+              <Zap className="size-6" aria-hidden="true" />
+            </span>
+            <h2 className="text-base font-semibold">{t("onboardTitle")}</h2>
+            <p className="max-w-md text-sm text-muted-foreground">
+              {t("onboardHint")}
+            </p>
+          </div>
           <TemplateGallery onPick={pickTemplate} />
         </div>
       </div>
@@ -572,8 +545,8 @@ export function AutomationsPage() {
           size="sm"
           variant="ghost"
           className="w-full justify-start gap-2 px-2 text-[0.8125rem] font-semibold"
-          disabled={mode !== "detail"}
-          onClick={openGallery}
+          disabled={editing != null}
+          onClick={startCreate}
         >
           <Plus className="size-4" />
           {t("new")}
@@ -622,7 +595,7 @@ export function AutomationsPage() {
                       key={a.id}
                       automation={a}
                       now={now}
-                      selected={mode === "detail" && current?.id === a.id}
+                      selected={editing == null && current?.id === a.id}
                       onSelect={() => selectAutomation(a)}
                       onRunNow={() => runAction(() => automationRunNow(a.id))}
                       onToggleEnabled={() =>
@@ -642,10 +615,8 @@ export function AutomationsPage() {
   )
   const detailPane = (
     <div className="h-full min-w-0">
-      {mode === "editor" && editing ? (
+      {editing ? (
         editorPane
-      ) : mode === "gallery" ? (
-        picker(false)
       ) : current ? (
         <AutomationDetail
           key={current.id}
@@ -664,7 +635,7 @@ export function AutomationsPage() {
       )}
     </div>
   )
-  const showMobileDetail = mobileDetailOpen || mode !== "detail"
+  const showMobileDetail = mobileDetailOpen || editing != null
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -686,9 +657,7 @@ export function AutomationsPage() {
       )}
       <div className="min-h-0 min-w-0 flex-1">
         {!hasAutomations
-          ? mode === "editor" && editing
-            ? editorPane
-            : picker(mode !== "gallery")
+          ? (editorPane ?? onboardingPane)
           : isMobile && !showMobileDetail
             ? listPane
             : detailPane}

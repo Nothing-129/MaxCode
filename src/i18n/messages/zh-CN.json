@@ -330,7 +330,7 @@
     "currentVersion": "当前版本",
     "footerDownloading": "下载中",
     "footerRestartUpdate": "重启更新",
-    "footerUpdateReady": "v{version} 已就绪，重启后生效",
+    "footerUpdateReady": "v{version} 已就绪",
     "upgradableVersion": "最新版本",
     "none": "暂无",
     "lastChecked": "上次检查：{time}",
@@ -362,7 +362,7 @@
     "stepInstall": "安装",
     "stepRestart": "重启",
     "updateReadyHint": "新版本已下载，重启以完成更新。",
-    "restarting": "正在重启…",
+    "restarting": "重启中…",
     "electronUpgradeHint": "Electron 桌面端需要通过安装包升级。请从发布页面下载 Electron 安装包，安装后重新打开 MaxCode。",
     "downloadAndRestart": "下载更新并重启",
     "dockerUpgradeHint": "现在升级的是正在运行的容器。容器一旦被重建即丢失——如需保留，请拉取或构建新版本镜像后重建容器。",
@@ -1876,7 +1876,8 @@
   "ImagePreview": {
     "zoomIn": "放大",
     "zoomOut": "缩小",
-    "fit": "图片适应屏幕"
+    "fit": "图片适应屏幕",
+    "rotateClockwise": "顺时针旋转"
   },
   "Folder": {
     "workspaceStatus": {
@@ -2118,7 +2119,7 @@
         "settleShort": "收尾"
       },
       "navigation": {
-        "lab": "实验对话",
+        "lab": "新会话",
         "label": "功能导航",
         "home": "主页",
         "today": "今日",

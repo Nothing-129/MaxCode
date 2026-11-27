@@ -13,14 +13,14 @@ describe("MaxCode composer typography", () => {
     )
   })
 
-  it("softens follow-up suggestion text while keeping the Tab label legible", () => {
+  it("softens follow-up suggestion text while keeping the adoption icon legible", () => {
     const css = source("src/app/globals.css")
     expect(css).toMatch(
       /\.codeg-composer \.codeg-composer-suggestion-preview\s*\{\s*color: color-mix\(in srgb, var\(--muted-foreground\) 65%, transparent\);/
     )
     expect(
       source("src/components/chat/composer/accept-prompt-suggestion.tsx")
-    ).toMatch(/<kbd[\s\S]*?text-muted-foreground/)
+    ).toMatch(/<CornerDownLeft[\s\S]*?text-muted-foreground/)
   })
 
   it("matches the reference's medium 14px text instead of thin regular text", () => {

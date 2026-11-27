@@ -10,7 +10,7 @@ import {
 } from "react"
 import { useTranslations } from "next-intl"
 import { Dialog as DialogPrimitive } from "radix-ui"
-import { Copy, Download, Minus, Plus, X } from "lucide-react"
+import { Copy, Download, Minus, Plus, RotateCw, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ImagePreviewDialogProps {
@@ -116,9 +116,10 @@ function ImagePreviewDialog({
 }
 
 type Point = { x: number; y: number }
-type View = Point & { scale: number }
+type View = Point & { scale: number; rotation: number }
 
-const fitView: View = { x: 0, y: 0, scale: 1 }
+const fitView = { x: 0, y: 0, scale: 1 }
+const initialView: View = { ...fitView, rotation: 0 }
 const maxScale = 6
 
 function clamp(value: number, min: number, max: number) {
@@ -144,31 +145,29 @@ function ImagePreviewViewport({
   const imageRef = useRef<HTMLImageElement>(null)
   const pointers = useRef(new Map<number, Point>())
   const consumedGesture = useRef(false)
-  const currentView = useRef(fitView)
-  const [view, setView] = useState(fitView)
+  const currentView = useRef(initialView)
+  const [view, setView] = useState(initialView)
 
   const updateView = useCallback((next: View) => {
     const viewport = viewportRef.current
     const image = imageRef.current
     if (!viewport || !image) return
-    const maxX = Math.max(
-      0,
-      (image.offsetWidth * next.scale - viewport.clientWidth) / 2
-    )
-    const maxY = Math.max(
-      0,
-      (image.offsetHeight * next.scale - viewport.clientHeight) / 2
-    )
+    const sideways = next.rotation % 180 !== 0
+    const width = sideways ? image.offsetHeight : image.offsetWidth
+    const height = sideways ? image.offsetWidth : image.offsetHeight
+    const maxX = Math.max(0, (width * next.scale - viewport.clientWidth) / 2)
+    const maxY = Math.max(0, (height * next.scale - viewport.clientHeight) / 2)
     const updated =
       next.scale === 1
-        ? fitView
+        ? { ...next, ...fitView }
         : {
-            scale: next.scale,
+            ...next,
             x: clamp(next.x, -maxX, maxX),
             y: clamp(next.y, -maxY, maxY),
           }
     const previous = currentView.current
     if (
+      updated.rotation === previous.rotation &&
       updated.scale === previous.scale &&
       updated.x === previous.x &&
       updated.y === previous.y
@@ -189,6 +188,7 @@ function ImagePreviewViewport({
       const anchorX = from ? from.x - bounds.left - viewport.clientWidth / 2 : 0
       const anchorY = from ? from.y - bounds.top - viewport.clientHeight / 2 : 0
       updateView({
+        ...previous,
         scale,
         x:
           anchorX +
@@ -271,11 +271,16 @@ function ImagePreviewViewport({
       draggable={false}
       onClick={(event) => event.stopPropagation()}
       className={cn(
-        "max-h-[90vh] max-w-[90vw] rounded-lg object-contain select-none",
+        "shrink-0 rounded-lg object-contain select-none",
+        view.rotation % 180 !== 0
+          ? "max-h-[90vw] max-w-[90vh]"
+          : "max-h-[90vh] max-w-[90vw]",
         view.scale > 1 && "cursor-grab active:cursor-grabbing"
       )}
       style={{
-        transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})`,
+        translate: `${view.x}px ${view.y}px`,
+        rotate: `${view.rotation}deg`,
+        scale: view.scale,
       }}
     />
   )
@@ -317,7 +322,7 @@ function ImagePreviewViewport({
           aria-label={t("fit")}
           title={t("fit")}
           className={cn(controlClass, "px-2 text-sm tabular-nums")}
-          onClick={() => updateView(fitView)}
+          onClick={() => updateView({ ...currentView.current, ...fitView })}
         >
           {Math.round(view.scale * 100)}%
         </button>
@@ -330,6 +335,20 @@ function ImagePreviewViewport({
           onClick={() => zoomBy(1.5)}
         >
           <Plus className="size-5" />
+        </button>
+        <button
+          type="button"
+          aria-label={t("rotateClockwise")}
+          title={t("rotateClockwise")}
+          className={controlClass}
+          onClick={() =>
+            updateView({
+              ...fitView,
+              rotation: (currentView.current.rotation + 90) % 360,
+            })
+          }
+        >
+          <RotateCw aria-hidden="true" className="size-5" />
         </button>
       </div>
     </>

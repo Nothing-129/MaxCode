@@ -125,10 +125,8 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
   const {
     openDraftAfterConversationDelete,
     closePane,
-    restorePaneDraft,
     openNewConversationTab,
   } = useTabActions()
-  const hasArchivedDraft = useTabStore((s) => s.archivedPaneDrafts.length > 0)
   const updateConversationLocal = useAppWorkspaceStore(
     (s) => s.updateConversationLocal
   )
@@ -300,7 +298,6 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
           : undefined
       }
       closePane={() => closePane(tabId)}
-      restoreDraft={hasArchivedDraft ? restorePaneDraft : undefined}
     />
   )
 
