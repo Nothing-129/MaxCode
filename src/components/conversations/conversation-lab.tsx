@@ -195,7 +195,7 @@ export function ConversationLab({
     openTab,
     openChatModeTab,
     openNewConversationTab,
-    closeConversationTab,
+    openDraftAfterConversationDelete,
   } = useTabActions()
   const { openConversations } = useWorkbenchRoute()
   const selected = useTabStore(
@@ -212,7 +212,7 @@ export function ConversationLab({
   async function remove(c: DbConversationSummary) {
     try {
       await deleteConversation(c.id)
-      closeConversationTab(c.folder_id, c.id, c.agent_type)
+      afterOpen(openDraftAfterConversationDelete(c.id, c.folder_id))
       await refresh()
     } catch (e) {
       toast.error(toErrorMessage(e))
@@ -239,7 +239,8 @@ export function ConversationLab({
     return conversations
       .flatMap((c): Row[] => {
         if (
-          (date &&
+          (!c.pinned_at &&
+            date &&
             endDate &&
             startTime &&
             endTime &&

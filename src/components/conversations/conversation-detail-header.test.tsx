@@ -61,7 +61,7 @@ const h = vi.hoisted(() => ({
     token: "server-token",
     addresses: ["http://127.0.0.1:3080"],
   })),
-  closeTab: vi.fn(),
+  openDraftAfterConversationDelete: vi.fn(),
   openNewConversationTab: vi.fn(),
   titleDragStart: undefined as (() => void) | undefined,
   updateConversationLocal: vi.fn(),
@@ -112,7 +112,7 @@ vi.mock("@/contexts/tab-context", () => ({
       activeTabId: h.activeTabId,
     }),
   useTabActions: () => ({
-    closeTab: h.closeTab,
+    openDraftAfterConversationDelete: h.openDraftAfterConversationDelete,
     closePane: vi.fn(),
     restorePaneDraft: vi.fn(),
     openNewConversationTab: h.openNewConversationTab,
@@ -542,14 +542,13 @@ describe("ConversationDetailHeader dialog target snapshot", () => {
 
     await waitFor(() => {
       expect(h.deleteConversation).toHaveBeenCalledWith(1)
-      // `recordForReopen: false`: the row is deleted, so "reopen closed tab"
-      // must not be able to mint a tab pointing back at it.
-      expect(h.closeTab).toHaveBeenCalledWith("tab-a", {
-        recordForReopen: false,
-      })
+      expect(h.openDraftAfterConversationDelete).toHaveBeenCalledWith(
+        1,
+        A.folderId
+      )
     })
     expect(h.deleteConversation).not.toHaveBeenCalledWith(2)
-    expect(h.closeTab).not.toHaveBeenCalledWith("tab-b", expect.anything())
+    expect(h.openDraftAfterConversationDelete).toHaveBeenCalledTimes(1)
   })
 
   it("renames the conversation the dialog was opened for, even after the active tab switches", async () => {

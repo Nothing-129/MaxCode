@@ -2618,7 +2618,7 @@ it("renders one Codex settings summary and sends edits through the composer call
     ],
   })
   const summary = screen.getByRole("button", {
-    name: "Default · Low · Standard",
+    name: "Default · Low",
   })
   fireEvent.click(summary)
   const panel = within(screen.getByRole("dialog", { name: MSGS.agentSettings }))

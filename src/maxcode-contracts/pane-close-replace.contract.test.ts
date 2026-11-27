@@ -60,6 +60,53 @@ function seedSplit() {
 }
 
 describe("pane close and replacement without hidden tab stacks", () => {
+  it("replaces a deleted conversation with a fresh draft in the same pane", () => {
+    const root = seedSplit()
+    const st = useTabStore.getState()
+    st.openDraftAfterConversationDelete(1, 1)
+
+    const after = useTabStore.getState()
+    const draft = after.rawTabs.find((tab) => tab.id === after.activeTabId)
+    expect(draft).toMatchObject({
+      conversationId: null,
+      folderId: 1,
+      agentType: "codex",
+    })
+    expect(after.groupOf[draft!.id]).toBe(root)
+    expect(after.rawTabs.map((tab) => tab.conversationId)).toEqual([null, 2])
+  })
+
+  it("opens a fresh draft after deleting a conversation that was not open", () => {
+    seedSplit()
+    useTabStore.getState().openDraftAfterConversationDelete(3, 1)
+
+    const after = useTabStore.getState()
+    expect(
+      after.rawTabs.find((tab) => tab.id === after.activeTabId)
+    ).toMatchObject({
+      conversationId: null,
+      folderId: 1,
+    })
+    expect(
+      after.rawTabs.filter((tab) => tab.conversationId != null)
+    ).toHaveLength(2)
+  })
+
+  it("opens a chat draft when the deleted conversation has no project", () => {
+    useAppWorkspaceStore.setState({ folders: [], allFolders: [] })
+    expect(useTabStore.getState().openDraftAfterConversationDelete(3, 4)).toBe(
+      true
+    )
+    const after = useTabStore.getState()
+    expect(
+      after.rawTabs.find((tab) => tab.id === after.activeTabId)
+    ).toMatchObject({
+      conversationId: null,
+      folderId: 0,
+      isChat: true,
+    })
+  })
+
   it("removes the entire closed pane and fills its space instead of revealing hidden conversations", () => {
     const root = seedSplit()
     const st = useTabStore.getState()

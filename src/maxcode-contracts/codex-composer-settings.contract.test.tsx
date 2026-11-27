@@ -90,8 +90,10 @@ it("shows searchable models and keeps the composer summary in sync while keeping
     </NextIntlClientProvider>
   )
   const trigger = screen.getByRole("button", {
-    name: "6.2 Sol · Low · Standard",
+    name: "6.2 Sol · Low",
   })
+  expect(trigger).toHaveTextContent(/^6\.2 Sol · Low$/)
+  expect(trigger.querySelector(".lucide-zap")).toBeNull()
   expect(trigger).toHaveClass(
     "bg-transparent",
     "hover:bg-interaction-hover",

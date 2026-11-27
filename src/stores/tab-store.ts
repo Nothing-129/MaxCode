@@ -235,6 +235,10 @@ export interface TabStoreState {
    * an `opened_tabs` row) pointing at a deleted conversation.
    */
   closeTab: (tabId: string, options?: { recordForReopen?: boolean }) => void
+  openDraftAfterConversationDelete: (
+    conversationId: number,
+    folderId: number
+  ) => boolean
   closeConversationTab: (
     folderId: number,
     conversationId: number,
@@ -1685,6 +1689,45 @@ export const useTabStore = create<TabStoreState>()((set, get) => ({
     // Every caller reaches here right after `deleteConversation` — the row is
     // gone, so the tab must not be offered back by "reopen closed tab".
     get().closeTab(target.id, { recordForReopen: false })
+  },
+
+  openDraftAfterConversationDelete: (conversationId, folderId) => {
+    const st = get()
+    const target = st.rawTabs.find(
+      (tab) => tab.conversationId === conversationId
+    )
+    const folder = useAppWorkspaceStore
+      .getState()
+      .allFolders.find((folder) => folder.id === folderId)
+    const project = folder?.kind === "chat" ? undefined : folder
+
+    if (!target) {
+      const options = { freshDraft: true, rememberContext: false }
+      return Boolean(
+        (project &&
+          st.openNewConversationTab(project.id, project.path, options)) ||
+        st.openChatModeTab(options)
+      )
+    }
+
+    const draft = makeReplacementDraftTab(target)
+    if (!project) {
+      draft.isChat = true
+      draft.folderId = 0
+      draft.workingDir = undefined
+    }
+    const group = groupOfTab(st.groupOf, st.groupLayout, target.id)
+    const groupOf = { ...st.groupOf, [draft.id]: group }
+    delete groupOf[target.id]
+    discardAskSelectionPrompts(target.id)
+    set({
+      rawTabs: st.rawTabs.map((tab) => (tab.id === target.id ? draft : tab)),
+      activeTabId: draft.id,
+      groupOf,
+    })
+    recomputeTabs()
+    runtime.activateConversationPane()
+    return true
   },
 
   closeOtherTabs: (tabId) => {
@@ -3426,6 +3469,7 @@ export function useTabActions() {
       openTab: s.openTab,
       closeTab: s.closeTab,
       closeConversationTab: s.closeConversationTab,
+      openDraftAfterConversationDelete: s.openDraftAfterConversationDelete,
       closeOtherTabs: s.closeOtherTabs,
       closeAllTabs: s.closeAllTabs,
       closeTabsByFolder: s.closeTabsByFolder,

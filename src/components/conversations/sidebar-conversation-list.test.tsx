@@ -64,7 +64,7 @@ const stableWorkspaceFns = vi.hoisted(() => ({
 
 const stableTabFns = vi.hoisted(() => ({
   openTab: () => true,
-  closeConversationTab: () => {},
+  openDraftAfterConversationDelete: () => true,
   closeTabsByFolder: () => {},
   openNewConversationTab: vi.fn(() => ({
     tabId: "new-conversation",

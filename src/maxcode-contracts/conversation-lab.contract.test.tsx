@@ -28,6 +28,11 @@ import {
   SidebarNavigationProvider,
 } from "@/contexts/sidebar-navigation-context"
 import { source } from "./contract-source"
+import {
+  buildConversationDraftStorageKey,
+  clearMessageInputDraftV2,
+  saveMessageInputDraftV2,
+} from "@/lib/message-input-draft"
 
 const snoozeBackend = vi.hoisted(() => ({
   values: new Map<
@@ -267,6 +272,51 @@ it.each([
     </NextIntlClientProvider>
   )
   expect(screen.getByText(en.Folder.sidebar.lab.working)).toBeVisible()
+})
+
+it("hides the draft badge when hover or an open snooze menu shows row actions", () => {
+  const conversation = {
+    id: 9002,
+    title: "Conversation with a draft",
+    agent_type: "codex",
+    status: "pending_review",
+    updated_at: "2026-11-24T10:00:00Z",
+  } as DbConversationSummary
+  const draftKey = buildConversationDraftStorageKey(conversation.id)
+  saveMessageInputDraftV2(draftKey, {
+    type: "doc",
+    content: [
+      { type: "paragraph", content: [{ type: "text", text: "Unsent draft" }] },
+    ],
+  })
+
+  try {
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <LabRow
+          c={conversation}
+          project="Project"
+          hasProject
+          group="main"
+          now={Date.parse("2026-11-24T10:02:00Z")}
+          selected={false}
+          open={vi.fn()}
+          change={vi.fn()}
+          failureSeen={false}
+          details={vi.fn()}
+          remove={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    )
+    const icon = screen.getByRole("img", { name: en.Folder.sidebar.lab.draft })
+    expect(icon).toBeVisible()
+    expect(icon).toHaveClass(
+      "group-hover/row:invisible",
+      "group-has-[[aria-haspopup=menu][data-state=open]]/row:invisible"
+    )
+  } finally {
+    clearMessageInputDraftV2(draftKey)
+  }
 })
 
 it("keeps finished unread chats in their own completed shelf until viewed", () => {
@@ -865,7 +915,7 @@ it.each(["律总管", "AI外呼", "MaxCode", "A", "GKD-青桔定制"])(
   }
 )
 
-it("applies the shared local time range before listing and searching lab conversations", () => {
+it("keeps pinned lab conversations outside the time range in the list and search", () => {
   const previous = useAppWorkspaceStore.getState()
   const saved = localStorage.getItem(DATE_FILTER_STORAGE_KEY)
   localStorage.setItem(
@@ -888,6 +938,7 @@ it("applies the shared local time range before listing and searching lab convers
       status: "pending_review",
       created_at: "2026-11-01",
       updated_at: "2026-11-10T" + time,
+      pinned_at: id === 0 ? "2026-11-10T08:59:59" : null,
     })
   ) as DbConversationSummary[]
   useAppWorkspaceStore.setState({ conversations })
@@ -900,12 +951,23 @@ it("applies the shared local time range before listing and searching lab convers
       </NextIntlClientProvider>
     )
     expect(screen.getAllByText(/^Thread /).map((e) => e.textContent)).toEqual([
+      "Thread 08:59:59",
       "Thread 10:00:59",
       "Thread 09:00:00",
     ])
     fireEvent.change(screen.getByRole("searchbox"), {
       target: { value: "Thread" },
     })
+    expect(screen.getAllByRole("option")).toHaveLength(3)
+    expect(screen.getByText("Thread 08:59:59")).toBeVisible()
+    expect(screen.queryByText("Thread 10:01:00")).toBeNull()
+
+    act(() => {
+      useAppWorkspaceStore.getState().updateConversationLocal(1, {
+        pinned_at: null,
+      })
+    })
+    expect(screen.queryByText("Thread 08:59:59")).toBeNull()
     expect(screen.getAllByRole("option")).toHaveLength(2)
   } finally {
     useAppWorkspaceStore.setState(previous)

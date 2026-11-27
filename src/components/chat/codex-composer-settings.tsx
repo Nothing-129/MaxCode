@@ -93,11 +93,7 @@ export function CodexComposerSettings({
       : undefined
   const showSpeed = speed && visibleSpeeds.length > 0
   const showFastIcon = speedLabel?.toLowerCase() === "fast"
-  const summary = [
-    modelShortLabel,
-    reasoning?.currentLabel,
-    showFastIcon ? undefined : speedLabel,
-  ]
+  const summary = [modelShortLabel, reasoning?.currentLabel]
     .filter(Boolean)
     .join(" · ")
 

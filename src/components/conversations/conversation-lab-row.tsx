@@ -233,7 +233,7 @@ export function LabRow({
                       <SquarePen
                         role="img"
                         aria-label={l("draft")}
-                        className="size-3.5 shrink-0"
+                        className={cn("size-3.5 shrink-0", rowStatusVisibility)}
                       />
                     )}
                     <span

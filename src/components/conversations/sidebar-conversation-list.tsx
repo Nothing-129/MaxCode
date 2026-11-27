@@ -1145,7 +1145,7 @@ export function SidebarConversationList({
   const tabs = useTabStore((s) => s.tabs)
   const {
     openTab,
-    closeConversationTab,
+    openDraftAfterConversationDelete,
     closeTabsByFolder,
     openNewConversationTab,
     openChatModeTab,
@@ -2756,17 +2756,20 @@ export function SidebarConversationList({
   )
 
   const handleDelete = useCallback(
-    async (id: number, agentType: string, folderId: number) => {
+    async (id: number, _agentType: string, folderId: number) => {
       await deleteConversation(id)
-      // No-op if no matching tab is open (the context guards on its tab ref).
-      closeConversationTab(
-        folderId,
-        id,
-        agentType as Parameters<typeof openTab>[2]
-      )
+      if (openDraftAfterConversationDelete(id, folderId)) {
+        openConversations()
+        onNavigate?.()
+      }
       refreshConversations()
     },
-    [closeConversationTab, refreshConversations]
+    [
+      onNavigate,
+      openConversations,
+      openDraftAfterConversationDelete,
+      refreshConversations,
+    ]
   )
 
   const handleTogglePin = useCallback(

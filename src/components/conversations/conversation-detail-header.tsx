@@ -122,8 +122,12 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
   const todosView = useOptionalTodosView()
   const workbenchRoute = useOptionalWorkbenchRoute()
   const setRoute = workbenchRoute?.setRoute
-  const { closeTab, closePane, restorePaneDraft, openNewConversationTab } =
-    useTabActions()
+  const {
+    openDraftAfterConversationDelete,
+    closePane,
+    restorePaneDraft,
+    openNewConversationTab,
+  } = useTabActions()
   const hasArchivedDraft = useTabStore((s) => s.archivedPaneDrafts.length > 0)
   const updateConversationLocal = useAppWorkspaceStore(
     (s) => s.updateConversationLocal
@@ -162,7 +166,7 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
   const [renameValue, setRenameValue] = useState("")
   const [deleteTarget, setDeleteTarget] = useState<{
     id: number
-    tabId: string
+    folderId: number
     title: string
   } | null>(null)
   const persisted = conversationId != null
@@ -216,22 +220,20 @@ export const ConversationDetailHeader = memo(function ConversationDetailHeader({
 
   const handleDeleteOpen = useCallback(() => {
     if (conversationId == null) return
-    setDeleteTarget({ id: conversationId, tabId, title: displayTitle })
-  }, [conversationId, tabId, displayTitle])
+    setDeleteTarget({ id: conversationId, folderId, title: displayTitle })
+  }, [conversationId, folderId, displayTitle])
 
   const handleDeleteConfirm = useCallback(async () => {
     if (deleteTarget == null) return
     try {
       await deleteConversation(deleteTarget.id)
-      // The deleted conversation is gone — close its tab and refresh the list.
-      // Not recorded for reopen: there is no longer a conversation to reopen.
-      closeTab(deleteTarget.tabId, { recordForReopen: false })
+      openDraftAfterConversationDelete(deleteTarget.id, deleteTarget.folderId)
       refreshConversations()
     } catch (err) {
       console.error("[ConversationDetailHeader] delete:", err)
     }
     setDeleteTarget(null)
-  }, [deleteTarget, closeTab, refreshConversations])
+  }, [deleteTarget, openDraftAfterConversationDelete, refreshConversations])
 
   const handleOpenDetails = useCallback(() => {
     // Resolve on demand (no reactive whole-session subscription) via the same
