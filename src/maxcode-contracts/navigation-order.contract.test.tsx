@@ -44,13 +44,13 @@ it("moves navigation entries without closing the menu and restores the saved ord
   expect(screen.getByRole("button", { name: "Home — Move up" })).toBeDisabled()
   fireEvent.click(screen.getByRole("button", { name: "Home — Move down" }))
   expect(screen.getByTestId("order")).toHaveTextContent(
-    "conversations,home,projects,tasks,automations"
+    "lab,home,projects,conversations,tasks,automations"
   )
   expect(screen.getByRole("menu")).toBeVisible()
   first.unmount()
   mount()
   expect(screen.getByTestId("order")).toHaveTextContent(
-    "conversations,home,projects,tasks,automations"
+    "lab,home,projects,conversations,tasks,automations"
   )
 })
 
@@ -61,7 +61,7 @@ it("normalizes stale saved entries without losing or duplicating navigation", ()
   )
   mount()
   expect(screen.getByTestId("order")).toHaveTextContent(
-    "tasks,home,conversations,projects,automations"
+    "tasks,home,lab,projects,conversations,automations"
   )
 })
 
@@ -70,7 +70,7 @@ it("uses arrow buttons without offering Alt shortcuts", () => {
   const row = screen.getAllByRole("menuitem")[0]
   fireEvent.keyDown(row, { key: "ArrowDown", altKey: true })
   expect(screen.getByTestId("order")).toHaveTextContent(
-    "home,conversations,projects,tasks,automations"
+    "home,lab,projects,conversations,tasks,automations"
   )
   expect(row).not.toHaveAttribute("aria-keyshortcuts")
   expect(screen.queryByText(/Alt\+↑|⌥↑/)).not.toBeInTheDocument()
