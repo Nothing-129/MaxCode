@@ -470,10 +470,12 @@ async fn recovery_uses_original_context_and_preserves_locked_titles() {
         events.try_recv().unwrap().payload["summary"]["title"],
         refined
     );
-    assert!(
-        events.is_empty(),
-        "only the refined title should be broadcast"
-    );
+    let read = events
+        .try_recv()
+        .expect("read state follows the title upsert");
+    assert_eq!(read.channel, crate::commands::conversation_read::EVENT);
+    assert_eq!(read.payload["conversation_id"], id);
+    assert!(events.is_empty(), "the title should only be broadcast once");
     assert_eq!(saved.updated_at, summary.updated_at);
     let requests = server.requests.lock().unwrap().clone();
     assert_eq!(requests.len(), 1);
