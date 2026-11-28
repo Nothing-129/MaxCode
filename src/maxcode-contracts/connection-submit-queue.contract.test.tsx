@@ -251,6 +251,8 @@ describe("MaxCode connection-time local submission", () => {
       },
     })
     await screen.findByAltText("queue.png")
+    // Markup becomes available when the upload has supplied the server URI.
+    await screen.findByRole("button", { name: "Mark up the screenshot" })
     await waitFor(() =>
       expect(screen.getByTitle("Queue message")).toBeEnabled()
     )
