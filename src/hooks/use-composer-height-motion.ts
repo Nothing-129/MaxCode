@@ -11,6 +11,8 @@ export function useComposerHeightMotion(
     const root = ref.current
     const documentNode = root?.querySelector(".ProseMirror")
     if (!ready || !root || !documentNode || !root.animate) return
+    const tray = root.querySelector<HTMLElement>("[data-attachment-tray]")
+    let trayOpen = tray?.dataset.open === "true"
     let previous = root.getBoundingClientRect().height
     let width = root.getBoundingClientRect().width
     let animation: Animation | undefined
@@ -29,6 +31,10 @@ export function useComposerHeightMotion(
     }
     updateOverflow()
     const observer = new ResizeObserver(() => {
+      const open = tray?.dataset.open === "true"
+      const openingOnTouch =
+        open && !trayOpen && window.matchMedia("(pointer: coarse)").matches
+      trayOpen = open
       const current = root.getBoundingClientRect()
       const from =
         animation?.playState === "running" ? current.height : previous
@@ -41,6 +47,7 @@ export function useComposerHeightMotion(
         previous > 0 &&
         target.height > 0 &&
         !resized &&
+        !openingOnTouch &&
         Math.abs(previous - target.height) > 1 &&
         !document.hidden &&
         !window.matchMedia("(prefers-reduced-motion: reduce)").matches

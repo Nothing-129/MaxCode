@@ -37,6 +37,48 @@ function setup() {
 afterEach(() => upload.mockReset())
 
 describe("MaxCode second upstream batch", () => {
+  it("tracks ordinary files until the upload succeeds or fails", async () => {
+    let succeed!: (value: { path: string }) => void
+    let fail!: (reason: Error) => void
+    upload
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            succeed = resolve
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            fail = reject
+          })
+      )
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    const { result } = setup()
+    let pending!: Promise<void>
+    try {
+      act(() => {
+        pending = result.current.appendFilesFromInput([
+          new File(["payload"], "report.pdf", { type: "application/pdf" }),
+          new File(["payload"], "failed.zip", { type: "application/zip" }),
+        ])
+      })
+      expect(
+        result.current.pendingFileUploads.map((file) => file.name)
+      ).toEqual(["report.pdf", "failed.zip"])
+      expect(upload).not.toHaveBeenCalled()
+      await waitFor(() => expect(upload).toHaveBeenCalledTimes(2))
+      await act(async () => {
+        succeed({ path: "/uploads/report.pdf" })
+        fail(new Error("network disconnected"))
+        await pending
+      })
+      expect(result.current.pendingFileUploads).toEqual([])
+    } finally {
+      vi.restoreAllMocks()
+    }
+  })
+
   it("uploads marked bytes and replaces the old URI before allowing send", async () => {
     let finish!: (value: { path: string }) => void
     upload.mockImplementation(

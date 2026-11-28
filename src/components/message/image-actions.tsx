@@ -90,11 +90,13 @@ export function ImageActions({
   image,
   className,
   children,
+  disabled = false,
   as: Tag = "div",
 }: {
   image: UserImageDisplay
   className?: string
   children: ReactNode
+  disabled?: boolean
   as?: "div" | "span"
 }) {
   const t = useTranslations("Folder.chat.messageList")
@@ -135,7 +137,7 @@ export function ImageActions({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>
+      <ContextMenuTrigger asChild disabled={disabled}>
         <Tag
           data-image-actions=""
           className={className}

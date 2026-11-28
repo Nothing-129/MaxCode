@@ -4,6 +4,7 @@ import { InputGroupInput } from "@/components/ui/input-group"
 import type { SessionSelectorSetting } from "@/components/chat/session-selectors-panel"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import { useTranslations } from "next-intl"
 import { Plus, Search } from "lucide-react"
 
@@ -71,6 +72,7 @@ export function ComposerAddMenu({
 }: ComposerAddMenuProps) {
   const t = useTranslations("Folder.chat.messageInput")
   const [open, setOpen] = useState(false)
+  const [closingForFilePicker, setClosingForFilePicker] = useState(false)
   const refocusAfterInsert = useRef(false)
   const [slashOpen, setSlashOpen] = useState(false)
   const [slashSearch, setSlashSearch] = useState("")
@@ -104,6 +106,7 @@ export function ComposerAddMenu({
     (open: boolean) => {
       setOpen(open)
       if (!open) return
+      setClosingForFilePicker(false)
       refocusAfterInsert.current = false
       // The editor keeps its selection while the menu is open, so a quick
       // message inserts back at the same caret without tracking an offset.
@@ -141,6 +144,7 @@ export function ComposerAddMenu({
         side="top"
         align="start"
         className="w-auto text-left"
+        style={closingForFilePicker ? { animation: "none" } : undefined}
         onCloseAutoFocus={(event) => {
           if (!refocusAfterInsert.current) return
           event.preventDefault()
@@ -151,7 +155,14 @@ export function ComposerAddMenu({
         {attachments ? (
           <>
             <DropdownMenuItem
-              onClick={() => {
+              onSelect={(event) => {
+                event.preventDefault()
+                // Finish closing before the OS picker takes over the screen,
+                // while still inside the gesture that allows it to open.
+                flushSync(() => {
+                  setClosingForFilePicker(true)
+                  setOpen(false)
+                })
                 attachments.handleUploadLocalFiles().catch((error) => {
                   console.error(
                     "[ComposerAddMenu] upload local files failed:",

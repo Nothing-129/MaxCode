@@ -325,6 +325,70 @@ it("uses the completion badge instead of a blue dot outside the completed shelf"
   }
 })
 
+it("shows the running label between the animated indicator and the fixed-width timer", () => {
+  vi.useFakeTimers()
+  const now = Date.parse("2026-11-24T10:02:00Z")
+  vi.setSystemTime(now)
+  try {
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <LabRow
+          c={
+            {
+              id: 9006,
+              title: "Running conversation",
+              agent_type: "codex",
+              status: "in_progress",
+              updated_at: "2026-11-24T10:00:00Z",
+            } as DbConversationSummary
+          }
+          project="Chat"
+          hasProject={false}
+          group="running"
+          signal={{ kind: "working", startedAt: now - 79_000 }}
+          now={now}
+          selected={false}
+          open={vi.fn()}
+          change={vi.fn()}
+          failureSeen={false}
+          details={vi.fn()}
+          remove={vi.fn()}
+        />
+      </NextIntlClientProvider>
+    )
+    const timer = screen.getByText("01:19")
+    expect(timer).toHaveClass("tabular-nums")
+    expect(timer.parentElement).toHaveClass(
+      "text-sky-600",
+      "dark:text-sky-400",
+      "font-normal",
+      "gap-1.5"
+    )
+    expect(timer.closest("[class*='group-hover/row:invisible']")).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: en.Folder.sidebar.lab.snooze })
+    ).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: en.Folder.sidebar.lab.finish })
+    ).toBeNull()
+    expect(
+      container.querySelector('canvas[data-orb-state="breathing"]')
+    ).toHaveAttribute("aria-hidden", "true")
+    const label = screen.getByText(en.Folder.sidebar.lab.working)
+    expect(label).toBeVisible()
+    expect(label).not.toHaveClass("sr-only")
+    expect(label.previousElementSibling).toHaveAttribute(
+      "data-orb-state",
+      "breathing"
+    )
+    expect(label.nextElementSibling).toBe(timer)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(timer).toHaveTextContent("01:20")
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
 it("hides the draft badge when hover or an open snooze menu shows row actions", () => {
   const conversation = {
     id: 9002,
@@ -1271,15 +1335,15 @@ it("eases wheel input in every experimental scroll area", async () => {
 it("keeps displaying seconds after the run reaches a minute or an hour", async () => {
   const { formatLabWorkingDuration } = await import("@/lib/conversation-lab")
   for (const [seconds, expected] of [
-    [-1, "0s"],
-    [0, "0s"],
-    [59.999, "59s"],
-    [60, "1m 00s"],
-    [61, "1m 01s"],
-    [3599, "59m 59s"],
-    [3600, "1h 0m 00s"],
-    [7505, "2h 5m 05s"],
+    [-1, "00:00"],
+    [0, "00:00"],
+    [59.999, "00:59"],
+    [60, "01:00"],
+    [61, "01:01"],
+    [3599, "59:59"],
+    [3600, "1:00:00"],
+    [7505, "2:05:05"],
   ] as const) {
-    expect(formatLabWorkingDuration(seconds * 1000, "en")).toBe(expected)
+    expect(formatLabWorkingDuration(seconds * 1000)).toBe(expected)
   }
 })

@@ -4,12 +4,18 @@ import type { Editor } from "@tiptap/core"
 import type { ReactNode } from "react"
 import { useEditorState } from "@tiptap/react"
 import { AnimatePresence, motion, useIsPresent } from "motion/react"
-import { X } from "lucide-react"
+import { Loader2, X } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { AttachmentTray } from "./attachment-tray"
 import { ReferenceBadge } from "./badges/reference-badge"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import type { ReferenceAttrs } from "./types"
-import { ATTACHMENT_REMOVE_CLASS } from "./attachment-card"
+import {
+  ATTACHMENT_CARD_CLASS,
+  ATTACHMENT_REMOVE_CLASS,
+  AttachmentDetails,
+} from "./attachment-card"
+import type { PendingFileUpload } from "./use-composer-attachments"
 
 interface FileEntry {
   key: string
@@ -60,17 +66,37 @@ function FileCardContent({
   )
 }
 
-/** A view of the document's file atoms; the document remains the source of truth. */
+function UploadingFileCard({ name }: { name: string }) {
+  const t = useTranslations("Folder.fileTreeTab.uploadDialog.status")
+  return (
+    <div className="w-56 min-w-0 max-w-full shrink-0" role="status">
+      <div className={ATTACHMENT_CARD_CLASS}>
+        <Loader2
+          aria-hidden="true"
+          className="mx-2 size-5 shrink-0 text-muted-foreground motion-safe:animate-spin"
+        />
+        <AttachmentDetails name={name} />
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {t("uploading")}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/** A view of the document's file atoms, alongside files waiting for a server path. */
 export function EditorFileAttachments({
   editor,
   removeLabel,
   children,
   attachmentsPresent = false,
+  pendingFileUploads = [],
 }: {
   editor: Editor | null
   removeLabel?: (name: string) => string
   children?: ReactNode
   attachmentsPresent?: boolean
+  pendingFileUploads?: PendingFileUpload[]
 }) {
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)")
   const files =
@@ -103,10 +129,15 @@ export function EditorFileAttachments({
     }) ?? []
   return (
     <AttachmentTray
-      present={attachmentsPresent || files.length > 0}
+      present={
+        attachmentsPresent || files.length > 0 || pendingFileUploads.length > 0
+      }
       className="flex flex-wrap items-start gap-2 px-4 pt-3 pb-1"
     >
       {children}
+      {pendingFileUploads.map(({ id, name }) => (
+        <UploadingFileCard key={id} name={name} />
+      ))}
       <AnimatePresence initial={false}>
         {files.map((file) => (
           <motion.div

@@ -37,6 +37,7 @@ import {
 } from "./plain-text-content"
 import { serializeDocToText } from "./to-prompt-blocks"
 import { EditorFileAttachments } from "./editor-file-attachments"
+import type { PendingFileUpload } from "./use-composer-attachments"
 import { decideComposerKey } from "./submit-key"
 import type {
   MentionController,
@@ -117,6 +118,7 @@ export interface RichComposerProps {
   removeFileLabel?: (name: string) => string
   /** Attachments share the editor scrollport and take up normal flow space. */
   attachmentContent?: ReactNode
+  pendingFileUploads?: PendingFileUpload[]
   /** Whether external attachment cards are present (the tray remains mounted). */
   attachmentsPresent?: boolean
   /** Remove the external images when the whole composer selection is deleted. */
@@ -280,6 +282,7 @@ export const RichComposer = forwardRef<RichComposerHandle, RichComposerProps>(
       referenceSearch,
       removeFileLabel,
       attachmentContent,
+      pendingFileUploads,
       attachmentsPresent = Boolean(attachmentContent),
       onDeleteSelectedAttachments,
       mentionUiLabels,
@@ -788,6 +791,7 @@ export const RichComposer = forwardRef<RichComposerHandle, RichComposerProps>(
               editor={editor}
               removeLabel={removeFileLabel}
               attachmentsPresent={attachmentsPresent}
+              pendingFileUploads={pendingFileUploads}
             >
               {attachmentContent}
             </EditorFileAttachments>

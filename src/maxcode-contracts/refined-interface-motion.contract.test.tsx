@@ -42,6 +42,7 @@ function Composer({ ready = true }: { ready?: boolean }) {
     <div ref={ref} data-testid="composer">
       <div data-overlayscrollbars-viewport="">
         <div data-composer-scroll-content="">
+          <div data-attachment-tray="" data-open="false" />
           <input className="ProseMirror" aria-label="Draft" />
         </div>
       </div>
@@ -180,6 +181,25 @@ describe("refined interface motion", () => {
     view.unmount()
     expect(root).not.toHaveAttribute("data-composer-overflow")
     cancel.mockReset()
+  })
+  it("reserves attachment height immediately on touch and still animates later text edits", () => {
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query) => ({ matches: query === "(pointer: coarse)" }) as MediaQueryList
+    )
+    render(<Composer />)
+    const root = screen.getByTestId("composer")
+    root
+      .querySelector("[data-attachment-tray]")!
+      .setAttribute("data-open", "true")
+    height = 140
+    act(() => resize([], {} as ResizeObserver))
+    expect(animate).not.toHaveBeenCalled()
+    height = 164
+    act(() => resize([], {} as ResizeObserver))
+    expect(animate).toHaveBeenCalledOnce()
+    expect(source("src/app/interaction-motion.css")).toMatch(
+      /@media \(pointer: coarse\)\s*\{\s*\.maxcode-attachment-tray\[data-open="true"\]\s*\{[^}]*transition-property: opacity;/
+    )
   })
   it("does not animate composer geometry when reduced motion is enabled", () => {
     vi.spyOn(window, "matchMedia").mockReturnValue({

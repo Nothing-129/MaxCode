@@ -32,7 +32,8 @@ const mirrorFeed = {
 function fixture(
   enabled = true,
   probe: (url: string) => Promise<number | null> = async () => 50,
-  nativeMac = false
+  nativeMac = false,
+  platform = "darwin"
 ) {
   let finish!: () => void
   let fail!: (error: Error) => void
@@ -68,7 +69,7 @@ function fixture(
     updater,
     version: "0.30.6",
     arch: "arm64",
-    platform: "darwin",
+    platform,
     probe,
     enabled,
     emit: (state: { seq: number; status: string }) => events.push(state),
@@ -282,6 +283,26 @@ describe("MaxCode contract: Electron differential update lifecycle", () => {
     )
     f.updater.emit("update-downloaded", { version: "0.30.7" })
     f.finish()
+  })
+
+  it("reports a failed Windows backend shutdown without launching the installer", async () => {
+    const f = fixture(true, async () => 50, false, "win32")
+    const error = new Error("MaxCode Windows backend did not exit")
+    f.beforeInstall.mockRejectedValueOnce(error)
+    f.controller.start()
+    await vi.waitFor(() =>
+      expect(f.updater.downloadUpdate).toHaveBeenCalledOnce()
+    )
+    f.updater.emit("update-downloaded", { version: "0.30.7" })
+    f.finish()
+
+    await expect(f.controller.restart()).rejects.toThrow(error.message)
+    expect(f.controller.snapshot()).toMatchObject({
+      status: "error",
+      error: error.message,
+    })
+    expect(f.updater.quitAndInstall).not.toHaveBeenCalled()
+    expect(f.onInstallError).toHaveBeenCalledExactlyOnceWith(error)
   })
 
   it("falls back to the Cloudflare Tunnel generic mirror when GitHub is unreachable", async () => {

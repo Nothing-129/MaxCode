@@ -152,31 +152,24 @@ export function snoozePresets(now: number) {
     })
 }
 
-function formatLabUnit(
-  amount: number,
-  unit: string,
-  locale: string,
-  minimumIntegerDigits = 1
-) {
+function formatLabUnit(amount: number, unit: string, locale: string) {
   return new Intl.NumberFormat(locale, {
     style: "unit",
     unit,
     unitDisplay: "narrow",
-    minimumIntegerDigits,
   }).format(amount)
 }
 
-export function formatLabWorkingDuration(delta: number, locale: string) {
+export function formatLabWorkingDuration(delta: number) {
   const seconds = Number.isFinite(delta)
     ? Math.max(0, Math.floor(delta / 1000))
     : 0
-  if (seconds < 60) return formatLabUnit(seconds, "second", locale)
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor(seconds / 60) % 60
-  const minutesAndSeconds = `${formatLabUnit(minutes, "minute", locale)} ${formatLabUnit(seconds % 60, "second", locale, 2)}`
-  return hours
-    ? `${formatLabUnit(hours, "hour", locale)} ${minutesAndSeconds}`
-    : minutesAndSeconds
+  const clock = [minutes, seconds % 60]
+    .map((value) => String(value).padStart(2, "0"))
+    .join(":")
+  return hours ? `${hours}:${clock}` : clock
 }
 
 export function compactLabTime(

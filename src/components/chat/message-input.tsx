@@ -2411,6 +2411,7 @@ export function MessageInput({
             >
               <RichComposer
                 attachmentsPresent={hasImageAttachments}
+                pendingFileUploads={attach.pendingFileUploads}
                 onDeleteSelectedAttachments={() =>
                   attach.setAttachments((current) =>
                     current.filter((attachment) => attachment.type !== "image")

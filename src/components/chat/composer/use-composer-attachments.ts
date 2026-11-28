@@ -80,6 +80,35 @@ import {
 /** Console prefix, so a log line still names the surface it came from. */
 type LogLabel = string
 
+async function waitForAttachmentPaint(waitForVisible = false): Promise<void> {
+  // The Android picker can deliver files before the chat becomes visible.
+  // Keep the first card queued and start its paint timeout on return.
+  if (waitForVisible && document.hidden) {
+    await new Promise<void>((resolve) => {
+      const onVisible = () => {
+        if (document.hidden) return
+        document.removeEventListener("visibilitychange", onVisible)
+        resolve()
+      }
+      document.addEventListener("visibilitychange", onVisible)
+    })
+  }
+  return new Promise((resolve) => {
+    // Give the tray a frame before WebView starts preparing the upload body.
+    // A backgrounded or paused view may stop delivering animation frames.
+    let frame: number
+    const finish = () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(timeout)
+      resolve()
+    }
+    const timeout = window.setTimeout(finish, 100)
+    frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(finish)
+    })
+  })
+}
+
 export interface ComposerAttachmentsOptions {
   /** The editor the inline badges are inserted into. */
   editorRef: RefObject<RichComposerHandle | null>
@@ -94,12 +123,18 @@ export interface ComposerAttachmentsOptions {
   logLabel?: LogLabel
 }
 
+export interface PendingFileUpload {
+  id: string
+  name: string
+}
+
 export interface ComposerAttachments {
   attachments: InputAttachment[]
   /** Escape hatch for hosts that restore a whole attachment set at once (the
    *  conversation composer re-editing a queued message). */
   setAttachments: Dispatch<SetStateAction<InputAttachment[]>>
   imageAttachments: ImageInputAttachment[]
+  pendingFileUploads: PendingFileUpload[]
   /** True while a web/remote image upload is still in flight — sends must wait,
    *  the block would otherwise carry neither bytes nor a uri to hydrate from. */
   hasUploadingImage: boolean
@@ -186,6 +221,9 @@ export function useComposerAttachments({
     promptCapabilities.embedded_context
 
   const [attachments, setAttachments] = useState<InputAttachment[]>([])
+  const [pendingFileUploads, setPendingFileUploads] = useState<
+    PendingFileUpload[]
+  >([])
   const embeddedPayloadsRef = useRef<Map<string, PromptInputBlock>>(new Map())
   const [isDragActive, setIsDragActive] = useState(false)
   const dragActiveRef = useRef(false)
@@ -355,6 +393,12 @@ export function useComposerAttachments({
         )
       }
       if (accepted.length === 0) return
+      const pending = accepted.map((file) => ({
+        id: randomUUID(),
+        name: file.name,
+      }))
+      setPendingFileUploads((current) => [...current, ...pending])
+      await waitForAttachmentPaint(true)
 
       // Concurrent uploads — one failure doesn't block the rest. Cap at 3:
       // small enough to keep server load predictable, large enough to feel
@@ -392,30 +436,36 @@ export function useComposerAttachments({
           }
         }
       )
-      await Promise.all(workers)
-
-      if (quotaRejected.length > 0) {
-        toast.error(
-          tAttach("attachUploadQuotaExceeded", {
-            names: quotaRejected.join(", "),
-          })
-        )
-      }
-      if (failed.length > 0) {
-        for (const f of failed) {
-          console.error(
-            `[${logLabel}] upload attachment failed (${f.name}):`,
-            f.reason
+      try {
+        await Promise.all(workers)
+        if (quotaRejected.length > 0) {
+          toast.error(
+            tAttach("attachUploadQuotaExceeded", {
+              names: quotaRejected.join(", "),
+            })
           )
         }
-        toast.error(
-          tAttach("attachUploadFailed", {
-            names: failed.map((r) => r.name).join(", "),
-          })
+        if (failed.length > 0) {
+          for (const f of failed) {
+            console.error(
+              `[${logLabel}] upload attachment failed (${f.name}):`,
+              f.reason
+            )
+          }
+          toast.error(
+            tAttach("attachUploadFailed", {
+              names: failed.map((r) => r.name).join(", "),
+            })
+          )
+        }
+        if (uploaded.length > 0) {
+          appendResourceAttachments(uploaded)
+        }
+      } finally {
+        const finishedIds = new Set(pending.map((file) => file.id))
+        setPendingFileUploads((current) =>
+          current.filter((file) => !finishedIds.has(file.id))
         )
-      }
-      if (uploaded.length > 0) {
-        appendResourceAttachments(uploaded)
       }
     },
     [appendResourceAttachments, attachmentTabId, logLabel, tAttach]
@@ -492,34 +542,53 @@ export function useComposerAttachments({
       })
       if (accepted.length === 0) return
 
-      const parsed = await Promise.all(
-        accepted.map(async (file, index) => {
-          const mimeType =
-            file.type && file.type.startsWith("image/")
-              ? file.type
-              : (mimeTypeFromPath(file.name) ?? "image/png")
-          const base64Data = await blobToBase64(file)
-          return {
-            attachment: {
-              id: `image:${Date.now()}:${index}:${randomUUID()}`,
-              type: "image" as const,
-              data: base64Data,
-              uri: null,
-              name: file.name || `image-${Date.now()}-${index + 1}`,
-              mimeType,
-              uploading: true,
-            },
-            file,
-          }
-        })
-      )
-      // Thumbnails appear immediately; uploads settle in the background and
-      // flip `uploading` off (send is gated on that by the host).
-      setAttachments((prev) => [...prev, ...parsed.map((p) => p.attachment)])
-
+      // Android can return the files while the chat is still hidden. Reserve the
+      // cards by name so its first visible frame doesn't depend on file I/O.
+      const pending = accepted.map((file, index) => ({
+        file,
+        attachment: {
+          id: `image:${Date.now()}:${index}:${randomUUID()}`,
+          type: "image" as const,
+          data: "",
+          uri: null,
+          name: file.name || `image-${Date.now()}-${index + 1}`,
+          mimeType: file.type.startsWith("image/")
+            ? file.type
+            : (mimeTypeFromPath(file.name) ?? "image/png"),
+          uploading: true,
+        },
+      }))
+      setAttachments((prev) => [...prev, ...pending.map((p) => p.attachment)])
       const failed: Array<{ name: string; reason: unknown }> = []
       const quotaRejected: string[] = []
       const CONCURRENCY = 3
+      const unreadable = new Set<string>()
+      for (let i = 0; i < pending.length; i += CONCURRENCY) {
+        await waitForAttachmentPaint(i === 0)
+        await Promise.all(
+          pending
+            .slice(i, i + CONCURRENCY)
+            .map(async ({ attachment, file }) => {
+              try {
+                const data = await blobToBase64(file)
+                setAttachments((prev) =>
+                  prev.map((a) => (a.id === attachment.id ? { ...a, data } : a))
+                )
+              } catch (reason) {
+                unreadable.add(attachment.id)
+                failed.push({ name: attachment.name, reason })
+                setAttachments((prev) =>
+                  prev.filter((a) => a.id !== attachment.id)
+                )
+              }
+            })
+        )
+      }
+      const parsed = pending.filter(
+        ({ attachment }) => !unreadable.has(attachment.id)
+      )
+      if (parsed.length > 0) await waitForAttachmentPaint()
+
       let cursor = 0
       const workers = Array.from(
         { length: Math.min(CONCURRENCY, parsed.length) },
@@ -915,6 +984,7 @@ export function useComposerAttachments({
     attachments,
     setAttachments,
     imageAttachments,
+    pendingFileUploads,
     hasUploadingImage,
     isDragActive,
     canAttachImages,

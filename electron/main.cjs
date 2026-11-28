@@ -423,6 +423,7 @@ async function shutdown() {
     for (const notification of notifications) notification.close()
     const runningBackend = backend || (await backendStartup?.catch(() => null))
     await runningBackend?.stop()
+    desktopLog("shutdown-complete")
   })()
   return shutdownPromise
 }

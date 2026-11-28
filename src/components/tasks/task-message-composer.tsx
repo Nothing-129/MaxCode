@@ -309,6 +309,7 @@ export function TaskMessageComposer({
           band cannot be recovered from the serialized text. */}
       <RichComposer
         attachmentsPresent={attach.imageAttachments.length > 0}
+        pendingFileUploads={attach.pendingFileUploads}
         onDeleteSelectedAttachments={() =>
           attach.setAttachments((current) =>
             current.filter((attachment) => attachment.type !== "image")

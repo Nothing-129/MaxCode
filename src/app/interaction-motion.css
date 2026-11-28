@@ -123,6 +123,13 @@
   opacity: 0;
 }
 
+@media (pointer: coarse) {
+  .maxcode-attachment-tray[data-open="true"] {
+    /* Reserve the card's height in one layout as the picker returns. */
+    transition-property: opacity;
+  }
+}
+
 @keyframes maxcode-generation-halo {
   0%,
   100% {

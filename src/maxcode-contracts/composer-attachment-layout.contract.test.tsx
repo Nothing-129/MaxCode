@@ -8,6 +8,8 @@ import {
   waitFor,
 } from "@testing-library/react"
 import { afterEach, describe, expect, it } from "vitest"
+import { NextIntlClientProvider } from "next-intl"
+import messages from "@/i18n/messages/zh-CN.json"
 import {
   RichComposer,
   type RichComposerHandle,
@@ -44,6 +46,27 @@ async function mount(attachmentContent?: ReactNode) {
 }
 
 describe("composer attachment and text separation", () => {
+  it("shows the pending local file in the attachment tray before it has a link", () => {
+    const { container, rerender } = render(
+      <NextIntlClientProvider locale="zh-CN" messages={messages}>
+        <RichComposer
+          pendingFileUploads={[{ id: "file-1", name: "report.zip" }]}
+        />
+      </NextIntlClientProvider>
+    )
+    const tray = container.querySelector("[data-attachment-tray]")
+    expect(tray).toHaveAttribute("data-open", "true")
+    expect(screen.getByRole("status")).toHaveTextContent("report.zip上传中")
+    expect(container.querySelector("[data-editor-file-card]")).toBeNull()
+    rerender(
+      <NextIntlClientProvider locale="zh-CN" messages={messages}>
+        <RichComposer pendingFileUploads={[]} />
+      </NextIntlClientProvider>
+    )
+    expect(screen.queryByRole("status")).toBeNull()
+    expect(tray).toHaveAttribute("data-open", "false")
+  })
+
   it("keeps image attachments, file cards and text in document flow inside one scrollport", async () => {
     const { container, editor } = await mount(
       <div data-image-strip="">

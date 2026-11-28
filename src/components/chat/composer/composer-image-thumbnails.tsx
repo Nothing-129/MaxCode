@@ -108,23 +108,30 @@ export function ComposerImageThumbnails({
             <AttachmentInteraction>
               <ImageActions
                 image={toDisplay(attachment)}
+                disabled={!attachment.data}
                 className={cn("relative", ATTACHMENT_CARD_CLASS)}
               >
                 <button
                   type="button"
+                  disabled={!attachment.data}
                   onClick={() => setPreviewId(attachment.id)}
                   className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg text-left transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   title={attachment.name}
                   aria-label={attachment.name}
                 >
-                  <Image
-                    src={`data:${attachment.mimeType};base64,${attachment.data}`}
-                    alt={attachment.name}
-                    width={36}
-                    height={36}
-                    unoptimized
-                    className="size-9 shrink-0 rounded-lg object-cover"
-                  />
+                  {attachment.data ? (
+                    <Image
+                      src={`data:${attachment.mimeType};base64,${attachment.data}`}
+                      alt={attachment.name}
+                      width={36}
+                      height={36}
+                      unoptimized
+                      decoding="async"
+                      className="size-9 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <span aria-hidden="true" className="size-9 shrink-0" />
+                  )}
                   <AttachmentDetails
                     name={attachment.name}
                     type={

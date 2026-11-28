@@ -299,6 +299,7 @@ function createDesktopUpdater({
         throw new Error("No verified desktop update is ready to install")
       restarting = true
       transition({ status: "restarting", version: state.version })
+      let stoppingBackend = false
       try {
         if (nativeUpdater) {
           // Native update-downloaded only certifies the preparation at that
@@ -312,6 +313,7 @@ function createDesktopUpdater({
           await verifyMacUpdate()
           log("update-prepare-install-ready")
         }
+        stoppingBackend = true
         await beforeInstall()
         // Reply to IPC before the updater closes the window.
         setImmediate(() => {
@@ -327,6 +329,14 @@ function createDesktopUpdater({
       } catch (error) {
         restarting = false
         failure(error)
+        if (stoppingBackend) {
+          log("update-error", {
+            phase: "shutdown",
+            message: errorText(error),
+            stack: error?.stack,
+          })
+          onInstallError?.(error)
+        }
         throw error
       }
     },

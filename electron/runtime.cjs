@@ -8,6 +8,24 @@ const { randomBytes } = require("node:crypto")
 const MAX_STORAGE_BYTES = 5 * 1024 * 1024
 const wait = (milliseconds) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds))
+
+async function stopWindowsBackend(child, hasExited) {
+  await new Promise((resolve) => {
+    execFile(
+      "taskkill.exe",
+      ["/PID", String(child.pid), "/T", "/F"],
+      { timeout: 3000, windowsHide: true },
+      () => resolve()
+    )
+  })
+  if (hasExited()) return
+
+  // taskkill may fail or return before the owned backend has exited.
+  child.kill("SIGKILL")
+  const deadline = Date.now() + 2000
+  while (!hasExited() && Date.now() < deadline) await wait(50)
+  if (!hasExited()) throw new Error("MaxCode Windows backend did not exit")
+}
 const APP_PATHS = new Set([
   "/",
   "/workspace",
@@ -276,17 +294,7 @@ async function startBackend({
       // as a backstop for stuck descendants, including after the parent exits.
       if (child.pid) {
         if (process.platform === "win32") {
-          if (!exited) {
-            await new Promise((resolve) => {
-              const killer = spawn(
-                "taskkill",
-                ["/PID", String(child.pid), "/T", "/F"],
-                { windowsHide: true, stdio: "ignore" }
-              )
-              killer.once("error", resolve)
-              killer.once("exit", resolve)
-            })
-          }
+          if (!exited) await stopWindowsBackend(child, () => exited)
         } else {
           try {
             process.kill(-child.pid, "SIGKILL")

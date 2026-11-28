@@ -4,11 +4,12 @@ import { ConversationActionsMenu } from "./conversation-actions-menu"
 import { formatConversationTitle } from "@/lib/conversation-title"
 import { useState } from "react"
 import { useLocale, useNow, useTranslations } from "next-intl"
+import { useTheme } from "next-themes"
+import { ThinkingOrb } from "thinking-orbs"
 import {
   AlarmClock,
   CircleCheck,
   CircleAlert,
-  CircleDashed,
   CircleDotDashed,
   ShieldQuestionMark,
   MessageCircleQuestionMark,
@@ -67,8 +68,8 @@ const rowStatusVisibility =
 const badgeStyles = {
   approval: [ShieldQuestionMark, "text-amber-700 dark:text-amber-400"],
   input: [MessageCircleQuestionMark, "text-indigo-600 dark:text-indigo-300"],
-  working: [CircleDashed, "text-sky-600 dark:text-sky-400"],
-  goal: [CircleDashed, "text-sky-600 dark:text-sky-400"],
+  working: [LabActivityIcon, "text-sky-600 dark:text-sky-400"],
+  goal: [LabActivityIcon, "text-sky-600 dark:text-sky-400"],
   waiting: [CircleDotDashed, "text-muted-foreground"],
   failed: [CircleAlert, "text-destructive"],
   limited: [CircleAlert, "text-amber-700 dark:text-amber-400"],
@@ -76,12 +77,27 @@ const badgeStyles = {
   woken: [AlarmClock, "text-orange-700 dark:text-orange-400"],
 } as const
 
+function LabActivityIcon({ className }: { className?: string }) {
+  const { resolvedTheme } = useTheme()
+  const state = "breathing"
+  return (
+    <ThinkingOrb
+      aria-hidden="true"
+      state={state}
+      size={20}
+      color={resolvedTheme === "dark" ? "#38bdf8" : "#0084d1"}
+      style={{ width: 14, height: 14 }}
+      data-orb-state={state}
+      className={cn("shrink-0", className)}
+    />
+  )
+}
+
 function WorkingDuration({ start }: { start: number }) {
   const now = useNow({ updateInterval: 1000 })
-  const locale = useLocale()
   return (
-    <span className="tabular-nums">
-      {formatLabWorkingDuration(now.getTime() - start, locale)}
+    <span className="tabular-nums" dir="ltr">
+      {formatLabWorkingDuration(now.getTime() - start)}
     </span>
   )
 }
@@ -170,8 +186,12 @@ export function LabRow({
   const status =
     liveKind ?? (showWoke ? "woken" : hasUnreadCompletion ? "done" : undefined)
   const isWorking = status === "working" || status === "goal"
+  const hideRowActions =
+    !compact && (group === "running" || isWorking || status === "waiting")
   const BadgeIcon = status ? badgeStyles[status][0] : undefined
   const start = signal?.startedAt ?? started
+  const hasTimer = isWorking && start != null && Number.isFinite(start)
+  const showCompactTimer = status === "working" && hasTimer
   const projectIcon = (
     <LabProjectBadge
       name={hasProject ? project : null}
@@ -232,13 +252,16 @@ export function LabRow({
                       <SquarePen
                         role="img"
                         aria-label={l("draft")}
-                        className={cn("size-3.5 shrink-0", rowStatusVisibility)}
+                        className={cn(
+                          "size-3.5 shrink-0",
+                          !hideRowActions && rowStatusVisibility
+                        )}
                       />
                     )}
                     <span
                       className={cn(
                         "flex shrink-0 items-center gap-1",
-                        rowStatusVisibility
+                        !hideRowActions && rowStatusVisibility
                       )}
                     >
                       {c.pinned_at && <Pin className="size-3 shrink-0" />}
@@ -246,18 +269,17 @@ export function LabRow({
                         <span
                           aria-hidden={showWoke || undefined}
                           className={cn(
-                            "inline-flex items-center gap-1 font-medium",
+                            "inline-flex items-center",
+                            showCompactTimer
+                              ? "gap-1.5 font-normal"
+                              : "gap-1 font-medium",
                             badgeStyles[status][1],
                             showWoke && "invisible"
                           )}
                         >
                           <BadgeIcon aria-hidden="true" className="size-3.5" />
-                          {l(status)}
-                          {isWorking &&
-                            start != null &&
-                            Number.isFinite(start) && (
-                              <WorkingDuration start={start} />
-                            )}
+                          <span>{l(status)}</span>
+                          {hasTimer && <WorkingDuration start={start} />}
                         </span>
                       ) : (
                         elapsed
@@ -276,43 +298,45 @@ export function LabRow({
                 </>
               )}
             </button>
-            <div className="pointer-events-none absolute end-1 top-0 flex items-center">
-              <div className="pointer-events-none flex items-center opacity-0 group-hover/row:pointer-events-auto group-hover/row:opacity-100 has-[[data-state=open]]:opacity-100">
-                {!compact && canSnooze && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        tabIndex={-1}
-                        className={rowAction}
-                        aria-label={l("snooze")}
-                        title={l("snooze")}
-                      >
-                        <Clock className="size-3.5" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <SnoozeChoices
-                        snooze={change}
-                        custom={() => setCustom(true)}
-                      />
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-                <button
-                  tabIndex={-1}
-                  className={cn(
-                    rowAction,
-                    !compact && "w-auto gap-1 px-1.5 text-xs"
+            {!hideRowActions && (
+              <div className="pointer-events-none absolute end-1 top-0 flex items-center">
+                <div className="pointer-events-none flex items-center opacity-0 group-hover/row:pointer-events-auto group-hover/row:opacity-100 has-[[data-state=open]]:opacity-100">
+                  {!compact && canSnooze && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          tabIndex={-1}
+                          className={rowAction}
+                          aria-label={l("snooze")}
+                          title={l("snooze")}
+                        >
+                          <Clock className="size-3.5" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <SnoozeChoices
+                          snooze={change}
+                          custom={() => setCustom(true)}
+                        />
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
-                  onClick={snoozed ? wake : toggleSettlement}
-                  title={l(action)}
-                  aria-label={l(action)}
-                >
-                  <ActionIcon className="size-3.5" />
-                  {!compact && l("settleShort")}
-                </button>
+                  <button
+                    tabIndex={-1}
+                    className={cn(
+                      rowAction,
+                      !compact && "w-auto gap-1 px-1.5 text-xs"
+                    )}
+                    onClick={snoozed ? wake : toggleSettlement}
+                    title={l(action)}
+                    aria-label={l(action)}
+                  >
+                    <ActionIcon className="size-3.5" />
+                    {!compact && l("settleShort")}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
             {showWoke && (
               <button
                 type="button"

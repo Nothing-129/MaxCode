@@ -37,7 +37,7 @@ vi.mock("@/hooks/use-enabled-skill-ids", () => ({
 afterEach(cleanup)
 const labels = messages.Folder.chat.messageInput
 
-async function mount() {
+async function mount(handleUploadLocalFiles = async () => {}) {
   const ref = createRef<RichComposerHandle>()
   function Harness() {
     const shortcuts = useComposerShortcuts({
@@ -49,7 +49,7 @@ async function mount() {
         <RichComposer ref={ref} defaultText="before after" />
         <ComposerAddMenu
           attachments={{
-            handleUploadLocalFiles: async () => {},
+            handleUploadLocalFiles,
             setServerFilePickerOpen: () => {},
           }}
           shortcuts={shortcuts}
@@ -94,6 +94,21 @@ async function openSubmenu(label: string) {
 }
 
 describe("MaxCode: composer add menu appearance", () => {
+  it("removes the menu before opening the native file picker", async () => {
+    const handleUploadLocalFiles = vi.fn(async () => {
+      expect(screen.queryByRole("menu")).toBeNull()
+    })
+    const { trigger } = await mount(handleUploadLocalFiles)
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: labels.attachLocalUpload })
+    )
+    expect(handleUploadLocalFiles).toHaveBeenCalledOnce()
+    await expect(
+      handleUploadLocalFiles.mock.results[0]?.value
+    ).resolves.toBeUndefined()
+    expect(trigger).toHaveAttribute("aria-expanded", "false")
+  })
+
   it("uses text for attachments and only trailing arrows for submenus", async () => {
     await mount()
     const menu = screen.getByRole("menu")

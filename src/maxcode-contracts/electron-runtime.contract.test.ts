@@ -28,6 +28,55 @@ afterEach(() => {
 })
 
 describe("MaxCode contract: Electron owns the local desktop", () => {
+  it.each(["taskkill", "fallback", "stuck"])(
+    "bounds Windows shutdown and confirms backend exit: %s",
+    async (result) => {
+      vi.useFakeTimers()
+      try {
+        let exited = false
+        const child = {
+          pid: 123,
+          kill: vi.fn(() => {
+            if (result === "fallback") setTimeout(() => (exited = true), 50)
+          }),
+        }
+        const execFile = vi.fn((_file, _args, { timeout }, callback) => {
+          setTimeout(() => {
+            exited = result === "taskkill"
+            callback(exited ? null : new Error("taskkill timed out"))
+          }, timeout)
+        })
+        const source = readFileSync("electron/runtime.cjs", "utf8")
+        const stopWindowsBackend = runInNewContext(
+          `${source}\nstopWindowsBackend`,
+          {
+            require: (id: string) =>
+              id === "node:child_process" ? { execFile } : require(id),
+            module: { exports: {} },
+            setTimeout,
+            Date,
+          }
+        )
+        const stop = stopWindowsBackend(child, () => exited)
+        const outcome =
+          result === "stuck"
+            ? expect(stop).rejects.toThrow("Windows backend did not exit")
+            : expect(stop).resolves.toBeUndefined()
+        await vi.advanceTimersByTimeAsync(5000)
+        await outcome
+        expect(execFile).toHaveBeenCalledWith(
+          "taskkill.exe",
+          ["/PID", "123", "/T", "/F"],
+          { timeout: 3000, windowsHide: true },
+          expect.any(Function)
+        )
+        expect(child.kill).toHaveBeenCalledTimes(result === "taskkill" ? 0 : 1)
+      } finally {
+        vi.useRealTimers()
+      }
+    }
+  )
+
   it.each([
     { parentOwned: true, shutdownFails: false, expectedCode: 0 },
     { parentOwned: false, shutdownFails: false, expectedCode: 0 },
